@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { FileSystem } from "../file-system/operations.ts";
 import {
 	getInstructionGuideByKey,
 	INSTRUCTION_GUIDE_KEYS,
@@ -6,6 +7,9 @@ import {
 	type InstructionGuideKey,
 	type WorkflowGuideDefinition,
 } from "../mcp/workflow-guides.ts";
+import { findBacklogRoot } from "../utils/find-backlog-root.ts";
+import { resolveRuntimeCwd } from "../utils/runtime-cwd.ts";
+import { withTaskManagementPolicy } from "../utils/task-management-policy.ts";
 import { addHelpSchema, choiceType, renderConfiguredTaskIds } from "./help-schema.ts";
 
 type InstructionsOptions = {
@@ -66,7 +70,7 @@ export function registerInstructionsCommand(program: Command): void {
 	})
 		.description("show Backlog.md workflow instructions")
 		.option("--list", "list available instruction guides")
-		.action((guide: string | undefined, options: InstructionsOptions) => {
+		.action(async (guide: string | undefined, options: InstructionsOptions) => {
 			if (options.list || guide === undefined) {
 				process.stdout.write(formatInstructionGuideIndex());
 				return;
@@ -85,6 +89,11 @@ export function registerInstructionsCommand(program: Command): void {
 				process.exit(1);
 			}
 
-			process.stdout.write(formatInstructionGuideMarkdown(selectedGuide.resourceText));
+			const { cwd } = await resolveRuntimeCwd();
+			const root = await findBacklogRoot(cwd);
+			const config = await new FileSystem(root ?? cwd).loadConfig();
+			process.stdout.write(
+				formatInstructionGuideMarkdown(withTaskManagementPolicy(selectedGuide.resourceText, config)),
+			);
 		});
 }

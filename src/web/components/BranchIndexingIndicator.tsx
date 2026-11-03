@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import { useEffect, useRef, useState } from "react";
 
 interface BranchIndexingIndicatorProps {
@@ -19,6 +20,7 @@ export function BranchIndexingIndicator({
 	appearDelayMs = 250,
 	exitDurationMs = 200,
 }: BranchIndexingIndicatorProps) {
+  const { t } = useTranslation();
 	const [mounted, setMounted] = useState(false);
 	const [active, setActive] = useState(false);
 	const lastMessageRef = useRef<string | null>(null);
@@ -43,7 +45,10 @@ export function BranchIndexingIndicator({
 
 	if (!mounted) return null;
 
-	const detail = lastMessageRef.current ?? undefined;
+	const indexing = lastMessageRef.current?.match(/^Indexing (\d+) (other local|recent remote) branches\.\.\.$/);
+    const detail = indexing
+        ? t(indexing[2] === "other local" ? "Indexing {count} other local branches..." : "Indexing {count} recent remote branches...", { count: indexing[1] ?? "" })
+        : lastMessageRef.current ? t(lastMessageRef.current) : undefined;
 	return (
 		<>
 			<div
@@ -57,10 +62,8 @@ export function BranchIndexingIndicator({
 					className="h-3 w-3 shrink-0 animate-spin rounded-circle border-2 border-blue-200 border-t-blue-600 motion-reduce:animate-none dark:border-blue-400/30 dark:border-t-blue-400"
 					aria-hidden="true"
 				/>
-				<span aria-hidden="true" className="hidden sm:inline">
-					Indexing branches
-				</span>
-				<span className="sr-only">{detail ?? "Indexing branches"}</span>
+				<span aria-hidden="true" className="hidden sm:inline">{t("Indexing branches")}</span>
+				<span className="sr-only">{detail ?? t("Indexing branches")}</span>
 			</div>
 			<div
 				aria-hidden="true"

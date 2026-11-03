@@ -1,3 +1,5 @@
+import ArchivePage from "./components/ArchivePage";
+import { LanguageProvider, useTranslation } from "./contexts/LanguageContext";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -208,6 +210,7 @@ type TaskModalState =
     };
 
 function AppContent() {
+  const { t } = useTranslation();
   const [modal, setModal] = useState<TaskModalState>({ kind: 'closed' });
   // Each entry into the modal takes the next session number, so a response can name the modal it
   // was read for.
@@ -742,18 +745,18 @@ function AppContent() {
       if (!fromRoute || !routeBasePath) return;
       const message =
         error instanceof ApiError && error.status === 409
-          ? `Task "${taskId}" is ambiguous. Repair duplicate task IDs before opening this link.`
+          ? t("Task \"{0}\" is ambiguous. Repair duplicate task IDs before opening this link.", { "0": taskId })
           : error instanceof ApiError && error.status === 400
             ? `"${taskId}" is not a valid task ID.`
             : error instanceof ApiError && error.status === 404
-              ? `Task "${taskId}" was not found.`
-              : `Task "${taskId}" could not be opened. Try again.`;
+              ? t("Task \"{0}\" was not found.", { "0": taskId })
+              : t("Task \"{0}\" could not be opened. Try again.", { "0": taskId });
       navigate(`${routeBasePath}${location.search}`, {
         replace: true,
         state: { taskRouteError: message } satisfies TaskRouteNavigationState,
       });
     },
-    [clearTaskModal, location.search, navigate, routeBasePath],
+    [clearTaskModal, location.search, navigate, routeBasePath, t],
   );
   const reportDetailReadFailureRef = useRef(reportDetailReadFailure);
   useEffect(() => {
@@ -881,7 +884,7 @@ function AppContent() {
     // A second cleanup within the display window must not inherit the first one's expiry, or the
     // pending timeout clears a notice the reader has only just been shown.
     if (dependencyCleanupTimer.current) clearTimeout(dependencyCleanupTimer.current);
-    setDependencyCleanupNotice(message);
+    setDependencyCleanupNotice(t("Removed references to {task} from {tasks}", { task: taskId, tasks: (cleanedTaskIds ?? []).join(", ") }));
     dependencyCleanupTimer.current = setTimeout(() => {
       dependencyCleanupTimer.current = null;
       setDependencyCleanupNotice(null);
@@ -900,7 +903,7 @@ function AppContent() {
       if (readMovedFailureState(error, 'archiveState')) {
         handleCloseModal();
         try {
-          window.alert('The task was archived, but committing the change failed. Check the repository before retrying.');
+          window.alert(t('The task was archived, but committing the change failed. Check the repository before retrying.'));
         } catch {
           // A blocked dialog must not take the refresh down with it.
         }
@@ -918,7 +921,7 @@ function AppContent() {
       <ThemeProvider>
         <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900" role="status">
           <LoadingSpinner size="md" text="" />
-          <span className="sr-only">Loading</span>
+          <span className="sr-only">{t("Loading")}</span>
         </div>
       </ThemeProvider>
     );
@@ -974,12 +977,12 @@ function AppContent() {
 
   return (
     <ThemeProvider>
-      <TaskIdIndexProvider tasks={tasks}>
+      <TaskIdIndexProvider tasks={tasks} docs={docs} decisions={decisions}>
       <Routes>
             <Route
             path="/"
             element={
-              <Layout
+              <Layout dataVersion={dataVersion}
                 projectName={projectName}
                 showSuccessToast={showSuccessToast}
                 onDismissToast={() => setShowSuccessToast(false)}
@@ -1045,6 +1048,7 @@ function AppContent() {
             <Route path="decisions" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
             <Route path="decisions/:id" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
             <Route path="decisions/:id/:title" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
+            <Route path="archive" element={<ArchivePage dateFormat={config?.dateFormat} availablePriorities={config?.priorities} onRefreshData={refreshData} onOpenTask={handleEditTask} />} />
             <Route path="statistics" element={<Statistics tasks={tasks} isLoading={isLoading} onEditTask={handleEditTask} projectName={projectName} dateFormat={config?.dateFormat} />} />
             <Route path="settings" element={<Settings />} />
           </Route>
@@ -1062,9 +1066,7 @@ function AppContent() {
             type="button"
             className="shrink-0 font-medium underline decoration-red-300 underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-red-500"
             onClick={() => navigate(`${location.pathname}${location.search}`, { replace: true, state: null })}
-          >
-            Dismiss
-          </button>
+          >{t("Dismiss")}</button>
         </div>
       )}
 
@@ -1101,7 +1103,7 @@ function AppContent() {
       {/* Task Creation Confirmation Toast */}
       {taskConfirmation && (
         <SuccessToast
-          message={`${taskConfirmation.isDraft ? 'Draft' : 'Task'} "${taskConfirmation.task.title}" created successfully! (${taskConfirmation.task.id.replace('task-', '')})`}
+          message={t("{0} \"{1}\" created successfully! ({2})", { "0": t(taskConfirmation.isDraft ? 'Draft' : 'Task'), "1": taskConfirmation.task.title, "2": taskConfirmation.task.id.replace('task-', '') })}
           onDismiss={() => setTaskConfirmation(null)}
           icon={
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1117,9 +1119,11 @@ function AppContent() {
 
 function App() {
   return (
+    <LanguageProvider>
     <BrowserRouter>
       <AppContent />
     </BrowserRouter>
+    </LanguageProvider>
   );
 }
 

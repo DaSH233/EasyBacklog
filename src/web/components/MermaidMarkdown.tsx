@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import MDEditor from "@uiw/react-md-editor";
-import { useTaskIdIndex } from "../contexts/TaskIdIndexContext";
+import { useTaskIdIndex, useRecordLinks } from "../contexts/TaskIdIndexContext";
 import { renderMermaidIn } from "../utils/mermaid";
 import { createTaskIdLinkPlugin } from "../utils/task-id-links";
+
+import { createRecordLinkPlugin } from "../utils/record-links";
 
 interface Props {
 	source: string;
@@ -38,7 +40,8 @@ function keepHashLinksInCurrentRoute(url: string, key: string): string {
 export default function MermaidMarkdown({ source }: Props) {
 	const ref = useRef<HTMLDivElement | null>(null);
 	const taskIdIndex = useTaskIdIndex();
-	const remarkPlugins = useMemo(() => [treatHtmlAsText, createTaskIdLinkPlugin(taskIdIndex)], [taskIdIndex]);
+	const { index: recordIndex } = useRecordLinks();
+	const remarkPlugins = useMemo(() => [treatHtmlAsText, createRecordLinkPlugin(recordIndex), createTaskIdLinkPlugin(taskIdIndex)], [taskIdIndex, recordIndex]);
 
 	useEffect(() => {
 		if (!ref.current) return;

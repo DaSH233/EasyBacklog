@@ -1,10 +1,11 @@
 ---
 id: BACK-239
 title: 'Feature: Auto-link tasks to documents/decisions + backlinks'
-status: To Do
+status: Done
 assignee:
-  - '@codex'
-created_date: '2025-08-17 16:54'
+  - '@Codex'
+created_date: 2025-08-17 16:54
+updated_date: '2026-10-29T07:45:00Z'
 labels:
   - web
   - enhancement
@@ -16,6 +17,7 @@ ordinal: 6000
 
 ## Description
 
+<!-- SECTION:DESCRIPTION:BEGIN -->
 Add first-class linking between tasks and documents/decisions (from issue #271).
 
 Goal:
@@ -31,13 +33,26 @@ Scope (MVP):
 
 Notes:
 - Extend later to support linking from docs -> tasks, and to other entities if needed.
+<!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Web: task detail/body renders doc-<id> and decision-<id> as links to their pages; not inside code blocks
-- [ ] #2 Web: document/decision pages show a Referenced by list of tasks that mention the ID
-- [ ] #3 Support patterns: `doc-<n>`, `decision-<n>`, with or without a leading `#` (e.g., #doc-1)
-- [ ] #4 Links include the target title when available; otherwise show the ID
-- [ ] #5 No file mutation for backlinks; computed at render time
-- [ ] #6 Add short docs: how to reference docs/decisions from tasks (examples)
+- [x] #1 Web: task detail/body renders doc-<id> and decision-<id> as links to their pages; not inside code blocks
+- [x] #2 Web: document/decision pages show a Referenced by list of tasks that mention the ID
+- [x] #3 Support patterns: `doc-<n>`, `decision-<n>`, with or without a leading `#` (e.g., #doc-1)
+- [x] #4 Links include the target title when available; otherwise show the ID
+- [x] #5 No file mutation for backlinks; computed at render time
+- [x] #6 Add short docs: how to reference docs/decisions from tasks (examples)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Use shared Markdown matching for document/decision links and dynamic backlinks; verify code exclusions, canonical IDs, title fallback, and loaded-task updates.
+<!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added automatic numeric doc/decision links with optional hash, canonical leading-zero and case handling, target titles and missing-title fallback. Shared Markdown parsing excludes code, existing links, paths and longer identifiers. Document/decision pages show deduplicated Referenced by tasks computed from loaded task descriptions, plans, notes, summaries and comments without file mutation. Added bilingual README examples and Chinese UI label. Verified 93 scoped tests, Bun typecheck, tsc --noEmit, full Biome and build; Edge desktop/mobile fixture checks confirmed forward navigation and document/decision backlinks.
+<!-- SECTION:FINAL_SUMMARY:END -->

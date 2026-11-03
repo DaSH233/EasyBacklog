@@ -29,6 +29,23 @@ describe("CLI Integration", () => {
 			await initializeTestProject(core, "Doc Test Project");
 		});
 
+		it("creates documents with multiline content through the shared creation path", async () => {
+			const content = "# 中文指南\n\nFirst paragraph.\n\n- One\n- Two";
+			await $`bun ${CLI_PATH} doc create Guide --content ${content} -t guide -p guides`.cwd(TEST_DIR).quiet();
+			const core = new Core(TEST_DIR);
+			const cliDoc = await core.getDocument("doc-1");
+			const sharedDoc = await core.createDocumentFromInput({ title: "Guide", content, type: "guide", path: "guides" });
+			expect(cliDoc?.rawContent).toBe(content);
+			expect(cliDoc?.rawContent).toBe(sharedDoc.rawContent);
+			expect(cliDoc?.type).toBe(sharedDoc.type);
+			const viewed = await $`bun ${CLI_PATH} doc view doc-1 --plain`.cwd(TEST_DIR).text();
+			expect(viewed).toContain(content);
+			await $`bun ${CLI_PATH} doc create Empty`.cwd(TEST_DIR).quiet();
+			expect((await core.getDocument("doc-3"))?.rawContent).toBe("");
+			const help = await $`bun ${CLI_PATH} doc create --help`.cwd(TEST_DIR).text();
+			expect(help).toContain("content: Markdown");
+		});
+
 		it("should create and list documents", async () => {
 			const core = new Core(TEST_DIR);
 			const doc: Document = {

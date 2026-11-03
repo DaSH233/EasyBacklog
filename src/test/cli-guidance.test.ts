@@ -71,19 +71,21 @@ describe("CLI Integration", () => {
 
 		it("prints selected instruction guides", async () => {
 			const overview = normalizeCliOutput(await $`bun ${CLI_PATH} instructions overview`.cwd(TEST_DIR).text());
-			const taskCreation = normalizeCliOutput(await $`bun ${CLI_PATH} instructions task-creation`.cwd(TEST_DIR).text());
+			const reference = await $`bun ${CLI_PATH} instructions workflow-reference`.cwd(TEST_DIR).text();
+			const taskCreation =
+				normalizeCliOutput(await $`bun ${CLI_PATH} instructions task-creation`.cwd(TEST_DIR).text()) + reference;
 			const taskExecution = normalizeCliOutput(
-				await $`bun ${CLI_PATH} instructions task-execution`.cwd(TEST_DIR).text(),
+				(await $`bun ${CLI_PATH} instructions task-execution`.cwd(TEST_DIR).text()) + reference,
 			);
 			const taskFinalization = normalizeCliOutput(
-				await $`bun ${CLI_PATH} instructions task-finalization`.cwd(TEST_DIR).text(),
+				(await $`bun ${CLI_PATH} instructions task-finalization`.cwd(TEST_DIR).text()) + reference,
 			);
 			const initRequired = normalizeCliOutput(await $`bun ${CLI_PATH} instructions init-required`.cwd(TEST_DIR).text());
 
 			expect(overview).toContain("## Backlog.md Overview (CLI)");
 			expect(overview).toContain("### Find and Read Work");
 			expect(overview).not.toContain("The detailed guides contain the procedure");
-			expect(overview).toContain('backlog search "query" --plain');
+			expect(overview).toContain('backlog search "query" --limit 10 --plain');
 			expect(overview).toContain('backlog task list --search "login" --labels frontend,bug --limit 20 --plain');
 			expect(overview).toContain("backlog task view BACK-123 --plain");
 			expect(overview).toContain(
@@ -116,12 +118,12 @@ describe("CLI Integration", () => {
 			expect(taskCreation).toContain(
 				'Too thin: `-d "Users can search tasks, docs, and decisions from one CLI command."` states the change but not the need,\nso a future agent cannot weigh scope or alternatives.',
 			);
-			expect(taskCreation).toContain('backlog search "desktop app" --plain');
+			expect(taskCreation).toContain('backlog search "desktop app" --limit 10 --plain');
 			expect(taskCreation).toContain(
 				'backlog task list --search "desktop app" --labels frontend,bug --limit 20 --plain',
 			);
-			expect(taskCreation).toContain('backlog task list --status "<active status>" --plain');
-			expect(taskCreation).toContain('backlog task list --exclude-status "<terminal status>" --plain');
+			expect(taskCreation).toContain('backlog task list --status "<active status>" --limit 10 --plain');
+			expect(taskCreation).toContain('backlog task list --exclude-status "<terminal status>" --limit 10 --plain');
 			expect(taskCreation).toContain(
 				"Repeat `--exclude-status` or pass comma-separated configured statuses to exclude multiple states.",
 			);
@@ -131,7 +133,7 @@ describe("CLI Integration", () => {
 				"Do not pass milestone IDs such as `m-0` to `--parent`; assign a task to a milestone with `--milestone`/`-m`.",
 			);
 			expect(taskCreation).toContain(
-				"If you will continue from task creation into implementation in the same session, stop and read `backlog instructions task-execution` before viewing, assigning, planning, editing, or implementing a task.",
+				"If you will continue from task creation into implementation in the same session, use the cached `backlog instructions task-execution` guide if still valid; otherwise read it before assigning, planning, editing, or implementing a task.",
 			);
 			expect(taskCreation).toContain(
 				"For future work, do **not** add an implementation plan or speculative code approach",
@@ -197,6 +199,17 @@ describe("CLI Integration", () => {
 			expect(initRequired).toContain("backlog init --defaults");
 		}, 15_000);
 
+		it("keeps advanced operations available through the on-demand reference", async () => {
+			const overview = await $`bun ${CLI_PATH} instructions overview`.cwd(TEST_DIR).text();
+			const reference = await $`bun ${CLI_PATH} instructions workflow-reference`.cwd(TEST_DIR).text();
+			expect(overview).toContain("backlog instructions workflow-reference");
+			expect(reference).toContain("### Shell Quoting for Literal Backticks");
+			expect(reference).toContain("--acceptance-criteria");
+			expect(reference).toContain("backlog task restore");
+			expect(overview).not.toContain("### Shell Quoting for Literal Backticks");
+			expect(overview.length).toBeLessThan(reference.length);
+		});
+
 		it("renders task ID examples with the configured task prefix", async () => {
 			await mkdir(join(TEST_DIR, "backlog"), { recursive: true });
 			await Bun.write(
@@ -212,7 +225,7 @@ describe("CLI Integration", () => {
 			);
 
 			const overview = await $`bun ${CLI_PATH} instructions overview`.cwd(TEST_DIR).text();
-			const taskCreation = await $`bun ${CLI_PATH} instructions task-creation`.cwd(TEST_DIR).text();
+			const taskCreation = await $`bun ${CLI_PATH} instructions workflow-reference`.cwd(TEST_DIR).text();
 			const createHelp = await $`bun ${CLI_PATH} task create --help`.cwd(TEST_DIR).text();
 			const listHelp = await $`bun ${CLI_PATH} task list --help`.cwd(TEST_DIR).text();
 			const editHelp = await $`bun ${CLI_PATH} task edit --help`.cwd(TEST_DIR).text();
@@ -263,7 +276,9 @@ describe("CLI Integration", () => {
 
 		it("explains archive and the two-step delete in workflow guidance and names no command that does not exist", async () => {
 			for (const name of ["overview", "task-finalization"]) {
-				const guide = await $`bun ${CLI_PATH} instructions ${name}`.cwd(TEST_DIR).text();
+				const guide =
+					(await $`bun ${CLI_PATH} instructions ${name}`.cwd(TEST_DIR).text()) +
+					(await $`bun ${CLI_PATH} instructions workflow-reference`.cwd(TEST_DIR).text());
 				expect(guide).toContain("periodic cleanup");
 				expect(guide).toContain("backlog task archive");
 				expect(guide).toContain("canceled, duplicate, or invalid work");
@@ -280,7 +295,7 @@ describe("CLI Integration", () => {
 				expect(guide).toMatch(/keeps its ID and status|same ID and the status it had/);
 				expect(guide).not.toContain("task complete");
 			}
-			const overview = await $`bun ${CLI_PATH} instructions overview`.cwd(TEST_DIR).text();
+			const overview = await $`bun ${CLI_PATH} instructions workflow-reference`.cwd(TEST_DIR).text();
 			expect(overview).toContain("counts as satisfied only when that task is in the final status");
 			expect(CLI_AGENT_NUDGE).not.toContain("task complete");
 		});
@@ -310,7 +325,7 @@ describe("CLI Integration", () => {
 			expect(initHelp).not.toContain("backlog init --integration-mode mcp");
 			expect(initHelp).toContain("Writes:");
 			expect(instructionsHelp).toContain(
-				"guide: one of: overview, task-creation, task-execution, task-finalization, init-required",
+				"guide: one of: overview, task-creation, task-execution, task-finalization, workflow-reference, init-required",
 			);
 			expect(instructionsHelp).toContain("Output:");
 		});
@@ -451,7 +466,8 @@ describe("CLI Integration", () => {
 			expect(milestoneHelp).toContain("Example (bash/zsh): --description $'First line\\nSecond line'");
 			// Commands without Markdown fields stay unchanged.
 			expect(listHelp).not.toContain("Markdown fields:");
-			expect(docCreateHelp).not.toContain("Markdown fields:");
+			expect(docCreateHelp).toContain("content: Markdown");
+			expect(docCreateHelp).toContain("Example (bash/zsh): --content $'First line\\nSecond line'");
 		}, 15_000);
 
 		it("shows configured status values in task help", async () => {

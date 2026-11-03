@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import React, { useEffect, useRef } from "react";
 
 interface ModalProps {
@@ -21,6 +22,7 @@ const Modal: React.FC<ModalProps> = ({
 	actions,
 	initialFocusRef,
 }) => {
+  const { t } = useTranslation();
 	const dialogRef = useRef<HTMLDivElement | null>(null);
 	const onCloseRef = useRef(onClose);
 	const disableEscapeCloseRef = useRef(disableEscapeClose);
@@ -114,7 +116,7 @@ const Modal: React.FC<ModalProps> = ({
 		>
 			<div
 				ref={dialogRef}
-				className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-2xl ${maxWidthClass} w-full max-h-[94vh] overflow-y-auto transition-colors duration-200`}
+				className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-2xl ${maxWidthClass} w-full min-w-0 max-h-[94dvh] overflow-y-auto overflow-x-hidden transition-colors duration-200`}
 				onClick={(event) => event.stopPropagation()}
 				role="dialog"
 				tabIndex={-1}
@@ -132,13 +134,13 @@ const Modal: React.FC<ModalProps> = ({
 							onClick={onClose}
 							disabled={disableEscapeClose}
 							className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors duration-200 text-2xl leading-none w-8 h-8 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-							aria-label="Close modal"
+							aria-label={t("Close modal")}
 						>
 							×
 						</button>
 					</div>
 				</div>
-				<div className="px-6 pt-4 pb-6">{children}</div>
+				<div className="min-w-0 px-3 sm:px-6 pt-4 pb-6">{children}</div>
 			</div>
 		</div>
 	);

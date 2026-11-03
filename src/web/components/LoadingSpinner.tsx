@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import { memo } from 'react';
 
 interface LoadingSpinnerProps {
@@ -10,6 +11,7 @@ const LoadingSpinner = memo(function LoadingSpinner({
 								 text = 'Loading...',
 								 className = ''
 							 }: LoadingSpinnerProps) {
+  const { t } = useTranslation();
 	const sizeClasses = {
 		sm: 'w-4 h-4',
 		md: 'w-6 h-6',
@@ -21,7 +23,7 @@ const LoadingSpinner = memo(function LoadingSpinner({
 			<div className="flex flex-col items-center space-y-3">
 				<div className={`animate-spin motion-reduce:animate-none rounded-circle border-2 border-gray-300 dark:border-gray-600 border-t-blue-600 dark:border-t-blue-400 transition-colors duration-200 ${sizeClasses[size]}`} />
 				{text && (
-					<p className="text-sm text-gray-600 dark:text-gray-300 font-medium transition-colors duration-200">{text}</p>
+					<p className="text-sm text-gray-600 dark:text-gray-300 font-medium transition-colors duration-200">{t(text)}</p>
 				)}
 			</div>
 		</div>

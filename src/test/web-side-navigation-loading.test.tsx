@@ -112,3 +112,11 @@ describe("SideNavigation task loading", () => {
 		expect(failed).not.toContain("Empty");
 	});
 });
+
+ it("shows board state counts in To Do, In Progress, Done order", () => {
+  storage.set("sideNavCollapsed", "false");
+  const tasks = ["Done","To Do","Done","In Progress","Done"].map((status,index) => ({id:`TASK-${index}`,title:"Task",status,assignee:[],labels:[],dependencies:[],createdDate:"2026-10-29"}));
+  const html = renderToString(<MemoryRouter><SideNavigation tasks={tasks} taskCount={5} docs={[]} decisions={[]} isLoading={false} onRefreshData={async()=>{}} /></MemoryRouter>);
+  expect(html).toContain('aria-label="To Do: 1 / In Progress: 1 / Done: 3"');
+  expect(html).toContain('aria-label="All Tasks: 5"');
+ });

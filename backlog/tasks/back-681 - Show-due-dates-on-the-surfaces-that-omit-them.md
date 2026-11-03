@@ -1,11 +1,19 @@
 ---
 id: BACK-681
 title: Show due dates on the surfaces that omit them
-status: To Do
-assignee: []
-created_date: '2026-09-02 20:31'
+status: Done
+assignee:
+  - '@Codex'
+created_date: 2026-09-02 20:31
+updated_date: '2026-10-29T07:28:00Z'
 labels: []
 dependencies: []
+modified_files:
+  - src/board.ts
+  - src/cli.ts
+  - src/web/components/DraftsList.tsx
+  - src/test/cli-due-date.test.ts
+  - src/test/web-draft-editing.test.tsx
 ordinal: 313000
 ---
 
@@ -19,15 +27,27 @@ Nothing shifts or corrupts the value; it simply is not displayed, so a user who 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Board export and non-TTY board output show a task due date when one is set
-- [ ] #2 draft list --plain and the web drafts list show a due date when one is set
-- [ ] #3 Surfaces without a due date are unchanged, with no empty column or placeholder introduced
-- [ ] #4 Tests cover each surface with and without a due date
+- [x] #1 Board export and non-TTY board output show a task due date when one is set
+- [x] #2 draft list --plain and the web drafts list show a due date when one is set
+- [x] #3 Surfaces without a due date are unchanged, with no empty column or placeholder introduced
+- [x] #4 Tests cover each surface with and without a due date
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 bunx tsc --noEmit passes when TypeScript touched
-- [ ] #2 bun run check . passes when formatting/linting touched
-- [ ] #3 bun test (or scoped test) passes
+- [x] #1 bunx tsc --noEmit passes when TypeScript touched
+- [x] #2 bun run check . passes when formatting/linting touched
+- [x] #3 bun test (or scoped test) passes
 <!-- DOD:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Show optional due dates in shared board rendering, plain draft lists, and Web draft cards. Reuse StoredDate and existing translation; test dated and undated records without changing empty-state output.
+<!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added optional calendar due dates to board export/non-TTY rendering, plain draft lists and Web draft cards. Web uses existing translation and StoredDate; undated records add no placeholder. CLI integration and Web DOM regressions pass with and without dates. Combined regression: 113 pass; tsc --noEmit, bun check:types, Biome and build passed.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -2,6 +2,22 @@
 
 Use this guide when you are working on an existing Backlog task.
 
+### Reuse loaded guides
+
+Read each guide once per conversation/project/tool version; re-read when any of these changes, instructions change, or context is lost. Load only CLI or MCP, not both. Do not poll versions. Refresh task snapshots after possible external edits, failed/uncertain updates, or lost context.
+
+### Reopening a completed task
+
+For a small fix within the original scope, read the completed task and change it to the configured active status (for example, In Progress) using `backlog task edit <id> -s "<active status>"` **before making implementation changes**. If archived, restore it first; restoration alone preserves its completed status and does not reopen it. Preserve previous notes and append the new fix's context and verification results.
+
+New features and independent requirements belong in separate tasks; follow the creation guide and search for existing work first. Do not keep a task marked Done while actively fixing it. After implementation, follow the finalization guide before closing it again.
+
+### Small fixes and combined updates
+
+For an in-scope small fix: read the task, activate before changes, implement, verify, append the result and close. Reuse a suitable plan; omit duplicate plans and routine diaries. Non-trivial work still needs a researched plan before implementation.
+
+Combine compatible status/assignee fields at pickup, adding a plan only when research prerequisites are met. After verification and required review, combine proven acceptance/DoD checks, summary and final status. Never merge mutually exclusive fields or operations dependent on an earlier result. Preserve history; use the finalization guide before closing.
+
 ### Planning Workflow
 
 Before writing code for non-trivial work:
@@ -26,13 +42,6 @@ Before writing code for non-trivial work:
    review, present it and wait for explicit approval before implementation. Routine plans need not block when no review
    was requested and they stay within confirmed scope.
 
-Keep the Backlog task as the plan of record. If the approach changes, replace it with `--plan` or extend it with one
-or more repeatable `--append-plan` values. When both options are provided, `--plan` replaces the existing plan first,
-then each `--append-plan` value is appended in CLI order:
-
-- `backlog task edit {{TASK_ID:123}} --append-plan "5. Verify the revised approach"`
-- `backlog task edit {{TASK_ID:123}} --plan "1. Revised approach" --append-plan "2. Verify it"`
-
 ### Execution Workflow
 
 Work in short loops:
@@ -46,53 +55,17 @@ Work in short loops:
 
 Use `backlog task edit {{TASK_ID:123}} --help` before changing unfamiliar fields.
 
-Replacing or clearing a legacy description, plan, notes, or final summary without section markers is refused if another
-level-two heading makes its boundary ambiguous. The file stays unchanged. Stop and ask the user to add the BEGIN and
-END markers named in the error around the intended section body without removing any content. Do not edit task or
-draft files directly. The user should place the END marker before a separate section, or after headings that belong
-to the body. Retry the CLI edit after the user repairs the boundary. Appends remain supported and keep ambiguous
-sections unmarked, so later replacements remain protected.
-
 Do not check acceptance criteria, write the final summary, or move the task to the terminal status from this guide alone. When implementation appears complete, read the finalization guide and verify each acceptance criterion with objective evidence before checking it.
 
 ### Scope Changes
 
 If you discover work that is outside the task's acceptance criteria, stop and ask the user whether to add scope to the current task or create follow-up work. Do not silently expand the task.
 
-### Replacing Acceptance Criteria
-
-`--acceptance-criteria` replaces the full list; repeat it for each item. Matching trimmed text keeps its check state,
-even after reordering. Duplicate text matches old entries in order, once per entry. New or reworded entries start
-unchecked, and omitted entries are removed. Use `--check-ac` or `--uncheck-ac` in a separate edit to change check states.
-
 ### Working With Subtasks
 
-If the user assigns a parent task and all subtasks, complete subtasks one at a time. Each subtask should have its own plan, notes, checked acceptance criteria, and final summary.
+If the user assigns a parent task and all subtasks, complete subtasks one at a time. Each subtask retains its own acceptance criteria, verification evidence, and final summary. Apply the small-fix exception to plans and routine notes; non-trivial subtasks still need a researched plan.
 
 If the user assigns only one subtask, finish that subtask and ask before moving to the next one.
-
-### Reading and Writing Backlog Data
-
-Use CLI commands for Backlog changes:
-
-- Read: `backlog task view {{TASK_ID:123}} --plain`
-- Search: `backlog search "query" --plain`
-- List with task filters: `backlog task list --status "<active status>" --assignee @your-name --labels backend --search "auth" --limit 20 --plain`
-- Update: `backlog task edit {{TASK_ID:123}} ...`
-- Create docs: `backlog doc create "Title"`
-- Update docs: `backlog doc update doc-1 --content "Markdown"`
-- Archive docs: `backlog doc archive doc-1` moves the file to `backlog/archive/docs/`. The ID stays reserved. The document stays viewable with `backlog doc view` and is read-only. Tasks and drafts whose documentation names the file are printed, not changed.
-- Restore docs: `backlog doc restore doc-1` moves an archived document back to `backlog/docs/` with the same ID.
-- Delete docs: archive first, then `backlog doc delete doc-1`. Delete asks no question, removes the file and releases the ID. Tasks and drafts whose documentation names the file are printed, not changed.
-- Decisions follow the same steps: `backlog decision archive decision-1` moves the file to `backlog/archive/decisions/`, keeps the ID reserved and makes the decision read-only; `backlog decision restore decision-1` brings it back; `backlog decision delete decision-1` removes an archived decision without a question and releases the ID. Tasks and drafts whose documentation names the file are printed, not changed.
-
-For documentation links on tasks or drafts, `task edit` and `draft edit` use `--doc` to replace the full list. Use
-`--add-doc` or `--remove-doc` to change individual entries; both accept repeated flags or comma-separated values.
-Use `--clear-docs` to remove all entries. Do not combine replacement or clear flags with add/remove flags.
-
-For programmatic reads, `task list`, `task view`, `task <id>`, `draft list`, `decision list`, and `search` accept `--json`. JSON mode is noninteractive, versioned, and cannot be combined with `--plain`.
-
-Do not edit Backlog markdown files directly. The CLI preserves metadata, IDs, filenames, relationships, and structured sections.
 
 ### Finishing
 
@@ -101,3 +74,11 @@ When implementation is complete, continue with:
 ```bash
 backlog instructions task-finalization
 ```
+
+### On-demand reference
+
+For advanced filters, parent/dependency examples, shell quoting, field replacement, legacy-section errors, document links, or archive/restore/delete behavior, read `backlog instructions workflow-reference` only when needed. Consult command help or tool schemas for unfamiliar fields; never guess. Use the supported CLI/MCP interface, never edit Backlog record Markdown directly.
+
+### Concise records
+
+Write only context needed for handoff: why the work exists, material decisions or blockers, what changed, verification evidence, and unresolved next steps. Usually one short paragraph or 3–5 bullets is enough; expand when evidence or risk requires it. Record verification command/scenario and outcome (including failures/skips); reference long logs instead of copying them. Do not repeat acceptance criteria in descriptions, plans in notes, or notes in summaries. Append only new facts for follow-ups. Do not truncate evidence, weaken acceptance/DoD, or rewrite historical records merely to save tokens.

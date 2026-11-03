@@ -4,7 +4,8 @@ title: Add progressive scope and metadata to the TUI task composer
 status: To Do
 assignee:
   - '@alex-agent'
-created_date: '2026-07-12 22:10'
+created_date: 2026-07-12 22:10
+updated_date: '2026-10-29T07:00:00Z'
 labels:
   - tui
   - enhancement

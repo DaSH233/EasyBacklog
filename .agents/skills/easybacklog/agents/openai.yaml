@@ -1,0 +1,4 @@
+interface:
+  display_name: "EasyBacklog"
+  short_description: "打开 EasyBacklog 任务面板，管理任务、执行计划、进度与验收结果"
+  default_prompt: "使用 $easybacklog 自动打开当前项目的任务面板，并根据我的需求推进相关工作。"

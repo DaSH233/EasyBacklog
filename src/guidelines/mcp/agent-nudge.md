@@ -23,3 +23,7 @@ These guides cover:
 You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
 
 </CRITICAL_INSTRUCTION>
+
+### On-demand reference
+
+For MCP filters, parent/dependency fields, field replacement, legacy-section errors, document paths, or archive/restore/delete behavior, read `get_backlog_instructions` with `instruction: "workflow-reference"` (resource `backlog://workflow/workflow-reference`) only when needed. Consult command help or tool schemas for unfamiliar fields; never guess. Use the supported CLI/MCP interface, never edit Backlog record Markdown directly.

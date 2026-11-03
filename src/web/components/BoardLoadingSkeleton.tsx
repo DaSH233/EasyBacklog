@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 interface BoardLoadingSkeletonProps {
 	message?: string | null;
 	/** Ghost columns to render; pass the configured status count so the real board mounts without a width jump. */
@@ -11,9 +12,10 @@ interface BoardLoadingSkeletonProps {
  * Shown only before the first successful data load (see BACK-654).
  */
 export function BoardLoadingSkeleton({ message, columnCount }: BoardLoadingSkeletonProps) {
+  const { t } = useTranslation();
 	const columns = columnCount && columnCount > 0 ? columnCount : 3;
 	return (
-		<div className="relative" role="status" aria-label="Loading tasks">
+		<div className="relative" role="status" aria-label={t("Loading tasks")}>
 			<div className="overflow-x-auto pb-2" aria-hidden="true">
 				<div className="flex flex-row flex-nowrap gap-4 w-full">
 					{Array.from({ length: columns }, (_, column) => (
@@ -35,7 +37,7 @@ export function BoardLoadingSkeleton({ message, columnCount }: BoardLoadingSkele
 							className="h-3 w-3 shrink-0 animate-spin rounded-circle border-2 border-blue-200 border-t-blue-600 motion-reduce:animate-none dark:border-blue-400/30 dark:border-t-blue-400"
 							aria-hidden="true"
 						/>
-						<span aria-hidden="true">{message}</span>
+						<span aria-hidden="true">{t(message)}</span>
 					</div>
 				) : (
 					<span
@@ -43,7 +45,7 @@ export function BoardLoadingSkeleton({ message, columnCount }: BoardLoadingSkele
 						aria-hidden="true"
 					/>
 				)}
-				<span className="sr-only">{message ?? "Loading tasks"}</span>
+				<span className="sr-only">{t(message ?? "Loading tasks")}</span>
 			</div>
 		</div>
 	);

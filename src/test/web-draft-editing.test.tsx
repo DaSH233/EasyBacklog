@@ -87,6 +87,15 @@ afterEach(() => {
 });
 
 describe("Web drafts list", () => {
+	it("shows calendar due dates only on drafts that have one", async () => {
+		serveDrafts(() => [{ ...draft("DRAFT-1", "Dated"), dueDate: "2026-08-10" }, draft("DRAFT-2", "Undated")]);
+		const container = await renderDrafts(() => {});
+		expect(container.textContent).toContain("Due: 2026-08-10");
+		expect(container.textContent?.match(/Due:/g)).toHaveLength(1);
+		const dated = Array.from(container.querySelectorAll("span")).find((node) => node.textContent === "Due: 2026-08-10");
+		expect(dated?.textContent).not.toContain("UTC");
+	});
+
 	it("opens the clicked draft for editing", async () => {
 		serveDrafts(() => [draft("DRAFT-1", "First draft"), draft("DRAFT-2", "Second draft")]);
 		const edited: Task[] = [];

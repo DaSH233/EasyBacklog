@@ -1244,6 +1244,21 @@ export class FileSystem {
 		return sortByTaskId(tasks);
 	}
 
+	async listArchivedDrafts(): Promise<Task[]> {
+		const directory = await this.getArchiveDraftsDir();
+		const files = await Array.fromAsync(
+			new Bun.Glob(buildGlobPattern("draft")).scan({ cwd: directory, followSymlinks: true }),
+		);
+		const records: Task[] = [];
+		for (const file of files) {
+			const record = await this.loadDraftFromFile(join(directory, file));
+			const id = extractDraftIdFromFilename(file);
+			if (!record || !id) throw new Error(`Cannot read archived draft: ${file}`);
+			records.push({ ...record, id });
+		}
+		return records;
+	}
+
 	async archiveDraft(draftId: string): Promise<{ sourcePath: string; targetPath: string } | null> {
 		// Whole-file operation: the argument names the file to move, so filename binding is the
 		// identity that matters and frontmatter equivalence is not required. The draft lock spans
@@ -1404,24 +1419,7 @@ export class FileSystem {
 	}
 
 	async listDrafts(): Promise<Task[]> {
-		try {
-			const draftsDir = await this.getDraftsDir();
-			const taskFiles = await Array.fromAsync(
-				new Bun.Glob(buildGlobPattern("draft")).scan({ cwd: draftsDir, followSymlinks: true }),
-			);
-
-			const tasks: Task[] = [];
-			for (const file of taskFiles) {
-				const filepath = join(draftsDir, file);
-				const content = await Bun.file(filepath).text();
-				const task = normalizeTaskIdentity(parseTask(content));
-				tasks.push({ ...task, filePath: filepath });
-			}
-
-			return sortByTaskId(tasks);
-		} catch {
-			return [];
-		}
+		return this.listHealthyDrafts();
 	}
 
 	/**
@@ -1442,7 +1440,9 @@ export class FileSystem {
 					const content = await Bun.file(filepath).text();
 					const task = normalizeTaskIdentity(parseTask(content));
 					tasks.push({ ...task, filePath: filepath });
-				} catch {}
+				} catch {
+					console.warn(`Skipping unreadable draft: ${file}`);
+				}
 			}
 
 			return sortByTaskId(tasks);
@@ -2120,8 +2120,8 @@ ${rawContent.trim()}
 		}
 	}
 
-	async getMilestoneFilePath(identifier: string): Promise<string | null> {
-		const match = await this.findMilestoneFile(identifier, "active");
+	async getMilestoneFilePath(identifier: string, scope: "active" | "archived" = "active"): Promise<string | null> {
+		const match = await this.findMilestoneFile(identifier, scope);
 		return match?.filepath ?? null;
 	}
 
@@ -2435,6 +2435,10 @@ ${description || `Milestone: ${title}`}`,
 				case "remote_operations":
 					config.remoteOperations = value.toLowerCase() === "true";
 					break;
+				case "automatic_task_management":
+				case "automaticTaskManagement":
+					config.automaticTaskManagement = value.toLowerCase() === "true";
+					break;
 				case "auto_commit":
 					config.autoCommit = value.toLowerCase() === "true";
 					break;
@@ -2487,6 +2491,7 @@ ${description || `Milestone: ${title}`}`,
 			hideEmptyColumns: config.hideEmptyColumns,
 			defaultPort: config.defaultPort,
 			remoteOperations: config.remoteOperations,
+			automaticTaskManagement: config.automaticTaskManagement,
 			autoCommit: config.autoCommit,
 			filesystemOnly: config.filesystemOnly,
 			zeroPaddedIds: config.zeroPaddedIds,
@@ -2527,6 +2532,9 @@ ${description || `Milestone: ${title}`}`,
 			...(typeof config.hideEmptyColumns === "boolean" ? [`hide_empty_columns: ${config.hideEmptyColumns}`] : []),
 			...(config.defaultPort ? [`default_port: ${config.defaultPort}`] : []),
 			...(typeof config.remoteOperations === "boolean" ? [`remote_operations: ${config.remoteOperations}`] : []),
+			...(typeof config.automaticTaskManagement === "boolean"
+				? [`automatic_task_management: ${config.automaticTaskManagement}`]
+				: []),
 			...(typeof config.autoCommit === "boolean" ? [`auto_commit: ${config.autoCommit}`] : []),
 			...(typeof config.filesystemOnly === "boolean" ? [`filesystem_only: ${config.filesystemOnly}`] : []),
 			...(typeof config.zeroPaddedIds === "number" ? [`zero_padded_ids: ${config.zeroPaddedIds}`] : []),

@@ -1,7 +1,9 @@
+import ReferencedBy from "./ReferencedBy";
+import { useTranslation } from "../contexts/LanguageContext";
 import { useState, useEffect, memo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient, isAmbiguousIdConflict } from '../lib/api';
-import MDEditor from '@uiw/react-md-editor';
+import MDEditor from './LocalizedMarkdownEditor';
 import MermaidMarkdown from './MermaidMarkdown';
 import { type Decision } from '../../types';
 import AmbiguousIdNotice from './AmbiguousIdNotice';
@@ -31,6 +33,7 @@ const MarkdownEditor = memo(function MarkdownEditor({
 	isReadonly?: boolean;
 }) {
 	const { theme } = useTheme();
+    const { t } = useTranslation();
 	if (!isEditing) {
 		// Preview mode - just show the rendered markdown without editor UI
 			return (
@@ -48,11 +51,11 @@ const MarkdownEditor = memo(function MarkdownEditor({
 					value={value}
 					onChange={onChange}
 					preview="edit"
-					height="100%"
+					height="clamp(320px, 65dvh, 900px)"
 					hideToolbar={false}
 					data-color-mode={theme}
 					textareaProps={{
-						placeholder: 'Write your decision documentation here...',
+						placeholder: t('Write your decision documentation here...'),
 						style: { 
 							fontSize: '14px',
 							resize: 'none'
@@ -76,6 +79,7 @@ interface DecisionDetailProps {
 }
 
 export default function DecisionDetail({ decisions, onRefreshData, dateFormat }: DecisionDetailProps) {
+  const { t } = useTranslation();
 	const { id, title } = useParams<{ id: string; title: string }>();
 	const navigate = useNavigate();
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -269,8 +273,8 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 					<svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
 					</svg>
-					<h3 className="mt-2 text-sm font-medium text-gray-900">No decision selected</h3>
-					<p className="mt-1 text-sm text-gray-500">Select a decision from the sidebar to view its content.</p>
+					<h3 className="mt-2 text-sm font-medium text-gray-900">{t("No decision selected")}</h3>
+					<p className="mt-1 text-sm text-gray-500">{t("Select a decision from the sidebar to view its content.")}</p>
 				</div>
 			</div>
 		);
@@ -279,35 +283,35 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 	if (isLoading) {
 		return (
 			<div className="flex-1 flex items-center justify-center">
-				<div className="text-gray-500">Loading...</div>
+				<div className="text-gray-500">{t("Loading...")}</div>
 			</div>
 		);
 	}
 
 	if (isAmbiguousIdConflict(error)) {
-		return <AmbiguousIdNotice message={error.message} />;
+		return <AmbiguousIdNotice message={t(error.message)} />;
 	}
 
 	return (
 		<ErrorBoundary>
-			<div className="h-full bg-white dark:bg-gray-900 flex flex-col transition-colors duration-200">
+			<div className="min-w-0 min-h-full bg-white dark:bg-gray-900 flex flex-col transition-colors duration-200">
 			{/* Header Section - Confluence/Linear Style */}
 			<div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
-				<div className="max-w-4xl mx-auto px-8 py-6">
+				<div className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 py-6">
 					{/* The header and its metadata row wrap, so on a narrow window the buttons stay on the page. */}
 					<div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 mb-6">
-						<div className="flex-1">
+						<div className="flex-1 min-w-0">
 							{isEditing ? (
 								<input
 									type="text"
 									value={decisionTitle}
 									onChange={(e) => setDecisionTitle(e.target.value)}
 									className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 w-full bg-transparent border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors duration-200"
-									placeholder="Decision title"
+									placeholder={t("Decision title")}
 								/>
 							) : (
 								<h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 transition-colors duration-200">
-									{decisionTitle || decision?.title || (title ? decodeURIComponent(title) : `Decision ${id}`)}
+									{decisionTitle || decision?.title || (title ? decodeURIComponent(title) : t("Decision {0}", { "0": id }))}
 								</h1>
 							)}
 							<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">
@@ -322,14 +326,14 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
 									</svg>
-									<span>Decision</span>
+									<span>{t("Decision")}</span>
 								</div>
 								{decision?.date && (
 									<div className="flex items-center space-x-2">
 										<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 										</svg>
-										<span>Date: <StoredDate value={decision.date} dateFormat={dateFormat} /></span>
+										<span>{t("Date:")}{" "}<StoredDate value={decision.date} dateFormat={dateFormat} /></span>
 									</div>
 								)}
 								{decision?.status && (
@@ -346,7 +350,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 								)}
 							</div>
 						</div>
-						<div className="flex items-center space-x-3">
+						<div className="flex items-center flex-wrap gap-3">
 							{/* Temporarily hidden - decisions editing not ready */}
 								{false ? (
 									<button
@@ -355,9 +359,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 									>
 										<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-										</svg>
-										Edit
-								</button>
+										</svg>{t("Edit")}</button>
 							) : null}
 							{currentDecision && !isNewDecision && !isEditing && !isArchived && (
 								<ArchiveButton onClick={archive} disabled={isArchiving} />
@@ -367,9 +369,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 										<button
 											onClick={handleCancelEdit}
 											className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors duration-200"
-										>
-											Cancel
-										</button>
+										>{t("Cancel")}</button>
 									<button
 										onClick={handleSave}
 										disabled={!hasChanges || isSaving}
@@ -382,7 +382,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 											<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 											</svg>
-										{isSaving ? 'Saving...' : 'Save'}
+										{isSaving ? t("Saving...") : t("Save")}
 									</button>
 								</div>
 							)}
@@ -394,12 +394,13 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 
 			{/* Content Section */}
 			<div className="flex-1 bg-gray-50 dark:bg-gray-800 transition-colors duration-200 flex flex-col">
-				<div className="flex-1 p-8 flex flex-col min-h-0">
+				<div className="w-full max-w-[1440px] mx-auto flex-1 p-4 sm:p-8 flex flex-col min-h-0 min-w-0">
 					<MarkdownEditor
 						value={content}
 						onChange={(val) => setContent(val || '')}
 						isEditing={isEditing}
 					/>
+{currentDecision && !isEditing && routeIdentity && <ReferencedBy recordKey={routeIdentity} />}
 				</div>
 			</div>
 			</div>
@@ -407,7 +408,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 		{/* Save Success Toast */}
 		{showSaveSuccess && (
 			<SuccessToast
-				message={`Decision "${decisionTitle}" saved successfully!`}
+				message={t("Decision \"{0}\" saved successfully!", { "0": decisionTitle })}
 				onDismiss={() => setShowSaveSuccess(false)}
 				icon={
 					<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import React, { useState, useEffect } from 'react';
 import { type Task } from '../../types';
 import StoredDate from './StoredDate';
@@ -10,6 +11,7 @@ interface DraftsListProps {
 }
 
 const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFormat }) => {
+  const { t } = useTranslation();
   const [drafts, setDrafts] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +87,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFor
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Loading drafts...</div>
+        <div className="text-gray-500 dark:text-gray-400">{t("Loading drafts...")}</div>
       </div>
     );
   }
@@ -93,13 +95,11 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFor
 	  if (error) {
 	    return (
 	      <div className="flex-1 flex items-center justify-center">
-	        <div className="text-red-600 dark:text-red-400">Error: {error}</div>
+	        <div className="text-red-600 dark:text-red-400">{t("Error:")}{" "}{t(error)}</div>
 	        <button 
 	          onClick={loadDrafts}
 	          className="ml-4 inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-colors"
-	        >
-	          Retry
-	        </button>
+	        >{t("Retry")}</button>
 	      </div>
     );
   }
@@ -107,7 +107,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFor
   return (
     <div className="page-shell transition-colors duration-200">
       <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Draft Tasks</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("Draft Tasks")}</h1>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600 dark:text-gray-300">
               {drafts.length} draft{drafts.length !== 1 ? 's' : ''}
@@ -115,9 +115,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFor
 	            <button 
 	              className="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 dark:focus:ring-offset-gray-900 transition-colors duration-200" 
 	              onClick={onNewDraft}
-	            >
-	              + New Draft
-            </button>
+	            >{t("+ New Draft")}</button>
           </div>
         </div>
 
@@ -126,8 +124,8 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFor
             <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No drafts</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Draft tasks will appear here before they're promoted to the main backlog.</p>
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">{t("No drafts")}</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t("Draft tasks will appear here before they're promoted to the main backlog.")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -148,14 +146,15 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFor
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-2">
                       <span>{draft.id}</span>
-                      <span>Created: <StoredDate value={draft.createdDate} dateFormat={dateFormat} /></span>
+                      {draft.dueDate && <span>{`${t("Due:")} `}<StoredDate value={draft.dueDate} dateFormat={dateFormat} /></span>}
+                      <span>{t("Created:")}{" "}<StoredDate value={draft.createdDate} dateFormat={dateFormat} /></span>
                       {draft.updatedDate && (
-                        <span>Updated: <StoredDate value={draft.updatedDate} dateFormat={dateFormat} /></span>
+                        <span>{t("Updated:")}{" "}<StoredDate value={draft.updatedDate} dateFormat={dateFormat} /></span>
                       )}
                     </div>
                     {draft.assignee && draft.assignee.length > 0 && (
                       <div className="flex items-center space-x-2 mb-2">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Assigned to:</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{t("Assigned to:")}</span>
                         <div className="flex flex-wrap gap-1">
                           {draft.assignee.map((person) => (
                             <span key={person} className="px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 rounded-circle">
@@ -182,9 +181,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft, dateFor
                         handlePromoteDraft(draft.id);
                       }}
                       className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-colors duration-200"
-                    >
-                      Promote to Task
-                    </button>
+                    >{t("Promote to Task")}</button>
                   </div>
                 </div>
               </div>

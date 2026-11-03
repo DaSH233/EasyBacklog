@@ -1,3 +1,4 @@
+import { withTaskManagementPolicy } from "../../../utils/task-management-policy.ts";
 import type { McpServer } from "../../server.ts";
 import type { McpResourceHandler } from "../../types.ts";
 import { WORKFLOW_GUIDES } from "../../workflow-guides.ts";
@@ -14,7 +15,7 @@ export function registerWorkflowResources(server: McpServer): void {
 					{
 						uri: guide.uri,
 						mimeType: guide.mimeType,
-						text: guide.resourceText,
+						text: withTaskManagementPolicy(guide.resourceText, await server.filesystem.loadConfig()),
 					},
 				],
 			}),

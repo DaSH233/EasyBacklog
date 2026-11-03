@@ -1,14 +1,21 @@
 ---
 id: BACK-742
 title: Accept content on doc create
-status: To Do
-assignee: []
-created_date: '2026-10-11 19:10'
+status: Done
+assignee:
+  - '@Codex'
+created_date: 2026-10-11 19:10
+updated_date: '2026-10-29T07:28:00Z'
 labels:
   - enhancement
 dependencies: []
 references:
-  - 'https://github.com/MrLesk/Backlog.md/issues/1065'
+  - https://github.com/MrLesk/Backlog.md/issues/1065
+modified_files:
+  - src/cli.ts
+  - src/guidelines/cli-instructions/task-execution.md
+  - CLI-INSTRUCTIONS.md
+  - src/test/cli-doc-decision-board.test.ts
 type: enhancement
 ordinal: 360000
 ---
@@ -23,17 +30,35 @@ The maintainer's ruling on issue #1065 is that document commands follow the task
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `backlog doc create "<title>" --content <markdown>` creates the document with that body, and `backlog doc view <id> --plain` shows it.
-- [ ] #2 Without `--content` the command behaves as it does today.
-- [ ] #3 Multi-line values work with real newlines, and the help schema lists content as a Markdown field the way `backlog doc update` does.
-- [ ] #4 The file has the same content as one created with the same title, type, path and body through `POST /api/docs` or the MCP `document_create` tool, apart from the ID and dates.
-- [ ] #5 `backlog doc create --help` and the shipped instruction guides (`backlog instructions`) show the option with an example.
-- [ ] #6 Tests cover creation with and without content.
+- [x] #1 `backlog doc create "<title>" --content <markdown>` creates the document with that body, and `backlog doc view <id> --plain` shows it.
+- [x] #2 Without `--content` the command behaves as it does today.
+- [x] #3 Multi-line values work with real newlines, and the help schema lists content as a Markdown field the way `backlog doc update` does.
+- [x] #4 The file has the same content as one created with the same title, type, path and body through `POST /api/docs` or the MCP `document_create` tool, apart from the ID and dates.
+- [x] #5 `backlog doc create --help` and the shipped instruction guides (`backlog instructions`) show the option with an example.
+- [x] #6 Tests cover creation with and without content.
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 bunx tsc --noEmit passes when TypeScript touched
-- [ ] #2 bun run check . passes when formatting/linting touched
-- [ ] #3 bun test (or scoped test) passes
+- [x] #1 bunx tsc --noEmit passes when TypeScript touched
+- [x] #2 bun run check . passes when formatting/linting touched
+- [x] #3 bun test (or scoped test) passes
 <!-- DOD:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add --content to doc create and its help schema, pass content through existing shared creation core, document the option in shipped guides, and test multiline and empty creation.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added --content using existing shared creation core and updated shipped guide/help. 21 CLI integration tests passed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added optional --content to doc create and forwarded it to the shared document creation core. Help schema and shipped instructions include Markdown examples. Verified multiline Chinese content, empty creation, view output, shared-core parity, and existing Web/MCP document tests. Combined regression: 113 pass; both type checks, Biome and build passed.
+<!-- SECTION:FINAL_SUMMARY:END -->

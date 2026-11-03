@@ -1,3 +1,6 @@
+import { getStatusColor } from "../utils/task-table";
+import type { Task } from "../../types";
+import { useTranslation } from "../contexts/LanguageContext";
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from 'react-tooltip';
@@ -33,14 +36,14 @@ const hasTaskSearchFilters = (parsedQuery: ReturnType<typeof parseSearchCommandQ
 	);
 };
 
-const LoadingPhase = ({ className }: { className: string }) => (
+const LoadingPhase = ({ className }: { className: string }) => { const { t } = useTranslation(); return (
 	<p className={className} role="status">
 		<span
 			className="inline-block h-3 w-32 animate-pulse rounded bg-gray-300 dark:bg-gray-700"
-			aria-label="Loading content"
+			aria-label={t("Loading content")}
 		/>
 	</p>
-);
+); };
 
 const NavigationCount = ({
 	count,
@@ -53,19 +56,25 @@ const NavigationCount = ({
 	error?: Error | null;
 	label: string;
 }) => {
+  const { t } = useTranslation();
 	if (isLoading) {
 		return (
 			<span
 				className="inline-block h-3 w-5 animate-pulse rounded bg-gray-300 align-middle dark:bg-gray-700"
-				aria-label={`Loading ${label} count`}
+				aria-label={t("Loading {0} count", { "0": t(label) })}
 			/>
 		);
 	}
-	return error ? <span aria-label={`${label} count unavailable`}>—</span> : count;
+	return error ? <span aria-label={t("{0} count unavailable", { "0": t(label) })}>—</span> : count;
 };
 
 // Icon components for better semantics and performance
 const Icons = {
+ Archive: () => (
+  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8v12h14V8M3 4h18v4H3V4zm7 8h4" />
+  </svg>
+ ),
 	Tasks: () => (
 		<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -254,6 +263,8 @@ const FolderNode = memo(function FolderNode({ node, depth, folderExpanded, onTog
 });
 
 interface SideNavigationProps {
+ tasks?: Task[];
+ dataVersion?: number;
 	taskCount: number;
 	docs: Document[];
 	decisions: Decision[];
@@ -265,12 +276,15 @@ interface SideNavigationProps {
 
 const SideNavigation = memo(function SideNavigation({ 
 	taskCount,
+ tasks,
+ dataVersion,
 	docs, 
 	decisions, 
 	isLoading,
 	error,
 	onRetry
 }: SideNavigationProps) {
+  const { t } = useTranslation();
 	const [isCollapsed, setIsCollapsed] = useState(() => {
 		const saved = localStorage.getItem('sideNavCollapsed');
 		return saved ? JSON.parse(saved) : false;
@@ -307,6 +321,28 @@ const SideNavigation = memo(function SideNavigation({
 	});
 	const [version, setVersion] = useState<string>('');
 	const location = useLocation();
+ const [extraCounts,setExtraCounts] = useState<{drafts:number;milestones:number;archived:number} | null>(null);
+ const [countsError,setCountsError] = useState(false);
+ useEffect(() => {
+  let active = true;
+  setCountsError(false);
+  apiClient.fetchNavigationCounts().then(value => {if(active)setExtraCounts(value);}).catch(() => {if(active)setCountsError(true);});
+  return () => {active=false;};
+ }, [dataVersion, location.pathname]);
+ const countBadge = (label: string, count: number | undefined, failed = false) => <span className="ml-auto pl-2 text-xs tabular-nums text-gray-500 dark:text-gray-400" aria-label={`${t(label)}: ${failed ? "—" : count ?? "…"}`}>{failed ? "—" : count ?? "…"}</span>;
+ const boardStatuses = ["To Do","In Progress","Done"];
+ const boardCounts = boardStatuses.map(status => (tasks ?? []).filter(task => task.status.toLowerCase() === status.toLowerCase()).length);
+ const boardCountLabel = boardStatuses.map((status,index) => `${t(status)}: ${error ? "—" : isLoading ? "…" : boardCounts[index]}`).join(" / ");
+
+ // Keep content usable when entering a page on a narrow viewport.
+ useEffect(() => {
+  const media = window.matchMedia('(max-width: 639px)');
+  const collapseOnMobile = () => { if (media.matches) setIsCollapsed(true); };
+  collapseOnMobile();
+  media.addEventListener('change', collapseOnMobile);
+  return () => media.removeEventListener('change', collapseOnMobile);
+ }, [location.pathname]);
+
 	const navigate = useNavigate();
 
 	// Create handlers - just navigate to new pages
@@ -466,15 +502,15 @@ const SideNavigation = memo(function SideNavigation({
 
 	return (
 		<ErrorBoundary>
-			<div className={`relative bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col min-h-full z-10 ${isCollapsed ? 'w-16' : 'w-80 min-w-80'}`}>
+			<div className={`relative bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col min-h-full z-10 ${isCollapsed ? 'w-16 shrink-0' : 'w-80 min-w-80'}`}>
 			{/* Search Bar */}
 			<div className={`${isCollapsed ? 'px-2' : 'px-4'} border-b border-gray-200 dark:border-gray-700 h-18 flex items-center relative`}>
 				{/* Collapse Toggle Button - Always positioned on the border */}
 				<button
 					onClick={toggleCollapse}
 					className="absolute -right-3 top-1/2 transform -translate-y-1/2 z-10 flex items-center justify-center w-6 h-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-circle shadow-sm hover:shadow-md text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-200"
-					aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-					title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+					aria-label={isCollapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+					title={isCollapsed ? t("Expand sidebar") : t("Collapse sidebar")}
 				>
 					{isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronLeft />}
 				</button>
@@ -488,7 +524,7 @@ const SideNavigation = memo(function SideNavigation({
 							<input
 								ref={setSearchInputRef}
 								type="text"
-								placeholder="Search (⌘K)..."
+								placeholder={t("Search (⌘K)...")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="w-full pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200"
@@ -510,7 +546,7 @@ const SideNavigation = memo(function SideNavigation({
 							<button
 								onClick={expandAndFocusSearch}
 								className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200"
-								title="Search (⌘K)"
+								title={t("Search (⌘K)")}
 							>
 								<Icons.Search />
 						</button>
@@ -522,9 +558,9 @@ const SideNavigation = memo(function SideNavigation({
 			{!isCollapsed && searchQuery.trim() && unifiedSearchResults.length > 0 && (
 				<div className="p-4 border-b border-gray-200 dark:border-gray-700">
 					<div className="flex items-center justify-between mb-3">
-						<h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Search Results</h3>
+						<h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{t("Search Results")}</h3>
 						{isSearching && (
-							<span className="text-xs text-gray-500 dark:text-gray-400">Searching…</span>
+							<span className="text-xs text-gray-500 dark:text-gray-400">{t("Searching…")}</span>
 						)}
 					</div>
 					<div className="space-y-1">
@@ -585,14 +621,12 @@ const SideNavigation = memo(function SideNavigation({
 			)}
 
 			{!isCollapsed && searchQuery.trim() && unifiedSearchResults.length === 0 && !isSearching && !searchError && (
-				<div className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-					No matching results
-				</div>
+				<div className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">{t("No matching results")}</div>
 			)}
 
 			{!isCollapsed && searchQuery.trim() && searchError && (
 				<div className="px-4 py-2 text-sm text-red-600 dark:text-red-400 border-b border-gray-200 dark:border-gray-700">
-					{searchError}
+					{t(searchError)}
 				</div>
 			)}
 
@@ -605,25 +639,23 @@ const SideNavigation = memo(function SideNavigation({
 							type="button"
 							onClick={onRetry}
 							className="flex w-full items-center justify-center rounded-md bg-red-50 p-3 font-bold text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
-							aria-label="Failed to load navigation. Retry"
-							title="Failed to load navigation. Retry"
+							aria-label={t("Failed to load navigation. Retry")}
+							title={t("Failed to load navigation. Retry")}
 						>
 							<span aria-hidden="true">!</span>
-							<span className="sr-only">Retry</span>
+							<span className="sr-only">{t("Retry")}</span>
 						</button>
 					</div>
 				)}
 				{error && !isCollapsed && (
 					<div className="px-4 py-4">
 						<div className="text-center p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-							<p className="text-sm text-red-700 dark:text-red-400 mb-2">Failed to load navigation</p>
+							<p className="text-sm text-red-700 dark:text-red-400 mb-2">{t("Failed to load navigation")}</p>
 								{onRetry && (
 									<button
 										onClick={onRetry}
 										className="text-xs px-3 py-1 bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600 transition-colors duration-200"
-									>
-										Retry
-									</button>
+									>{t("Retry")}</button>
 							)}
 						</div>
 					</div>
@@ -634,8 +666,7 @@ const SideNavigation = memo(function SideNavigation({
 					<div className="px-4 py-4">
 						<div className="flex items-center space-x-3 text-gray-700 dark:text-gray-300">
 							<span className="text-gray-500 dark:text-gray-400"><Icons.Tasks /></span>
-							<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">
-								Tasks (<NavigationCount count={taskCount} isLoading={isLoading} error={error} label="task" />)
+							<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">{t("Tasks (")}<NavigationCount count={taskCount} isLoading={isLoading} error={error} label={t("task")} />)
 							</span>
 						</div>
 						{isLoading && (
@@ -658,7 +689,8 @@ const SideNavigation = memo(function SideNavigation({
 							}
 						>
 							<Icons.Board />
-							<span className="ml-3 text-sm font-medium">Kanban Board</span>
+							<span className="ml-3 text-sm font-medium">{t("Kanban Board")}</span>
+<span className="ml-auto pl-2 flex items-center gap-1" title={boardCountLabel} aria-label={boardCountLabel}>{boardStatuses.map((status,index) => <span key={status} className={`min-w-5 text-center rounded px-1 py-0.5 text-[10px] tabular-nums ${getStatusColor(status)}`}>{error ? "—" : isLoading ? "…" : boardCounts[index]}</span>)}</span>
 						</NavLink>
 
 						{/* Tasks Navigation */}
@@ -673,7 +705,7 @@ const SideNavigation = memo(function SideNavigation({
 							}
 						>
 							<Icons.List />
-							<span className="ml-3 text-sm font-medium">All Tasks</span>
+							<span className="ml-3 text-sm font-medium">{t("All Tasks")}</span>{countBadge("All Tasks", isLoading ? undefined : taskCount, Boolean(error))}
 						</NavLink>
 
 						{/* Milestones Navigation */}
@@ -688,7 +720,7 @@ const SideNavigation = memo(function SideNavigation({
 							}
 						>
 							<Icons.Milestone />
-							<span className="ml-3 text-sm font-medium">Milestones</span>
+							<span className="ml-3 text-sm font-medium">{t("Milestones")}</span>{countBadge("Milestones", extraCounts?.milestones, countsError)}
 						</NavLink>
 
 						{/* Drafts Navigation */}
@@ -703,10 +735,24 @@ const SideNavigation = memo(function SideNavigation({
 							}
 						>
 							<Icons.Draft />
-							<span className="ml-3 text-sm font-medium">Drafts</span>
+							<span className="ml-3 text-sm font-medium">{t("Drafts")}</span>{countBadge("Drafts", extraCounts?.drafts, countsError)}
 						</NavLink>
 
-						{/* Statistics Navigation */}
+						{/* Archive Navigation */}
+						<NavLink
+							to="/archive"
+							className={({ isActive }) =>
+								`flex items-center px-3 py-2 rounded-lg transition-colors duration-200 ${
+									isActive
+										? 'bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 font-medium'
+										: 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+								}`
+							}
+						>
+							<Icons.Archive />
+							<span className="ml-3 text-sm font-medium">{t("Archive")}</span>{countBadge("Archive", extraCounts?.archived, countsError)}
+						</NavLink>
+{/* Statistics Navigation */}
 						<NavLink
 							to="/statistics"
 							className={({ isActive }) =>
@@ -718,7 +764,7 @@ const SideNavigation = memo(function SideNavigation({
 							}
 						>
 							<Icons.Statistics />
-							<span className="ml-3 text-sm font-medium">Statistics</span>
+							<span className="ml-3 text-sm font-medium">{t("Statistics")}</span>
 						</NavLink>
 					</div>
 				)}
@@ -735,19 +781,18 @@ const SideNavigation = memo(function SideNavigation({
 										<button
 											onClick={() => setIsDocsCollapsed(!isDocsCollapsed)}
 											className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded transition-colors duration-200"
-											title={isDocsCollapsed ? "Expand documents" : "Collapse documents"}
+											title={isDocsCollapsed ? t("Expand documents") : t("Collapse documents")}
 										>
 											{isDocsCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
 									</button>
 									<span className="text-gray-500 dark:text-gray-400"><Icons.Document /></span>
-									<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">
-										Documents (<NavigationCount count={docs.length} isLoading={isLoading} error={error} label="document" />)
+									<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">{t("Documents (")}<NavigationCount count={docs.length} isLoading={isLoading} error={error} label={t("document")} />)
 									</span>
 								</div>
 									<button
 										onClick={handleCreateDocument}
 										className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors duration-200"
-										title="Create new document"
+										title={t("Create new document")}
 									>
 										<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -762,9 +807,9 @@ const SideNavigation = memo(function SideNavigation({
 									{isLoading ? (
 										<LoadingPhase className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" />
 									) : error ? (
-										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Documents unavailable</p>
+										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{t("Documents unavailable")}</p>
 									) : filteredDocs.length === 0 ? (
-										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No documents</p>
+										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{t("No documents")}</p>
 									) : searchQuery.trim() ? (
 										// Search results stay flat, bypassing folder grouping
 										filteredDocs.map(doc => (
@@ -800,13 +845,12 @@ const SideNavigation = memo(function SideNavigation({
 										<button
 											onClick={() => setIsDecisionsCollapsed(!isDecisionsCollapsed)}
 											className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded transition-colors duration-200"
-											title={isDecisionsCollapsed ? "Expand decisions" : "Collapse decisions"}
+											title={isDecisionsCollapsed ? t("Expand decisions") : t("Collapse decisions")}
 										>
 											{isDecisionsCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
 									</button>
 									<span className="text-gray-500 dark:text-gray-400"><Icons.Decision /></span>
-									<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">
-										Decisions (<NavigationCount count={decisions.length} isLoading={isLoading} error={error} label="decision" />)
+									<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">{t("Decisions (")}<NavigationCount count={decisions.length} isLoading={isLoading} error={error} label={t("decision")} />)
 									</span>
 								</div>
 								{/* Temporarily hidden - decisions editing not ready */}
@@ -830,9 +874,9 @@ const SideNavigation = memo(function SideNavigation({
 									{isLoading ? (
 										<LoadingPhase className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" />
 									) : error ? (
-										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Decisions unavailable</p>
+										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{t("Decisions unavailable")}</p>
 									) : filteredDecisions.length === 0 ? (
-										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No decisions</p>
+										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{t("No decisions")}</p>
 									) : (
 										filteredDecisions.map((decision) => (
 											<NavLink
@@ -862,7 +906,7 @@ const SideNavigation = memo(function SideNavigation({
 						<NavLink
 							to="/board"
 							data-tooltip-id="sidebar-tooltip"
-							data-tooltip-content="Kanban Board"
+							data-tooltip-content={`${t("Kanban Board")} (${boardCountLabel})`}
 							className={({ isActive }) =>
 								`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
 									isActive
@@ -878,7 +922,7 @@ const SideNavigation = memo(function SideNavigation({
 						<NavLink
 							to="/tasks"
 							data-tooltip-id="sidebar-tooltip"
-							data-tooltip-content="All Tasks"
+							data-tooltip-content={t("All Tasks")}
 							className={({ isActive }) =>
 								`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
 									isActive
@@ -895,7 +939,7 @@ const SideNavigation = memo(function SideNavigation({
 						<NavLink
 							to="/drafts"
 							data-tooltip-id="sidebar-tooltip"
-							data-tooltip-content="Drafts"
+							data-tooltip-content={t("Drafts")}
 							className={({ isActive }) =>
 								`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
 									isActive
@@ -912,7 +956,7 @@ const SideNavigation = memo(function SideNavigation({
 						<NavLink
 							to="/milestones"
 							data-tooltip-id="sidebar-tooltip"
-							data-tooltip-content="Milestones"
+							data-tooltip-content={t("Milestones")}
 							className={({ isActive }) =>
 								`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
 									isActive
@@ -925,11 +969,28 @@ const SideNavigation = memo(function SideNavigation({
 								<Icons.Milestone />
 							</div>
 						</NavLink>
-						{/* Statistics Navigation */}
+						{/* Archive Navigation */}
+						<NavLink
+							to="/archive"
+							data-tooltip-id="sidebar-tooltip"
+							data-tooltip-content={t("Archive")}
+							className={({ isActive }) =>
+								`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
+									isActive
+										? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400'
+										: 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+								}`
+							}
+						>
+							<div className="w-6 h-6 flex items-center justify-center">
+								<Icons.Archive />
+							</div>
+						</NavLink>
+{/* Statistics Navigation */}
 						<NavLink
 							to="/statistics"
 							data-tooltip-id="sidebar-tooltip"
-							data-tooltip-content="Statistics"
+							data-tooltip-content={t("Statistics")}
 							className={({ isActive }) =>
 								`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
 									isActive
@@ -948,7 +1009,7 @@ const SideNavigation = memo(function SideNavigation({
 								setIsDocsCollapsed(false);
 							}}
 								data-tooltip-id="sidebar-tooltip"
-								data-tooltip-content="Documentation"
+								data-tooltip-content={t("Documentation")}
 								className={`flex items-center justify-center p-3 rounded-md transition-colors duration-200 w-full ${
 									location.pathname.startsWith('/documentation')
 										? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400'
@@ -965,7 +1026,7 @@ const SideNavigation = memo(function SideNavigation({
 								setIsDecisionsCollapsed(false);
 							}}
 								data-tooltip-id="sidebar-tooltip"
-								data-tooltip-content="Decisions"
+								data-tooltip-content={t("Decisions")}
 								className={`flex items-center justify-center p-3 rounded-md transition-colors duration-200 w-full ${
 									location.pathname.startsWith('/decisions')
 										? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400'
@@ -994,7 +1055,7 @@ const SideNavigation = memo(function SideNavigation({
 						}
 					>
 						<Icons.DocumentSettings />
-						<span className="ml-3 text-sm font-medium">Settings</span>
+						<span className="ml-3 text-sm font-medium">{t("Settings")}</span>
 						{version && (
 							<span className="ml-auto text-xs text-gray-500 dark:text-gray-400">Backlog.md - v{version}</span>
 						)}
@@ -1003,7 +1064,7 @@ const SideNavigation = memo(function SideNavigation({
 					<NavLink
 						to="/settings"
 						data-tooltip-id="sidebar-tooltip"
-						data-tooltip-content="Settings"
+						data-tooltip-content={t("Settings")}
 						className={({ isActive }) =>
 							`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
 								isActive

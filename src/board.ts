@@ -170,7 +170,8 @@ Project: ${projectName}
 			const labelsText =
 				task.labels && task.labels.length > 0 ? `<br>*${task.labels.map((label) => `#${label}`).join(" ")}*` : "";
 
-			return `${taskIdPrefix}**${taskIdUpper}** - ${task.title}${assigneesText}${labelsText}`;
+			const dueText = task.dueDate ? ` (due ${task.dueDate})` : "";
+			return `${taskIdPrefix}**${taskIdUpper}** - ${task.title}${assigneesText}${dueText}${labelsText}`;
 		});
 		rows.push(`| ${row.join(" | ")} |`);
 	}

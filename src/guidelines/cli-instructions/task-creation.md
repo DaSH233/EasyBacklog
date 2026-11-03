@@ -2,22 +2,19 @@
 
 Use this guide when `backlog instructions` or the user indicates that new Backlog tasks are needed.
 
+### Reuse loaded guides
+
+Read each guide once per conversation/project/tool version; re-read when any of these changes, instructions change, or context is lost. Load only CLI or MCP, not both. Do not poll versions. Refresh task snapshots after possible external edits, failed/uncertain updates, or lost context.
+
 ### Step 1: Search First
 
-Always check whether the work is already tracked.
+When a task ID is already known, read that task directly; do not search or list first. For a new requirement or an unknown ID, search by keyword with a result limit (for example, 10), then read likely matches. Broaden or paginate only if needed. Do not use an unfiltered full list as a routine prerequisite.
 
-Recommended CLI commands:
+### Reuse or create
 
-- `backlog search "desktop app" --plain`
-- `backlog task list --status "<todo status>" --plain`
-- `backlog task list --status "<active status>" --plain`
-- `backlog task list --exclude-status "<terminal status>" --plain`
-- `backlog task list --type {{TASK_TYPE:1}} --plain`
-- `backlog task list --search "desktop app" --labels frontend,bug --limit 20 --plain`
+A small fix within a completed task's original scope may reuse that task. Read the matching task even if it is completed. Before implementation, follow the execution guide to reopen it in the configured active status.
 
-Avoid broad unfiltered listing when the project may have many tasks. Use `--status`, `--exclude-status`, `--type`, `--project`, `--assignee`, `--unassigned`, `--parent`, `--priority`, `--labels`, `--search`, or `--limit` where applicable. Check the size with `--count`, and read a long list in windows with `--max-count` and `--skip`; cut output ends with the command for the next window. Repeat `--exclude-status` or pass comma-separated configured statuses to exclude multiple states. Repeat `--type` or pass comma-separated configured task types to include multiple types. Repeat `--project` or pass comma-separated configured projects to include multiple projects.
-
-Use `backlog task view {{TASK_ID:123}} --plain` to read full context for likely matches.
+A new feature or independent requirement needs a new task, unless an existing task already tracks that requirement. Sharing a page or component with a completed task is not sufficient reason to reuse it. Search first to avoid duplicates.
 
 ### Step 2: Assess Scope Before Creating Tasks
 
@@ -26,32 +23,7 @@ Decide whether the request is:
 - A single atomic task that can be completed in one focused PR.
 - A multi-task feature or initiative that needs subtasks or dependencies.
 
-Ask:
-
-1. Can this be completed in a single focused pull request?
-2. Would a reviewer be comfortable reviewing all changes at once?
-3. Are there natural independent delivery points?
-4. Does the work span multiple subsystems, layers, or ownership areas?
-5. Are multiple tasks likely to touch the same component?
-
-### Step 3: Choose Task Structure
-
-Use subtasks when the work shares one goal and one subsystem:
-
-```bash
-backlog task create "Desktop application"
-backlog task create -p {{TASK_ID:10}} "Set up shell"
-backlog task create -p {{TASK_ID:10}} "Wire IPC"
-```
-
-Use `--parent`/`-p` only with an existing task ID returned by `backlog task create`, `backlog task list`, or `backlog task view`. Do not pass milestone IDs such as `m-0` to `--parent`; assign a task to a milestone with `--milestone`/`-m`.
-
-Use separate tasks with dependencies when work spans independent components:
-
-```bash
-backlog task create "Add bulk update API"
-backlog task create "Add bulk update UI" --dep {{TASK_ID:21}}
-```
+Use subtasks for a shared goal within one subsystem; use separate tasks with dependencies for independent components. Only use existing task IDs as parents, not milestone IDs; see the reference for examples.
 
 ### Step 4: Create Tasks
 
@@ -72,38 +44,6 @@ the current system and records the plan after picking up and activating the task
 change before then. The narrow exception is already-started work being created directly in a configured active status
 (for example, In Progress); its current researched plan may be supplied at creation.
 
-Examples:
-
-```bash
-backlog task create "Add project search" \
-  -d "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks, docs, and decisions." \
-  --ac "Search returns matching tasks by title and description" \
-  --ac "Search supports --plain output" \
-  --ac "Tests cover task, document, and decision results"
-```
-
-Too thin: `-d "Users can search tasks, docs, and decisions from one CLI command."` states the change but not the need,
-so a future agent cannot weigh scope or alternatives.
-
-```bash
-backlog task create "Add settings docs" \
-  --doc docs/settings.md \
-  --ref https://example.com/spec
-```
-
-### Shell Quoting for Literal Backticks
-
-When task text includes Markdown code spans, quote it so the shell passes the backticks literally. Unescaped backticks in double-quoted or unquoted arguments are command substitution in many shells, and Backlog.md cannot recover the original text after the shell has already executed it.
-
-Use single-quoted CLI arguments for values that contain literal backticks:
-
-```bash
-backlog task create 'Document `backlog init` setup' \
-  --ac 'Instructions mention `backlog init --defaults` literally'
-```
-
-If single quotes are not practical in your shell, escape each literal backtick before running the command. Do not rely on Backlog.md to sanitize accidental command output after substitution.
-
 ### Acceptance Criteria
 
 Acceptance criteria define the expected behavior, not implementation steps.
@@ -118,14 +58,18 @@ Avoid criteria like "Implement helper function" unless the helper itself is the 
 
 ### Definition of Done
 
-Project-level Definition of Done defaults apply automatically. Add task-specific DoD items only when this task needs extra completion hygiene:
-
-```bash
-backlog task create "Ship audit export" --dod "Manual export checked with sample data"
-```
+Project-level Definition of Done defaults apply automatically; add task-specific items only for extra completion hygiene.
 
 ### After Creation
 
 Report the created task IDs, titles, and key acceptance criteria to the user. If the user asks for changes, update tasks through `backlog task edit`.
 
-If you will continue from task creation into implementation in the same session, stop and read `backlog instructions task-execution` before viewing, assigning, planning, editing, or implementing a task. Task creation is complete once the work is tracked; execution uses a separate workflow.
+If you will continue from task creation into implementation in the same session, use the cached `backlog instructions task-execution` guide if still valid; otherwise read it before assigning, planning, editing, or implementing a task. Task creation is complete once the work is tracked; execution uses a separate workflow.
+
+### On-demand reference
+
+For advanced filters, parent/dependency examples, shell quoting, field replacement, legacy-section errors, document links, or archive/restore/delete behavior, read `backlog instructions workflow-reference` only when needed. Consult command help or tool schemas for unfamiliar fields; never guess. Use the supported CLI/MCP interface, never edit Backlog record Markdown directly.
+
+### Concise records
+
+Write only context needed for handoff: why the work exists, material decisions or blockers, what changed, verification evidence, and unresolved next steps. Usually one short paragraph or 3–5 bullets is enough; expand when evidence or risk requires it. Record verification command/scenario and outcome (including failures/skips); reference long logs instead of copying them. Do not repeat acceptance criteria in descriptions, plans in notes, or notes in summaries. Append only new facts for follow-ups. Do not truncate evidence, weaken acceptance/DoD, or rewrite historical records merely to save tokens.

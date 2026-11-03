@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import type React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -31,25 +32,20 @@ const DIRECTIONS: Array<{ direction: DependencyDirection; heading: string }> = [
 const BADGE_CLASS = 'shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium';
 
 const NodeBadge: React.FC<{ node: DependencyGraphNode }> = ({ node }) => {
+  const { t } = useTranslation();
   if (node.state === 'missing') {
     return (
-      <span className={`${BADGE_CLASS} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300`}>
-        Unknown ID
-      </span>
+      <span className={`${BADGE_CLASS} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300`}>{t("Unknown ID")}</span>
     );
   }
   if (node.state === 'ambiguous') {
     return (
-      <span className={`${BADGE_CLASS} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300`}>
-        Ambiguous ID
-      </span>
+      <span className={`${BADGE_CLASS} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300`}>{t("Ambiguous ID")}</span>
     );
   }
   if (node.completed) {
     return (
-      <span className={`${BADGE_CLASS} bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300`}>
-        Completed
-      </span>
+      <span className={`${BADGE_CLASS} bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300`}>{t("Completed")}</span>
     );
   }
   return (
@@ -65,6 +61,7 @@ const REPEAT_LABELS: Record<NonNullable<DependencyTreeNode['repeat']>, string> =
 };
 
 const NodeRow: React.FC<{ entry: DependencyTreeNode; direction: DependencyDirection }> = ({ entry, direction }) => {
+  const { t } = useTranslation();
   const { node } = entry;
   const taskHref = useTaskHref();
   const label = `${node.id}${node.title ? ` - ${node.title}` : ''}`;
@@ -80,7 +77,7 @@ const NodeRow: React.FC<{ entry: DependencyTreeNode; direction: DependencyDirect
         <Link
           to={taskHref(node.id, node.title)}
           className="min-w-0 break-words text-sm text-gray-900 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-100"
-          aria-label={`Open ${label}`}
+          aria-label={t("Open {0}", { "0": label })}
         >
           <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{node.id}</span>
           {node.title ? <span className="ml-2">{node.title}</span> : null}
@@ -91,7 +88,7 @@ const NodeRow: React.FC<{ entry: DependencyTreeNode; direction: DependencyDirect
       <NodeBadge node={node} />
       {entry.repeat ? (
         <span className={`${BADGE_CLASS} bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400`}>
-          {REPEAT_LABELS[entry.repeat]}
+          {t(REPEAT_LABELS[entry.repeat])}
         </span>
       ) : null}
     </div>
@@ -121,6 +118,7 @@ const TreeList: React.FC<{ entries: DependencyTreeNode[]; direction: DependencyD
  * once; a diamond or a cycle is marked instead of repeated.
  */
 export const DependencyGraphSection: React.FC<{ graph: DependencyGraph }> = ({ graph }) => {
+  const { t } = useTranslation();
   const resolved = graph;
 
   const sections = DIRECTIONS.map(({ direction, heading }) => {
@@ -139,13 +137,13 @@ export const DependencyGraphSection: React.FC<{ graph: DependencyGraph }> = ({ g
   return (
     <div className="space-y-4" data-dependency-graph>
       {sections.map((section) => (
-        <section key={section.direction} aria-label={`${section.heading} (${section.reached.length})`}>
+        <section key={section.direction} aria-label={`${t(section.heading)} (${section.reached.length})`}>
           <div className="mb-1 flex items-baseline justify-between gap-2">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              {section.heading}
+              {t(section.heading)}
             </h4>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {`${section.direct} direct, ${section.reached.length} total`}
+              {t("{0} direct, {1} total", { "0": section.direct, "1": section.reached.length })}
             </span>
           </div>
           <TreeList entries={section.tree} direction={section.direction} nested={false} />

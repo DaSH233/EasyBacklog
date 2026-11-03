@@ -174,6 +174,7 @@ const CONFIG_GET_KEYS = [
 	"defaultPort",
 	"autoOpenBrowser",
 	"remoteOperations",
+	"automaticTaskManagement",
 	"autoCommit",
 	"filesystemOnly",
 	"bypassGitHooks",
@@ -192,6 +193,7 @@ const CONFIG_SET_KEYS = [
 	"autoOpenBrowser",
 	"defaultPort",
 	"remoteOperations",
+	"automaticTaskManagement",
 	"autoCommit",
 	"filesystemOnly",
 	"bypassGitHooks",
@@ -1072,6 +1074,11 @@ addHelpSchema(program.command("init [projectName]"), {
 	optional: [
 		{ name: "projectName", type: "String", description: "Project name; prompted when omitted" },
 		{
+			name: "--automatic-task-management",
+			type: "true | false (default: false)",
+			description: "Allow AI to automatically create and manage tasks",
+		},
+		{
 			name: "--integration-mode",
 			type: `${choiceType(["cli", "mcp", "none"])} (default: cli)`,
 			description: "AI integration mode; CLI instructions are recommended",
@@ -1122,12 +1129,14 @@ addHelpSchema(program.command("init [projectName]"), {
 		"custom task prefix, letters only (default: task); draft, doc, and decision are reserved",
 	)
 	.option("--no-git", "initialize without Git integration")
+	.option("--automatic-task-management <boolean>", "allow AI automatic task management (true or false; default false)")
 	.option("--defaults", "use default values for all prompts")
 	.action(
 		async (
 			projectName: string | undefined,
 			options: {
 				agentInstructions?: string;
+				automaticTaskManagement?: string;
 				checkBranches?: string;
 				includeRemote?: string;
 				branchDays?: string;
@@ -1232,6 +1241,7 @@ addHelpSchema(program.command("init [projectName]"), {
 
 				// Non-interactive mode when any flag is provided or --defaults is used
 				const isNonInteractive = !!(
+					options.automaticTaskManagement !== undefined ||
 					options.agentInstructions ||
 					options.defaults ||
 					options.checkBranches ||
@@ -1249,6 +1259,24 @@ addHelpSchema(program.command("init [projectName]"), {
 					options.taskPrefix ||
 					options.git === false
 				);
+
+				let automaticTaskManagement = existingConfig?.automaticTaskManagement ?? false;
+				if (options.automaticTaskManagement !== undefined) {
+					if (!["true", "false"].includes(options.automaticTaskManagement)) {
+						throw new Error("--automatic-task-management must be true or false");
+					}
+					automaticTaskManagement = options.automaticTaskManagement === "true";
+				} else if (!isNonInteractive && hasInteractiveTTY) {
+					const consent = await clack.confirm({
+						message: "Allow AI to automatically create and manage tasks?",
+						initialValue: automaticTaskManagement,
+					});
+					if (clack.isCancel(consent)) {
+						abortInitialization();
+						return;
+					}
+					automaticTaskManagement = consent;
+				}
 
 				// Get project name
 				let name = projectName;
@@ -1750,6 +1778,7 @@ addHelpSchema(program.command("init [projectName]"), {
 				}
 				// Call shared core init function
 				const initResult = await initializeProject(core, {
+					automaticTaskManagement,
 					projectName: name,
 					backlogDirectory,
 					backlogDirectorySource,
@@ -1809,6 +1838,9 @@ addHelpSchema(program.command("init [projectName]"), {
 						})
 						.join("\n");
 				const summaryLines: string[] = [`${label("Project Name:")} ${colorize("1", config.projectName)}`];
+				summaryLines.push(
+					`${label("Automatic task management:")} ${config.automaticTaskManagement ? "Allowed" : "Not allowed"}`,
+				);
 				summaryLines.push(`${label("Backlog directory:")} ${backlogDirectory ?? core.filesystem.backlogDirName}`);
 				summaryLines.push(
 					`${label("Config location:")} ${configLocation === "root" ? DEFAULT_FILES.ROOT_CONFIG : "folder config.yml"}`,
@@ -4211,7 +4243,8 @@ addListWindowOptions(draftListCommand)
 				console.log("Drafts:");
 				for (const draft of windowDrafts) {
 					const priorityIndicator = draft.priority ? `[${draft.priority.toUpperCase()}] ` : "";
-					console.log(`  ${priorityIndicator}${draft.id} - ${draft.title}`);
+					const dueText = draft.dueDate ? ` (due ${draft.dueDate})` : "";
+					console.log(`  ${priorityIndicator}${draft.id} - ${draft.title}${dueText}`);
 				}
 			});
 			return;
@@ -4809,11 +4842,13 @@ addHelpSchema(docCmd.command("create <title>"), {
 		},
 		{ name: "type", type: choiceType(DOCUMENT_TYPE_VALUES), description: "Document type" },
 		{ name: "plain", type: "Boolean", description: "Use plain text output" },
+		{ name: "content", type: "Markdown", description: "Initial document body" },
 	],
 	writes: "Creates a document markdown file under the configured docs directory",
 	output: "Created document ID and path",
-	examples: ['backlog doc create "API Guidelines" -p guides/api'],
+	examples: ['backlog doc create "API Guidelines" -p guides/api --content "# API Guidelines"'],
 })
+	.option("--content <content>", "initial document markdown content")
 	.option("-p, --path <path>")
 	.option("-t, --type <type>", `document type (${DOCUMENT_TYPE_VALUES.join(", ")})`)
 	// Accepted so agent guidance that always passes --plain works; create output is already plain text.
@@ -4825,7 +4860,7 @@ addHelpSchema(docCmd.command("create <title>"), {
 			title: title as string,
 			type: (options.type || "other") as DocType["type"],
 			path: options.path,
-			content: "",
+			content: options.content ?? "",
 		});
 		console.log(`Created document ${document.id}`);
 		if (document.path) {
@@ -5288,7 +5323,7 @@ agentsCmd
 
 // Config command group
 const CONFIG_AVAILABLE_KEYS =
-	"Available keys: defaultEditor, projectName, defaultAssignee, defaultStatus, statuses, labels, priorities, types, projects, milestones, definitionOfDone, dateFormat, maxColumnWidth, defaultPort, autoOpenBrowser, hideEmptyColumns, remoteOperations, autoCommit, filesystemOnly, bypassGitHooks, zeroPaddedIds, checkActiveBranches, activeBranchDays";
+	"Available keys: defaultEditor, projectName, defaultAssignee, defaultStatus, statuses, labels, priorities, types, projects, milestones, definitionOfDone, dateFormat, maxColumnWidth, defaultPort, autoOpenBrowser, hideEmptyColumns, remoteOperations, autoCommit, automaticTaskManagement, filesystemOnly, bypassGitHooks, zeroPaddedIds, checkActiveBranches, activeBranchDays";
 
 const configCmd = addHelpSchema(program.command("config"), {
 	reads: "Project Backlog.md configuration",
@@ -5410,6 +5445,9 @@ addHelpSchema(configCmd.command("get <key>"), {
 					break;
 				case "projectName":
 					console.log(config.projectName);
+					break;
+				case "automaticTaskManagement":
+					console.log(config.automaticTaskManagement === true);
 					break;
 				case "defaultAssignee":
 					console.log(config.defaultAssignee?.join(", ") || "");
@@ -5600,6 +5638,18 @@ addHelpSchema(configCmd.command("set <key> <value>"), {
 					}
 					break;
 				}
+				case "automaticTaskManagement": {
+					const boolValue = value.toLowerCase();
+					if (boolValue === "true" || boolValue === "1" || boolValue === "yes") {
+						config.automaticTaskManagement = true;
+					} else if (boolValue === "false" || boolValue === "0" || boolValue === "no") {
+						config.automaticTaskManagement = false;
+					} else {
+						console.error("automaticTaskManagement must be true or false");
+						process.exit(1);
+					}
+					break;
+				}
 				case "autoCommit": {
 					const boolValue = value.toLowerCase();
 					if (boolValue === "true" || boolValue === "1" || boolValue === "yes") {
@@ -5759,6 +5809,7 @@ addHelpSchema(configCmd.command("list"), {
 			console.log(`  hideEmptyColumns: ${config.hideEmptyColumns ?? "(not set)"}`);
 			console.log(`  defaultPort: ${config.defaultPort ?? "(not set)"}`);
 			console.log(`  remoteOperations: ${config.remoteOperations ?? "(not set)"}`);
+			console.log(`  automaticTaskManagement: ${config.automaticTaskManagement === true}`);
 			console.log(`  autoCommit: ${config.autoCommit ?? "(not set)"}`);
 			console.log(`  filesystemOnly: ${config.filesystemOnly ?? "false"}`);
 			console.log(`  bypassGitHooks: ${config.bypassGitHooks ?? "(not set)"}`);

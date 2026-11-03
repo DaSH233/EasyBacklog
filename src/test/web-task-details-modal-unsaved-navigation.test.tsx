@@ -87,12 +87,7 @@ const renderModal = async (modalTask: Task | undefined): Promise<HTMLElement> =>
 				<ThemeProvider>
 					<TaskIdIndexProvider tasks={[task, dependency]}>
 						<LocationProbe />
-						<TaskDetailsModal
-							task={modalTask}
-							isOpen={true}
-							onClose={() => {}}
-							availableTasks={[task, dependency]}
-						/>
+						<TaskDetailsModal task={modalTask} isOpen={true} onClose={() => {}} availableTasks={[task, dependency]} />
 					</TaskIdIndexProvider>
 				</ThemeProvider>
 			</MemoryRouter>,
@@ -264,5 +259,40 @@ describe("Task details modal navigation with unsaved edits", () => {
 
 		expect(prompts).toBe(0);
 		expect(currentPath).toBe("/tasks/BACK-2");
+	});
+});
+
+describe("task reading mode persistence", () => {
+	it("remembers edit mode across remounts, keeps archived records read-only, and remembers Cancel", async () => {
+		const container = await mountModal();
+		await startEditing(container);
+		const remount = async (key: string, archived = false) => {
+			await act(async () => {
+				activeRoot?.render(
+					<MemoryRouter>
+						<ThemeProvider>
+							<TaskDetailsModal
+								key={key}
+								task={{ ...task, source: archived ? "archived" : "local" }}
+								isOpen
+								onClose={() => {}}
+							/>
+						</ThemeProvider>
+					</MemoryRouter>,
+				);
+			});
+		};
+		await remount("again");
+		expect(container.querySelector(".w-md-editor textarea")).not.toBeNull();
+		await remount("archived", true);
+		expect(container.querySelector(".w-md-editor textarea")).toBeNull();
+		await remount("active");
+		const cancel = Array.from(container.querySelectorAll("button")).find(
+			(button) => button.textContent?.trim() === "Cancel",
+		);
+		expect(cancel).toBeTruthy();
+		await click(cancel as Element);
+		await remount("preview");
+		expect(container.querySelector(".w-md-editor textarea")).toBeNull();
 	});
 });

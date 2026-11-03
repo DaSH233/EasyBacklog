@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import type React from "react";
 
 const TYPE_BADGE_PALETTES = [
@@ -69,6 +70,7 @@ interface TaskTypeBadgeProps {
 }
 
 const TaskTypeBadge: React.FC<TaskTypeBadgeProps> = ({ type, availableTypes, className = "" }) => {
+  const { t } = useTranslation();
 	const label = type?.trim();
 	if (!label) {
 		return null;
@@ -77,7 +79,7 @@ const TaskTypeBadge: React.FC<TaskTypeBadgeProps> = ({ type, availableTypes, cla
 	return (
 		<span
 			data-task-type={label}
-			title={`Task type: ${label}`}
+			title={t("Task type: {0}", { "0": label })}
 			className={`inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-[10px] font-semibold leading-4 ${TYPE_BADGE_PALETTES[getPaletteIndex(label, availableTypes)]} ${className}`}
 		>
 			<span className="truncate">{label}</span>

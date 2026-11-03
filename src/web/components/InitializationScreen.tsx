@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import React, { useEffect, useState } from "react";
 import { DEFAULT_INIT_CONFIG } from "../../constants/index.ts";
 import { apiClient } from "../lib/api";
@@ -25,11 +26,14 @@ interface InitializationScreenProps {
 	onInitialized: () => void;
 }
 
-type WizardStep = "projectName" | "integrationMode" | "mcpClients" | "agentFiles" | "advancedConfig" | "summary";
+type WizardStep = "taskManagement" | "projectName" | "integrationMode" | "mcpClients" | "agentFiles" | "advancedConfig" | "summary";
 
 const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitialized }) => {
+  const { t } = useTranslation();
 	// Wizard state
-	const [currentStep, setCurrentStep] = useState<WizardStep>("projectName");
+	const [currentStep, setCurrentStep] = useState<WizardStep>("taskManagement");
+
+	const [automaticTaskManagement, setAutomaticTaskManagement] = useState<boolean | null>(null);
 
 	// Form data
 	const [projectName, setProjectName] = useState("");
@@ -94,6 +98,10 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 	const handleNext = () => {
 		setError(null);
 		switch (currentStep) {
+			case "taskManagement":
+				if (automaticTaskManagement === null) return;
+				setCurrentStep("projectName");
+				break;
 			case "projectName":
 				if (!projectName.trim()) {
 					setError("Project name is required");
@@ -129,6 +137,9 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 	const handleBack = () => {
 		setError(null);
 		switch (currentStep) {
+			case "projectName":
+				setCurrentStep("taskManagement");
+				break;
 			case "integrationMode":
 				setCurrentStep("projectName");
 				break;
@@ -154,6 +165,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 	};
 
 	const handleInitialize = async () => {
+		if (automaticTaskManagement === null) return;
 		setIsInitializing(true);
 		setError(null);
 		setMcpSetupResults({});
@@ -164,6 +176,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 					? normalizeRelativeBacklogDirectory(backlogDirectory) ?? backlogDirectory
 					: backlogDirectory;
 			await apiClient.initializeProject({
+				automaticTaskManagement,
 				projectName: projectName.trim(),
 				backlogDirectory: normalizedBacklogDirectory,
 				backlogDirectorySource,
@@ -200,15 +213,30 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 		);
 	};
 
+	const renderTaskManagementStep = () => (
+		<fieldset>
+			<legend className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("Allow AI to automatically create and manage tasks?")}</legend>
+			<div className="space-y-3">
+				{[false, true].map((allowed) => (
+					<label key={String(allowed)} className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer dark:border-gray-600">
+						<input type="radio" name="automaticTaskManagement" value={String(allowed)} checked={automaticTaskManagement === allowed} onChange={() => setAutomaticTaskManagement(allowed)} className="mt-1" />
+						<span className="text-gray-900 dark:text-gray-100">{t(allowed ? "Allow automatic task management" : "Only manage tasks when I explicitly ask")}</span>
+					</label>
+				))}
+			</div>
+		</fieldset>
+	);
+
 	const renderStepIndicator = () => {
-		const steps = ["Project", "Integration", "Setup", "Config", "Initialize"];
+		const steps = ["Task management", "Project", "Integration", "Setup", "Config", "Initialize"];
 		const stepMap: Record<WizardStep, number> = {
-			projectName: 0,
-			integrationMode: 1,
-			mcpClients: 2,
-			agentFiles: 2,
-			advancedConfig: 3,
-			summary: 4,
+			taskManagement: 0,
+			projectName: 1,
+			integrationMode: 2,
+			mcpClients: 3,
+			agentFiles: 3,
+			advancedConfig: 4,
+			summary: 5,
 		};
 		const currentIndex = stepMap[currentStep];
 
@@ -242,15 +270,13 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 	const renderProjectNameStep = () => (
 		<div>
-			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Project Name</h2>
-			<p className="text-gray-600 dark:text-gray-400 mb-6">
-				Enter a name for your project. This will be displayed in the UI and used for identification.
-			</p>
+			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("Project Name")}</h2>
+			<p className="text-gray-600 dark:text-gray-400 mb-6">{t("Enter a name for your project. This will be displayed in the UI and used for identification.")}</p>
 			<input
 				type="text"
 				value={projectName}
 				onChange={(e) => setProjectName(e.target.value)}
-				placeholder="My Awesome Project"
+				placeholder={t("My Awesome Project")}
 				className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 transition-colors duration-200"
 				autoFocus
 			/>
@@ -259,10 +285,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 	const renderIntegrationModeStep = () => (
 		<div>
-			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">AI Integration Mode</h2>
-			<p className="text-gray-600 dark:text-gray-400 mb-6">
-				How would you like your AI tools to connect to Backlog.md?
-			</p>
+			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("AI Integration Mode")}</h2>
+			<p className="text-gray-600 dark:text-gray-400 mb-6">{t("How would you like your AI tools to connect to Backlog.md?")}</p>
 			<div className="space-y-3">
 				<label
 					className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -280,13 +304,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						className="mt-1 mr-3"
 					/>
 					<div>
-						<div className="font-medium text-gray-900 dark:text-gray-100">
-							MCP Connector (Recommended)
-						</div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">
-							For Claude Code, Codex, Gemini CLI, Kiro, Cursor, etc. Agents learn the Backlog.md workflow through
-							MCP tools, resources, and prompts.
-						</div>
+						<div className="font-medium text-gray-900 dark:text-gray-100">{t("MCP Connector (Recommended)")}</div>
+						<div className="text-sm text-gray-500 dark:text-gray-400">{t("For Claude Code, Codex, Gemini CLI, Kiro, Cursor, etc. Agents learn the Backlog.md workflow through MCP tools, resources, and prompts.")}</div>
 					</div>
 				</label>
 
@@ -306,13 +325,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						className="mt-1 mr-3"
 					/>
 					<div>
-						<div className="font-medium text-gray-900 dark:text-gray-100">
-							CLI Commands (Broader Compatibility)
-						</div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">
-							Agents will use Backlog.md by invoking CLI commands directly. Creates instruction files for
-							various AI tools.
-						</div>
+						<div className="font-medium text-gray-900 dark:text-gray-100">{t("CLI Commands (Broader Compatibility)")}</div>
+						<div className="text-sm text-gray-500 dark:text-gray-400">{t("Agents will use Backlog.md by invoking CLI commands directly. Creates instruction files for various AI tools.")}</div>
 					</div>
 				</label>
 
@@ -332,10 +346,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						className="mt-1 mr-3"
 					/>
 					<div>
-						<div className="font-medium text-gray-900 dark:text-gray-100">Skip for Now</div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">
-							Continue without setting up AI integration. You can configure this later.
-						</div>
+						<div className="font-medium text-gray-900 dark:text-gray-100">{t("Skip for Now")}</div>
+						<div className="text-sm text-gray-500 dark:text-gray-400">{t("Continue without setting up AI integration. You can configure this later.")}</div>
 					</div>
 				</label>
 			</div>
@@ -344,10 +356,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 	const renderMcpClientsStep = () => (
 		<div>
-			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">MCP Client Setup</h2>
-			<p className="text-gray-600 dark:text-gray-400 mb-6">
-				Select the AI tools you want to configure for MCP integration. The setup will run automatically.
-			</p>
+			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("MCP Client Setup")}</h2>
+			<p className="text-gray-600 dark:text-gray-400 mb-6">{t("Select the AI tools you want to configure for MCP integration. The setup will run automatically.")}</p>
 			<div className="space-y-3">
 				{[
 					{ id: "claude" as McpClient, label: "Claude Code", description: "Anthropic's Claude Code editor" },
@@ -374,26 +384,22 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							className="mt-1 mr-3"
 						/>
 						<div>
-							<div className="font-medium text-gray-900 dark:text-gray-100">{client.label}</div>
-							<div className="text-sm text-gray-500 dark:text-gray-400">{client.description}</div>
+							<div className="font-medium text-gray-900 dark:text-gray-100">{t(client.label)}</div>
+							<div className="text-sm text-gray-500 dark:text-gray-400">{t(client.description)}</div>
 						</div>
 					</label>
 				))}
 			</div>
 			{selectedMcpClients.length === 0 && (
-				<p className="mt-4 text-sm text-amber-600 dark:text-amber-400">
-					💡 Select at least one option to configure MCP integration, or go back to choose a different mode.
-				</p>
+				<p className="mt-4 text-sm text-amber-600 dark:text-amber-400">{t("💡 Select at least one option to configure MCP integration, or go back to choose a different mode.")}</p>
 			)}
 		</div>
 	);
 
 	const renderAgentFilesStep = () => (
 		<div>
-			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Agent Instruction Files</h2>
-			<p className="text-gray-600 dark:text-gray-400 mb-6">
-				Select which instruction files to create for CLI-based AI tools.
-			</p>
+			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("Agent Instruction Files")}</h2>
+			<p className="text-gray-600 dark:text-gray-400 mb-6">{t("Select which instruction files to create for CLI-based AI tools.")}</p>
 			<div className="space-y-3">
 				{[
 					{ id: "CLAUDE.md" as AgentFile, label: "CLAUDE.md", description: "Claude Code instructions" },
@@ -424,8 +430,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							className="mt-1 mr-3"
 						/>
 						<div>
-							<div className="font-medium text-gray-900 dark:text-gray-100">{file.label}</div>
-							<div className="text-sm text-gray-500 dark:text-gray-400">{file.description}</div>
+							<div className="font-medium text-gray-900 dark:text-gray-100">{t(file.label)}</div>
+							<div className="text-sm text-gray-500 dark:text-gray-400">{t(file.description)}</div>
 						</div>
 					</label>
 				))}
@@ -440,12 +446,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						className="mt-1 mr-3"
 					/>
 					<div>
-						<div className="font-medium text-gray-900 dark:text-gray-100">
-							Install Claude Code Backlog.md Agent
-						</div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">
-							Adds configuration under .claude/agents/ for enhanced Claude Code integration
-						</div>
+						<div className="font-medium text-gray-900 dark:text-gray-100">{t("Install Claude Code Backlog.md Agent")}</div>
+						<div className="text-sm text-gray-500 dark:text-gray-400">{t("Adds configuration under .claude/agents/ for enhanced Claude Code integration")}</div>
 					</div>
 				</label>
 			</div>
@@ -454,10 +456,10 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 	const renderAdvancedConfigStep = () => (
 		<div>
-			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Advanced Settings</h2>
+			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("Advanced Settings")}</h2>
 
 			<div className="mb-6">
-				<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Backlog Folder</h3>
+				<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t("Backlog Folder")}</h3>
 				<div className="space-y-3">
 					{([
 						{
@@ -473,7 +475,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						{
 							id: "custom" as BacklogDirectoryChoice,
 							label: "Custom project-relative path",
-							description: `Use ${rootConfigPath ?? "backlog.config.yml"} as the project-root pointer file`,
+							description: t("Use {0} as the project-root pointer file", { "0": rootConfigPath ?? "backlog.config.yml" }),
 						},
 					]).map((option) => (
 						<label
@@ -501,32 +503,28 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 								className="mt-1 mr-3"
 							/>
 							<div>
-								<div className="font-medium text-gray-900 dark:text-gray-100">{option.label}</div>
-								<div className="text-sm text-gray-500 dark:text-gray-400">{option.description}</div>
+								<div className="font-medium text-gray-900 dark:text-gray-100">{t(option.label)}</div>
+								<div className="text-sm text-gray-500 dark:text-gray-400">{t(option.description)}</div>
 							</div>
 						</label>
 					))}
 				</div>
 				{backlogDirectorySource === "custom" && (
 					<div className="mt-4">
-						<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
-							Project-relative backlog directory
-						</label>
+						<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">{t("Project-relative backlog directory")}</label>
 						<input
 							type="text"
 							value={backlogDirectory}
 							onChange={(e) => setBacklogDirectory(e.target.value)}
-							placeholder="e.g. planning/backlog"
+							placeholder={t("e.g. planning/backlog")}
 							className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
 						/>
-						<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-							This path is stored in {rootConfigPath ?? "backlog.config.yml"} and resolved from the project root.
-						</p>
+						<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t("This path is stored in")}{" "}{rootConfigPath ?? "backlog.config.yml"}{" "}{t("and resolved from the project root.")}</p>
 					</div>
 				)}
 				{backlogDirectorySource !== "custom" && (
 					<div className="mt-4">
-						<label className="block text-sm text-gray-700 dark:text-gray-300 mb-3">Config Location</label>
+						<label className="block text-sm text-gray-700 dark:text-gray-300 mb-3">{t("Config Location")}</label>
 						<div className="space-y-3">
 							{([
 								{
@@ -557,8 +555,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 										className="mt-1 mr-3"
 									/>
 									<div>
-										<div className="font-medium text-gray-900 dark:text-gray-100">{option.label}</div>
-										<div className="text-sm text-gray-500 dark:text-gray-400">{option.description}</div>
+										<div className="font-medium text-gray-900 dark:text-gray-100">{t(option.label)}</div>
+										<div className="text-sm text-gray-500 dark:text-gray-400">{t(option.description)}</div>
 									</div>
 								</label>
 							))}
@@ -574,14 +572,14 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 					onChange={(e) => setShowAdvancedConfig(e.target.checked)}
 					className="mr-3"
 				/>
-				<span className="text-gray-700 dark:text-gray-300">Configure advanced settings now</span>
+				<span className="text-gray-700 dark:text-gray-300">{t("Configure advanced settings now")}</span>
 			</label>
 
 			{showAdvancedConfig && (
 				<div className="space-y-6 border-t border-gray-200 dark:border-gray-700 pt-6">
 					{/* Branch Settings */}
 					<div>
-						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Branch Settings</h3>
+						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t("Branch Settings")}</h3>
 						<div className="space-y-3">
 							<label className="flex items-center cursor-pointer">
 								<input
@@ -597,10 +595,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 									className="mr-3"
 								/>
 								<div>
-									<span className="text-gray-900 dark:text-gray-100">Check task states across branches</span>
-									<p className="text-xs text-gray-500 dark:text-gray-400">
-										Ensures accurate task tracking across branches
-									</p>
+									<span className="text-gray-900 dark:text-gray-100">{t("Check task states across branches")}</span>
+									<p className="text-xs text-gray-500 dark:text-gray-400">{t("Ensures accurate task tracking across branches")}</p>
 								</div>
 							</label>
 
@@ -616,17 +612,13 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 											className="mr-3"
 										/>
 										<div>
-											<span className="text-gray-900 dark:text-gray-100">Include remote branches</span>
-											<p className="text-xs text-gray-500 dark:text-gray-400">
-												Required for accessing tasks from remote repos
-											</p>
+											<span className="text-gray-900 dark:text-gray-100">{t("Include remote branches")}</span>
+											<p className="text-xs text-gray-500 dark:text-gray-400">{t("Required for accessing tasks from remote repos")}</p>
 										</div>
 									</label>
 
 									<div className="ml-6">
-										<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
-											Active branch days
-										</label>
+										<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">{t("Active branch days")}</label>
 										<input
 											type="number"
 											value={advancedConfig.activeBranchDays}
@@ -648,7 +640,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 					{/* Git Settings */}
 					<div>
-						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Git Settings</h3>
+						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t("Git Settings")}</h3>
 						<div className="space-y-3">
 							<label className="flex items-center cursor-pointer">
 								<input
@@ -660,10 +652,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 									className="mr-3"
 								/>
 								<div>
-									<span className="text-gray-900 dark:text-gray-100">Auto-commit changes</span>
-									<p className="text-xs text-gray-500 dark:text-gray-400">
-										Creates commits automatically after CLI changes
-									</p>
+									<span className="text-gray-900 dark:text-gray-100">{t("Auto-commit changes")}</span>
+									<p className="text-xs text-gray-500 dark:text-gray-400">{t("Creates commits automatically after CLI changes")}</p>
 								</div>
 							</label>
 
@@ -677,10 +667,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 									className="mr-3"
 								/>
 								<div>
-									<span className="text-gray-900 dark:text-gray-100">Bypass git hooks</span>
-									<p className="text-xs text-gray-500 dark:text-gray-400">
-										Use --no-verify flag to skip pre-commit hooks
-									</p>
+									<span className="text-gray-900 dark:text-gray-100">{t("Bypass git hooks")}</span>
+									<p className="text-xs text-gray-500 dark:text-gray-400">{t("Use --no-verify flag to skip pre-commit hooks")}</p>
 								</div>
 							</label>
 						</div>
@@ -688,7 +676,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 					{/* ID Formatting */}
 					<div>
-						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">ID Formatting</h3>
+						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t("ID Formatting")}</h3>
 						<label className="flex items-center cursor-pointer">
 							<input
 								type="checkbox"
@@ -702,17 +690,13 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 								className="mr-3"
 							/>
 							<div>
-								<span className="text-gray-900 dark:text-gray-100">Zero-padded IDs</span>
-								<p className="text-xs text-gray-500 dark:text-gray-400">
-									Example: task-001 instead of task-1
-								</p>
+								<span className="text-gray-900 dark:text-gray-100">{t("Zero-padded IDs")}</span>
+								<p className="text-xs text-gray-500 dark:text-gray-400">{t("Example: task-001 instead of task-1")}</p>
 							</div>
 						</label>
 						{advancedConfig.zeroPaddedIds !== null && (
 							<div className="ml-6 mt-2">
-								<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
-									Number of digits
-								</label>
+								<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">{t("Number of digits")}</label>
 								<input
 									type="number"
 									value={advancedConfig.zeroPaddedIds}
@@ -731,9 +715,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 						{/* Task Prefix */}
 						<div className="mt-4">
-							<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
-								Task prefix
-							</label>
+							<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">{t("Task prefix")}</label>
 							<input
 								type="text"
 								value={advancedConfig.taskPrefix}
@@ -743,19 +725,16 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 										taskPrefix: e.target.value.replace(/[^a-zA-Z]/g, ""),
 									}))
 								}
-								placeholder="task"
+								placeholder={t("task")}
 								className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
 							/>
-							<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-								Letters only; draft, doc, and decision are reserved. Cannot be changed later. Examples: JIRA,
-								BUG, ISSUE
-							</p>
+							<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t("Letters only; draft, doc, and decision are reserved. Cannot be changed later. Examples: JIRA, BUG, ISSUE")}</p>
 						</div>
 					</div>
 
 					{/* Editor */}
 					<div>
-						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Editor</h3>
+						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t("Editor")}</h3>
 						<input
 							type="text"
 							value={advancedConfig.defaultEditor}
@@ -765,19 +744,15 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							placeholder="e.g., code --wait, vim, nano"
 							className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
 						/>
-						<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-							Leave blank to use system default
-						</p>
+						<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t("Leave blank to use system default")}</p>
 					</div>
 
 					{/* Web UI Settings */}
 					<div>
-						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Web UI</h3>
+						<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t("Web UI")}</h3>
 						<div className="space-y-3">
 							<div>
-								<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
-									Default port
-								</label>
+								<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">{t("Default port")}</label>
 								<input
 									type="number"
 									value={advancedConfig.defaultPort}
@@ -802,7 +777,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 									}
 									className="mr-3"
 								/>
-								<span className="text-gray-900 dark:text-gray-100">Auto-open browser</span>
+								<span className="text-gray-900 dark:text-gray-100">{t("Auto-open browser")}</span>
 							</label>
 						</div>
 					</div>
@@ -813,37 +788,41 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 	const renderSummaryStep = () => (
 		<div>
-			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Ready to Initialize</h2>
-			<p className="text-gray-600 dark:text-gray-400 mb-6">Review your configuration before initializing:</p>
+			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("Ready to Initialize")}</h2>
+			<p className="text-gray-600 dark:text-gray-400 mb-6">{t("Review your configuration before initializing:")}</p>
 
 			<div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-3 text-sm">
 				<div className="flex justify-between">
-					<span className="text-gray-600 dark:text-gray-400">Project Name:</span>
+					<span className="text-gray-600 dark:text-gray-400">{t("Automatic task management:")}</span>
+					<span>{t(automaticTaskManagement ? "Allowed" : "Not allowed")}</span>
+				</div>
+				<div className="flex justify-between">
+					<span className="text-gray-600 dark:text-gray-400">{t("Project Name:")}</span>
 					<span className="font-medium text-gray-900 dark:text-gray-100">{projectName}</span>
 				</div>
 				<div className="flex justify-between">
-					<span className="text-gray-600 dark:text-gray-400">Integration Mode:</span>
+					<span className="text-gray-600 dark:text-gray-400">{t("Integration Mode:")}</span>
 					<span className="font-medium text-gray-900 dark:text-gray-100">
 						{integrationMode === "mcp"
-							? "MCP Connector"
+							? t("MCP Connector")
 							: integrationMode === "cli"
-								? "CLI Commands"
-								: "None"}
+								? t("CLI Commands")
+								: t("None")}
 					</span>
 				</div>
 				<div className="flex justify-between">
-					<span className="text-gray-600 dark:text-gray-400">Backlog Directory:</span>
+					<span className="text-gray-600 dark:text-gray-400">{t("Backlog Directory:")}</span>
 					<span className="font-medium text-gray-900 dark:text-gray-100">{backlogDirectory}</span>
 				</div>
 				<div className="flex justify-between">
-					<span className="text-gray-600 dark:text-gray-400">Config Location:</span>
+					<span className="text-gray-600 dark:text-gray-400">{t("Config Location:")}</span>
 					<span className="font-medium text-gray-900 dark:text-gray-100">
 						{configLocation === "root" ? "backlog.config.yml" : `${backlogDirectory}/config.yml`}
 					</span>
 				</div>
 				{integrationMode === "mcp" && selectedMcpClients.length > 0 && (
 					<div className="flex justify-between">
-						<span className="text-gray-600 dark:text-gray-400">MCP Clients:</span>
+						<span className="text-gray-600 dark:text-gray-400">{t("MCP Clients:")}</span>
 						<span className="font-medium text-gray-900 dark:text-gray-100">
 							{selectedMcpClients.join(", ")}
 						</span>
@@ -851,27 +830,26 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 				)}
 				{integrationMode === "cli" && selectedAgentFiles.length > 0 && (
 					<div className="flex justify-between">
-						<span className="text-gray-600 dark:text-gray-400">Agent Files:</span>
+						<span className="text-gray-600 dark:text-gray-400">{t("Agent Files:")}</span>
 						<span className="font-medium text-gray-900 dark:text-gray-100">
-							{selectedAgentFiles.length} files
-						</span>
+							{selectedAgentFiles.length}{" "}{t("files")}</span>
 					</div>
 				)}
 				{integrationMode === "cli" && installClaudeAgent && (
 					<div className="flex justify-between">
-						<span className="text-gray-600 dark:text-gray-400">Claude Agent:</span>
-						<span className="font-medium text-green-600 dark:text-green-400">Will be installed</span>
+						<span className="text-gray-600 dark:text-gray-400">{t("Claude Agent:")}</span>
+						<span className="font-medium text-green-600 dark:text-green-400">{t("Will be installed")}</span>
 					</div>
 				)}
 				<div className="flex justify-between">
-					<span className="text-gray-600 dark:text-gray-400">Advanced Config:</span>
+					<span className="text-gray-600 dark:text-gray-400">{t("Advanced Config:")}</span>
 					<span className="font-medium text-gray-900 dark:text-gray-100">
-						{showAdvancedConfig ? "Customized" : "Defaults"}
+						{showAdvancedConfig ? t("Customized") : t("Defaults")}
 					</span>
 				</div>
 				{showAdvancedConfig && advancedConfig.taskPrefix && (
 					<div className="flex justify-between">
-						<span className="text-gray-600 dark:text-gray-400">Task Prefix:</span>
+						<span className="text-gray-600 dark:text-gray-400">{t("Task Prefix:")}</span>
 						<span className="font-medium text-gray-900 dark:text-gray-100">
 							{advancedConfig.taskPrefix.toUpperCase()}
 						</span>
@@ -881,7 +859,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 			{Object.keys(mcpSetupResults).length > 0 && (
 				<div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-					<h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Setup Progress:</h3>
+					<h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">{t("Setup Progress:")}</h3>
 					{Object.entries(mcpSetupResults).map(([client, result]) => (
 						<div key={client} className="text-sm text-blue-700 dark:text-blue-400">
 							{client}: {result}
@@ -894,6 +872,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 	const renderCurrentStep = () => {
 		switch (currentStep) {
+			case "taskManagement":
+				return renderTaskManagementStep();
 			case "projectName":
 				return renderProjectNameStep();
 			case "integrationMode":
@@ -911,6 +891,8 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 
 	const canProceed = () => {
 		switch (currentStep) {
+			case "taskManagement":
+				return automaticTaskManagement !== null;
 			case "projectName":
 				return projectName.trim().length > 0;
 			case "integrationMode":
@@ -946,7 +928,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							/>
 						</svg>
 					</div>
-					<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Initialize Backlog.md</h1>
+					<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t("Initialize Backlog.md")}</h1>
 				</div>
 
 				{/* Step Indicator */}
@@ -955,7 +937,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 				{/* Error Message */}
 				{error && (
 					<div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
-						<p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+						<p className="text-sm text-red-700 dark:text-red-400">{t(error)}</p>
 					</div>
 				)}
 
@@ -967,11 +949,9 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						<button
 							type="button"
 							onClick={handleBack}
-							disabled={currentStep === "projectName" || isInitializing}
+							disabled={currentStep === "taskManagement" || isInitializing}
 							className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors duration-200"
-						>
-							Back
-						</button>
+						>{t("Back")}</button>
 
 					{currentStep === "summary" ? (
 							<button
@@ -989,11 +969,9 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 											fill="currentColor"
 											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
 										/>
-									</svg>
-									Initializing...
-								</span>
+									</svg>{t("Initializing...")}</span>
 							) : (
-								"Initialize Project"
+								t("Initialize Project")
 							)}
 						</button>
 					) : (
@@ -1002,9 +980,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 								onClick={handleNext}
 								disabled={!canProceed()}
 								className="px-6 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 disabled:opacity-50 transition-colors duration-200 font-medium"
-							>
-								Next
-							</button>
+							>{t("Next")}</button>
 					)}
 				</div>
 			</div>

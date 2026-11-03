@@ -479,3 +479,5 @@ backlog completion install --shell pwsh
 - Context-aware suggestions for priorities, labels, and assignees
 
 Full documentation: See [completions/README.md](completions/README.md) for detailed installation instructions, troubleshooting, and examples.
+
+Create a document with its body in one step: `backlog doc create "Guide" --content "Initial markdown"`. Omit `--content` to create an empty document; pass real newlines for multiline Markdown.

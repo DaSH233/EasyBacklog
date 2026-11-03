@@ -327,6 +327,24 @@ Invalid content`,
 			expect(await Bun.file(join(draftsDir, "draft-001 - Twin.md")).text()).toContain("Twin");
 		});
 
+		it("keeps valid drafts and warns when one draft cannot be parsed", async () => {
+			await filesystem.saveDraft(sampleDraft);
+			await filesystem.saveDraft({ ...sampleDraft, id: "draft-2", title: "Second" });
+			const brokenPath = join(TEST_DIR, "backlog", "drafts", "draft-3 - broken.md");
+			const broken = "---\nid: [unterminated\n---\nBroken";
+			await Bun.write(brokenPath, broken);
+			const warning = spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				for (const load of [() => filesystem.listDrafts(), () => filesystem.listHealthyDrafts()]) {
+					expect((await load()).map((draft) => draft.id)).toEqual(["DRAFT-1", "DRAFT-2"]);
+				}
+				expect(warning).toHaveBeenCalledWith("Skipping unreadable draft: draft-3 - broken.md");
+				expect(await Bun.file(brokenPath).text()).toBe(broken);
+			} finally {
+				warning.mockRestore();
+			}
+		});
+
 		it("should list all drafts", async () => {
 			await filesystem.saveDraft(sampleDraft);
 			await filesystem.saveDraft({ ...sampleDraft, id: "draft-2", title: "Second" });

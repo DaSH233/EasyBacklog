@@ -1,3 +1,4 @@
+import { useTranslation } from "../contexts/LanguageContext";
 import React, { useState, useRef, useEffect, useMemo, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { type Task } from '../../types';
@@ -53,6 +54,7 @@ interface DependencyInputProps {
 }
 
 const DependencyInput: React.FC<DependencyInputProps> = ({ value, onChange, availableTasks, suggestableTasks, currentTaskId, label = 'Dependencies', disabled }) => {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<Task[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -146,7 +148,7 @@ const DependencyInput: React.FC<DependencyInputProps> = ({ value, onChange, avai
     <div>
       {label ? (
         <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
-          {label}
+          {t(label)}
         </label>
       ) : null}
       <div className="relative w-full">
@@ -172,7 +174,7 @@ const DependencyInput: React.FC<DependencyInputProps> = ({ value, onChange, avai
 	                      type="button"
 	                      onClick={() => removeDependency(index)}
 	                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-sm p-0.5 transition-colors duration-200"
-	                      aria-label={`Remove ${taskId}`}
+	                      aria-label={t("Remove {0}", { "0": taskId })}
 	                    >
 	                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path
@@ -196,7 +198,7 @@ const DependencyInput: React.FC<DependencyInputProps> = ({ value, onChange, avai
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={value.length === 0 ? "Type task ID or title, then press Enter or comma" : "Add more dependencies..."}
+            placeholder={value.length === 0 ? t("Type task ID or title, then press Enter or comma") : t("Add more dependencies...")}
             className="w-full outline-none text-sm bg-transparent resize-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             rows={1}
             disabled={disabled}

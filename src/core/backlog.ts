@@ -51,7 +51,7 @@ import {
 	detectContentIdentityIssues,
 } from "../utils/duplicate-detection.ts";
 import { openInEditor } from "../utils/editor.ts";
-import { isAmbiguousIdError } from "../utils/entity-id.ts";
+import { entityIdKey, isAmbiguousIdError } from "../utils/entity-id.ts";
 import { findBacklogRoot } from "../utils/find-backlog-root.ts";
 import { generateNextDecisionId, generateNextDocId } from "../utils/id-generators.ts";
 import { createMilestoneFilterValueResolver } from "../utils/milestone-filter.ts";
@@ -3898,6 +3898,75 @@ export class Core {
 	 * Returns false when no record claims the ID. Every refusal is a `RecordRefusedError`: the task is
 	 * already on the board, it exists only on another branch, or the board has a file of its name.
 	 */
+	/** Restore drafts and milestones without rewriting their bytes or replacing another record. */
+	async restoreAuxiliaryRecord(kind: "draft" | "milestone", id: string, autoCommit?: boolean): Promise<boolean> {
+		return this.changeArchivedAuxiliaryRecord(kind, id, "restore", autoCommit);
+	}
+	async deleteAuxiliaryRecord(kind: "draft" | "milestone", id: string, autoCommit?: boolean): Promise<boolean> {
+		return this.changeArchivedAuxiliaryRecord(kind, id, "delete", autoCommit);
+	}
+	private async changeArchivedAuxiliaryRecord(
+		kind: "draft" | "milestone",
+		id: string,
+		operation: "restore" | "delete",
+		autoCommit?: boolean,
+	): Promise<boolean> {
+		const autoCommitEnabled = await this.shouldAutoCommit(autoCommit);
+		const prefix = kind === "draft" ? "draft" : "m";
+		const key = entityIdKey(prefix, id);
+		const restore = async () =>
+			this.withCreateLock(async () => {
+				const archived = kind === "draft" ? await this.fs.listArchivedDrafts() : await this.fs.listArchivedMilestones();
+				const active = kind === "draft" ? await this.fs.listDraftFilenames() : await this.fs.listMilestones();
+				const activeIds = active.map((record) =>
+					typeof record === "string" ? extractDraftIdFromFilename(record) : record.id,
+				);
+				const matches = archived.filter((record) => entityIdKey(prefix, record.id) === key);
+				if (matches.length > 1 || activeIds.some((value) => value && entityIdKey(prefix, value) === key))
+					throw new RecordRefusedError(`Cannot ${operation} ${id}: its ID is ambiguous or already active.`);
+				const record = matches[0];
+				if (!record) return false;
+				const source =
+					kind === "draft" ? (record as Task).filePath : await this.fs.getMilestoneFilePath(record.id, "archived");
+				if (!source) return false;
+				const directory = kind === "draft" ? await this.fs.getDraftsDir() : this.fs.milestonesDir;
+				const target = join(directory, basename(source));
+				if (operation === "delete") await unlink(source);
+				else {
+					await this.moveRecordFile(
+						source,
+						target,
+						() => new RecordRefusedError(`Cannot ${operation} ${id}: destination file already exists.`),
+					);
+				}
+				try {
+					if (autoCommitEnabled) {
+						if (operation === "delete") {
+							await this.stageChangedPath(source);
+							await this.stageChangedPath(target);
+							await this.git.commitFiles(`backlog: Delete ${kind} ${id}`, [source, target]);
+						} else {
+							const root = await this.git.stageFileMove(source, target);
+							await this.git.commitFiles(`backlog: Restore ${kind} ${id}`, [source, target], root);
+						}
+					}
+				} catch (error) {
+					throw new ChangeNotCommittedError(
+						`${kind} ${id} was ${operation === "delete" ? "deleted" : "restored"}`,
+						error,
+					);
+				}
+				return true;
+			});
+		if (kind === "draft") {
+			const records = await this.fs.listArchivedDrafts();
+			const record = records.find((record) => entityIdKey("draft", record.id) === key);
+			if (!record?.filePath) return false;
+			return this.fs.withDraftLock({ filePath: record.filePath, canonicalId: record.id }, restore);
+		}
+		return restore();
+	}
+
 	async restoreTask(taskId: string, autoCommit?: boolean, options: TaskReadOptions = {}): Promise<boolean> {
 		const task = await this.loadArchivedTask(taskId, "restore", options);
 		if (!task) return false;

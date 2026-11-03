@@ -4,6 +4,7 @@ import {
 	CLI_TASK_EXECUTION_GUIDE,
 	CLI_TASK_FINALIZATION_GUIDE,
 	CLI_WORKFLOW_OVERVIEW,
+	CLI_WORKFLOW_REFERENCE,
 } from "../guidelines/cli-instructions/index.ts";
 import {
 	MCP_TASK_CREATION_GUIDE,
@@ -11,9 +12,16 @@ import {
 	MCP_TASK_FINALIZATION_GUIDE,
 	MCP_WORKFLOW_OVERVIEW,
 	MCP_WORKFLOW_OVERVIEW_TOOLS,
+	MCP_WORKFLOW_REFERENCE,
 } from "../guidelines/mcp/index.ts";
 
-export const WORKFLOW_GUIDE_KEYS = ["overview", "task-creation", "task-execution", "task-finalization"] as const;
+export const WORKFLOW_GUIDE_KEYS = [
+	"overview",
+	"task-creation",
+	"task-execution",
+	"task-finalization",
+	"workflow-reference",
+] as const;
 export const INSTRUCTION_GUIDE_KEYS = [...WORKFLOW_GUIDE_KEYS, "init-required"] as const;
 
 export type WorkflowGuideKey = (typeof WORKFLOW_GUIDE_KEYS)[number];
@@ -63,6 +71,14 @@ export const WORKFLOW_GUIDES: WorkflowGuideDefinition<WorkflowGuideKey>[] = [
 		mimeType: "text/markdown",
 		resourceText: MCP_TASK_FINALIZATION_GUIDE,
 	},
+	{
+		key: "workflow-reference",
+		uri: "backlog://workflow/workflow-reference",
+		name: "Workflow Reference",
+		description: "On-demand advanced fields, examples, and record lifecycle details",
+		mimeType: "text/markdown",
+		resourceText: MCP_WORKFLOW_REFERENCE,
+	},
 ];
 
 const CLI_INSTRUCTION_TEXT_BY_KEY: Record<WorkflowGuideKey, string> = {
@@ -70,6 +86,7 @@ const CLI_INSTRUCTION_TEXT_BY_KEY: Record<WorkflowGuideKey, string> = {
 	"task-creation": CLI_TASK_CREATION_GUIDE,
 	"task-execution": CLI_TASK_EXECUTION_GUIDE,
 	"task-finalization": CLI_TASK_FINALIZATION_GUIDE,
+	"workflow-reference": CLI_WORKFLOW_REFERENCE,
 };
 
 export const INSTRUCTION_GUIDES: WorkflowGuideDefinition[] = [

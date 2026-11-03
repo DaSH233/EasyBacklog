@@ -6,11 +6,13 @@ import {
 	MCP_TASK_FINALIZATION_GUIDE,
 	MCP_WORKFLOW_OVERVIEW,
 	MCP_WORKFLOW_OVERVIEW_TOOLS,
+	MCP_WORKFLOW_REFERENCE,
 } from "../guidelines/mcp/index.ts";
 import { registerWorkflowResources } from "../mcp/resources/workflow/index.ts";
 import { createMcpServer, McpServer } from "../mcp/server.ts";
 import { taskListSchema } from "../mcp/tools/tasks/index.ts";
 import { registerWorkflowTools } from "../mcp/tools/workflow/index.ts";
+import { withTaskManagementPolicy } from "../utils/task-management-policy.ts";
 import { createUniqueTestDir, initializeTestProject, safeCleanup } from "./test-utils.ts";
 
 // Helpers to extract text from MCP responses (handles union types)
@@ -57,7 +59,7 @@ describe("McpServer bootstrap", () => {
 			properties: {
 				instruction: {
 					type: "string",
-					enum: ["overview", "task-creation", "task-execution", "task-finalization"],
+					enum: ["overview", "task-creation", "task-execution", "task-finalization", "workflow-reference"],
 				},
 			},
 			required: [],
@@ -70,6 +72,7 @@ describe("McpServer bootstrap", () => {
 			"backlog://workflow/task-creation",
 			"backlog://workflow/task-execution",
 			"backlog://workflow/task-finalization",
+			"backlog://workflow/workflow-reference",
 		]);
 
 		const prompts = await server.testInterface.listPrompts();
@@ -89,14 +92,14 @@ describe("McpServer bootstrap", () => {
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(getContentsText(result.contents)).toBe(MCP_WORKFLOW_OVERVIEW);
+		expect(getContentsText(result.contents)).toBe(withTaskManagementPolicy(MCP_WORKFLOW_OVERVIEW));
 		expect(result.contents[0]?.mimeType).toBe("text/markdown");
 
 		await server.stop();
 	});
 
 	it("workflow overview documents task_list schema filters", () => {
-		const taskListLine = MCP_WORKFLOW_OVERVIEW.split("\n").find((line) => line.startsWith("- `task_list`"));
+		const taskListLine = MCP_WORKFLOW_REFERENCE.split("\n").find((line) => line.startsWith("- `task_list` —"));
 		expect(taskListLine).toBeDefined();
 
 		for (const filter of Object.keys(taskListSchema.properties ?? {})) {
@@ -112,9 +115,9 @@ describe("McpServer bootstrap", () => {
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(getContentsText(result.contents)).toBe(MCP_TASK_CREATION_GUIDE);
+		expect(getContentsText(result.contents)).toBe(withTaskManagementPolicy(MCP_TASK_CREATION_GUIDE));
 		expect(getContentsText(result.contents)).toContain(
-			"If you will continue from task creation into implementation in the same session, stop and read `backlog://workflow/task-execution` before viewing, assigning, planning, editing, or implementing a task.",
+			"If you will continue from task creation into implementation in the same session, use the cached `backlog://workflow/task-execution` guide if still valid; otherwise read it before assigning, planning, editing, or implementing a task.",
 		);
 
 		await server.stop();
@@ -128,8 +131,22 @@ describe("McpServer bootstrap", () => {
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(getContentsText(result.contents)).toBe(MCP_TASK_EXECUTION_GUIDE);
+		expect(getContentsText(result.contents)).toBe(withTaskManagementPolicy(MCP_TASK_EXECUTION_GUIDE));
 
+		await server.stop();
+	});
+
+	it("loads the on-demand reference through both resource and tool", async () => {
+		const server = await bootstrapServer();
+		const resource = await server.testInterface.readResource({
+			params: { uri: "backlog://workflow/workflow-reference" },
+		});
+		const tool = await server.testInterface.callTool({
+			params: { name: "get_backlog_instructions", arguments: { instruction: "workflow-reference" } },
+		});
+		expect(getContentsText(resource.contents)).toBe(withTaskManagementPolicy(MCP_WORKFLOW_REFERENCE));
+		expect(getText(tool.content)).toBe(withTaskManagementPolicy(MCP_WORKFLOW_REFERENCE));
+		expect(MCP_WORKFLOW_OVERVIEW.length).toBeLessThan(MCP_WORKFLOW_REFERENCE.length);
 		await server.stop();
 	});
 
@@ -141,7 +158,7 @@ describe("McpServer bootstrap", () => {
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(getContentsText(result.contents)).toBe(MCP_TASK_FINALIZATION_GUIDE);
+		expect(getContentsText(result.contents)).toBe(withTaskManagementPolicy(MCP_TASK_FINALIZATION_GUIDE));
 
 		await server.stop();
 	});
@@ -149,15 +166,17 @@ describe("McpServer bootstrap", () => {
 	it("workflow guides require objective evidence before finalizing acceptance criteria", () => {
 		TEST_DIR = createUniqueTestDir("mcp-server-guides");
 
-		expect(MCP_TASK_EXECUTION_GUIDE).toContain(
+		expect(MCP_TASK_EXECUTION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Do not check acceptance criteria, write the final summary, or move the task to Done from this guide alone",
 		);
-		expect(MCP_TASK_EXECUTION_GUIDE).toContain("verify each acceptance criterion with objective evidence");
-		expect(MCP_TASK_FINALIZATION_GUIDE).toContain("Check only proven items");
-		expect(MCP_TASK_FINALIZATION_GUIDE).toContain(
+		expect(MCP_TASK_EXECUTION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
+			"verify each acceptance criterion with objective evidence",
+		);
+		expect(MCP_TASK_FINALIZATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain("Check only proven items");
+		expect(MCP_TASK_FINALIZATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"For UI or interactive work, exercise the behavior through a browser, DOM script, test runner, or documented manual interaction.",
 		);
-		expect(MCP_TASK_FINALIZATION_GUIDE).toContain(
+		expect(MCP_TASK_FINALIZATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Code presence, grep output, and implementation intent are not verification evidence.",
 		);
 	});
@@ -165,7 +184,10 @@ describe("McpServer bootstrap", () => {
 	it("workflow guides describe deleting a task as archive first, then delete", () => {
 		TEST_DIR = createUniqueTestDir("mcp-server-guides");
 
-		for (const guide of [MCP_WORKFLOW_OVERVIEW, MCP_WORKFLOW_OVERVIEW_TOOLS]) {
+		for (const guide of [
+			MCP_WORKFLOW_OVERVIEW + MCP_WORKFLOW_REFERENCE,
+			MCP_WORKFLOW_OVERVIEW_TOOLS + MCP_WORKFLOW_REFERENCE,
+		]) {
 			expect(guide).toContain(
 				"- `task_delete` — permanently delete an archived task and release its ID once no other branch or worktree still holds the task.",
 			);
@@ -176,8 +198,8 @@ describe("McpServer bootstrap", () => {
 			expect(guide).not.toContain("held by drafts");
 			expect(guide).toContain("or whose subtasks still exist as tasks or as drafts, is not deleted.");
 		}
-		expect(MCP_TASK_FINALIZATION_GUIDE).toContain("archive it and then call `task_delete`");
-		expect(MCP_TASK_FINALIZATION_GUIDE).toContain(
+		expect(MCP_TASK_FINALIZATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain("archive it and then call `task_delete`");
+		expect(MCP_TASK_FINALIZATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Delete releases the ID once no other branch or worktree still holds the task, and removes the links other tasks and drafts hold to the task",
 		);
 	});
@@ -185,17 +207,25 @@ describe("McpServer bootstrap", () => {
 	it("workflow guides say how archived work comes back to the board", () => {
 		TEST_DIR = createUniqueTestDir("mcp-server-guides");
 
-		for (const guide of [MCP_WORKFLOW_OVERVIEW, MCP_WORKFLOW_OVERVIEW_TOOLS]) {
+		for (const guide of [
+			MCP_WORKFLOW_OVERVIEW + MCP_WORKFLOW_REFERENCE,
+			MCP_WORKFLOW_OVERVIEW_TOOLS + MCP_WORKFLOW_REFERENCE,
+		]) {
 			expect(guide).toContain(
 				"- `task_restore` — move an archived task back to the board with the same ID and the status it had.",
 			);
 			expect(guide).toContain("Restore a task before changing it: `task_edit` on an archived task fails.");
 		}
-		expect(MCP_TASK_FINALIZATION_GUIDE).toContain("bring it back to the board with `task_restore`");
+		expect(MCP_TASK_FINALIZATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
+			"bring it back to the board with `task_restore`",
+		);
 	});
 
 	it("workflow guides say how a document is archived", () => {
-		for (const guide of [MCP_WORKFLOW_OVERVIEW, MCP_WORKFLOW_OVERVIEW_TOOLS]) {
+		for (const guide of [
+			MCP_WORKFLOW_OVERVIEW + MCP_WORKFLOW_REFERENCE,
+			MCP_WORKFLOW_OVERVIEW_TOOLS + MCP_WORKFLOW_REFERENCE,
+		]) {
 			expect(guide).toContain(
 				"- `document_archive` moves a document's file unchanged to the same relative path under `backlog/archive/docs/`.",
 			);
@@ -210,7 +240,10 @@ describe("McpServer bootstrap", () => {
 	});
 
 	it("workflow guides say how a document is restored and deleted", () => {
-		for (const guide of [MCP_WORKFLOW_OVERVIEW, MCP_WORKFLOW_OVERVIEW_TOOLS]) {
+		for (const guide of [
+			MCP_WORKFLOW_OVERVIEW + MCP_WORKFLOW_REFERENCE,
+			MCP_WORKFLOW_OVERVIEW_TOOLS + MCP_WORKFLOW_REFERENCE,
+		]) {
 			expect(guide).toContain(
 				"- `document_restore` moves an archived document's file back, unchanged, to the same relative path under `backlog/docs/`.",
 			);
@@ -226,10 +259,10 @@ describe("McpServer bootstrap", () => {
 	it("task creation guide keeps parent task IDs distinct from milestone IDs", () => {
 		TEST_DIR = createUniqueTestDir("mcp-server-guides");
 
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Use `parentTaskId` only with an existing task ID returned by `task_create`, `task_list`, or `task_view`.",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Do not pass milestone IDs such as `m-0` as `parentTaskId`; assign a task to a milestone with the `milestone` field.",
 		);
 	});
@@ -237,23 +270,25 @@ describe("McpServer bootstrap", () => {
 	it("task creation guide demonstrates a description that carries the why", () => {
 		TEST_DIR = createUniqueTestDir("mcp-server-guides");
 
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"The description must capture why the task exists (the WHY): the problem, trigger, or user value behind it, plus any context a future agent cannot recover from the code.",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Acceptance criteria already state what will be true when the work is done, so do not restate them in the description.",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Keeping the description focused means leaving out implementation detail, not leaving out the why.",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			'- Example `description`: "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks, docs, and decisions."',
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			'- Too thin: "Users can search tasks, docs, and decisions from one CLI command." states the change but not the need, so a future agent cannot weigh scope or alternatives',
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain("this limits code detail, not the reason the work is needed");
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
+			"this limits code detail, not the reason the work is needed",
+		);
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"**Never embed implementation details** in title, description, or acceptance criteria — this excludes how the work will be built, not why it is needed",
 		);
 	});
@@ -261,31 +296,37 @@ describe("McpServer bootstrap", () => {
 	it("legacy MCP guides preserve just-in-time planning parity with the canonical CLI lifecycle", () => {
 		TEST_DIR = createUniqueTestDir("mcp-server-guides");
 
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Do not add implementation research, an implementation plan, or a speculative code approach during creation.",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"creation records only durable intent, context, scope, acceptance criteria, references, and dependencies",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain("CLI instructions");
-		expect(MCP_TASK_CREATION_GUIDE).toContain("canonical workflow");
-		expect(MCP_TASK_CREATION_GUIDE).toContain("### Durable Context at Creation");
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain("CLI instructions");
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain("canonical workflow");
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain("### Durable Context at Creation");
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Do not inspect implementation code or tests, or perform external implementation research",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain(
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"The execution worker performs current-system research after the task is active and records the plan then",
 		);
-		expect(MCP_TASK_CREATION_GUIDE).toContain("already-started work created directly in an active status");
+		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
+			"already-started work created directly in an active status",
+		);
 		expect(MCP_TASK_CREATION_GUIDE).not.toContain("Inspect relevant code/docs/tests in the repository");
 		expect(MCP_TASK_CREATION_GUIDE).not.toContain("so your plan reflects current reality");
-		expect(MCP_TASK_EXECUTION_GUIDE).toContain("_after_ taking the task into progress");
-		expect(MCP_TASK_EXECUTION_GUIDE).toContain("researching the current system, but before implementation");
-		expect(MCP_TASK_EXECUTION_GUIDE).toContain(
+		expect(MCP_TASK_EXECUTION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain("_after_ taking the task into progress");
+		expect(MCP_TASK_EXECUTION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
+			"researching the current system, but before implementation",
+		);
+		expect(MCP_TASK_EXECUTION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"If the plan contains a material product, architecture, or workflow decision",
 		);
-		expect(MCP_TASK_EXECUTION_GUIDE).toContain("Routine plans can proceed when no review was requested");
-		expect(MCP_TASK_EXECUTION_GUIDE).toContain(
+		expect(MCP_TASK_EXECUTION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
+			"Routine plans can proceed when no review was requested",
+		);
+		expect(MCP_TASK_EXECUTION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"Update routine plan adjustments in the task and continue without mandatory human confirmation",
 		);
 		expect(MCP_TASK_EXECUTION_GUIDE).not.toContain(
@@ -297,7 +338,7 @@ describe("McpServer bootstrap", () => {
 
 		const viewIndex = MCP_TASK_EXECUTION_GUIDE.indexOf("Use `task_view` to inspect");
 		const eligibilityIndex = MCP_TASK_EXECUTION_GUIDE.indexOf("Confirm eligibility and scope");
-		const activateIndex = MCP_TASK_EXECUTION_GUIDE.indexOf("Mark task as In Progress");
+		const activateIndex = MCP_TASK_EXECUTION_GUIDE.indexOf("Mark task as active");
 		const researchIndex = MCP_TASK_EXECUTION_GUIDE.indexOf("Research the current system");
 		const planIndex = MCP_TASK_EXECUTION_GUIDE.indexOf("Draft and record the implementation plan");
 		const conditionalReviewIndex = MCP_TASK_EXECUTION_GUIDE.indexOf("Apply proportional review");
@@ -317,12 +358,12 @@ describe("McpServer bootstrap", () => {
 		const overview = await server.testInterface.callTool({
 			params: { name: "get_backlog_instructions", arguments: {} },
 		});
-		expect(getText(overview.content)).toBe(MCP_WORKFLOW_OVERVIEW_TOOLS);
+		expect(getText(overview.content)).toBe(withTaskManagementPolicy(MCP_WORKFLOW_OVERVIEW_TOOLS));
 
 		const creation = await server.testInterface.callTool({
 			params: { name: "get_backlog_instructions", arguments: { instruction: "task-creation" } },
 		});
-		expect(getText(creation.content)).toBe(MCP_TASK_CREATION_GUIDE);
+		expect(getText(creation.content)).toBe(withTaskManagementPolicy(MCP_TASK_CREATION_GUIDE));
 
 		await server.stop();
 	});
@@ -374,6 +415,7 @@ describe("McpServer bootstrap", () => {
 			"backlog://workflow/task-creation",
 			"backlog://workflow/task-execution",
 			"backlog://workflow/task-finalization",
+			"backlog://workflow/workflow-reference",
 		]);
 		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Backlog.md Overview (MCP)");
 

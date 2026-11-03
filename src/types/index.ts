@@ -359,6 +359,8 @@ export interface PrefixConfig {
 }
 
 export interface BacklogConfig {
+	/** Permission for agents to autonomously create and manage tasks; absent means false. */
+	automaticTaskManagement?: boolean;
 	projectName: string;
 	/** Assignees applied to new tasks when none are provided. Empty or unset means no default. */
 	defaultAssignee?: string[];

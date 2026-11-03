@@ -361,6 +361,22 @@ export class ApiClient {
 
 	// Not retried, for the same reason demote is not: the second attempt would target a task the
 	// first attempt already archived, and its "not found" would replace the real outcome.
+	async fetchNavigationCounts(): Promise<{ drafts: number; milestones: number; archived: number }> {
+		return this.fetchJson(`${API_BASE}/navigation/counts`);
+	}
+
+	async fetchArchivedTasks(): Promise<Task[]> {
+		return this.fetchJson<Task[]>(`${API_BASE}/archive/tasks`);
+	}
+
+	async restoreTask(id: string): Promise<{ success: boolean; warning?: string }> {
+		const response = await this.fetchWithoutRetry(`${API_BASE}/tasks/${encodeURIComponent(id)}/restore`, {
+			method: "POST",
+		});
+		if (!response.ok) throw await toApiError(response, "Failed to restore task");
+		return response.json();
+	}
+
 	async archiveTask(id: string): Promise<void> {
 		await this.fetchWithoutRetry(`${API_BASE}/tasks/${encodeURIComponent(id)}/archive`, {
 			method: "POST",
@@ -669,6 +685,7 @@ export class ApiClient {
 	}
 
 	async initializeProject(options: {
+		automaticTaskManagement?: boolean;
 		projectName: string;
 		backlogDirectory?: string;
 		backlogDirectorySource?: "backlog" | ".backlog" | "custom";

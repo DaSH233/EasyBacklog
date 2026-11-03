@@ -366,6 +366,10 @@ Run `backlog config` with no arguments to launch the interactive wizard (the sam
 
 For filesystem-only projects (`backlog init --no-git`), the saved config forces `checkActiveBranches=false`, `remoteOperations=false`, and `autoCommit=false` so CLI, Web, and MCP local-file workflows do not depend on a Git repository.
 
+### Web interface language
+
+In the browser, choose **Settings → Language → English / 简体中文**. The change applies immediately and is remembered in this browser, including after a reload. English is the default and the fallback for untranslated messages. Task content, custom status/type/priority names, and project configuration remain unchanged. This preference does not change the CLI or TUI language.
+
 ### Definition of Done defaults
 
 Set project-wide DoD items with `backlog config` (or during `backlog init` advanced setup), in the Web UI (Settings → Definition of Done Defaults), or by editing the project config file directly:
@@ -434,3 +438,61 @@ Watch Backlog.md in action:
 ## License
 
 Backlog.md is released under the **MIT License**: do anything, just give credit. See [LICENSE](LICENSE).
+
+### Linking tasks to documents and decisions
+
+In task descriptions, plans, notes, summaries, or comments, write `doc-1` or `#decision-2` to link to that record in the Web UI. Links show the target title when available. Document and decision pages list referencing tasks under **Referenced by**; this list is computed from loaded tasks without changing any files. Inline code, fenced code, and existing Markdown links are not rewritten.
+
+在任务描述、计划、备注、总结或评论中写入 `doc-1` 或 `#decision-2`，Web 界面会自动生成链接，并在目标存在时显示标题。文档和决策页的“引用此内容的任务”列表会随已加载任务更新，不写入记录文件。行内代码、代码块及已有 Markdown 链接不会被改写。
+
+### Task archive
+
+Open **Task archive** in the Web sidebar to search archived tasks by ID or title, inspect their read-only details, and restore an individual task. Restoration preserves its original ID, status and content. Conflicting IDs are refused; failures remain visible on the page.
+
+在 Web 侧栏打开“任务归档”，可按 ID 或标题搜索归档任务、查看只读详情，并逐项恢复。恢复保留原 ID、状态和内容；ID 冲突时拒绝覆盖，错误会显示在页面中。
+
+The **Archive** page now groups tasks, drafts, documents, decisions and milestones. Select a category to search, preview and restore its records. Drafts return to Drafts; documents, decisions and milestones return to their own lists. Files keep their original contents and IDs; restoring refuses conflicting IDs or destination files. The sidebar archive count includes all five categories.
+
+“归档”页支持任务、草稿、文档、决策和里程碑分类查看及恢复。恢复后回到各自原列表，保留原 ID 和文件内容；遇到 ID 或文件冲突时不会覆盖。侧栏归档数量为五类记录合计。
+
+Archive rows also support permanent deletion. Select individual rows or all currently filtered rows, then choose **Delete selected**. The confirmation dialog lists the exact IDs/titles and count. Nothing is deleted until confirmation; partial failures stay in the list and can be retried. Permanent deletion cannot be undone from the archive.
+
+归档支持单项和批量永久删除，可勾选单项或当前筛选结果。确认框会列出待删除的 ID、标题和数量；确认前不会删除，失败项会保留并显示原因。永久删除后无法从归档恢复。
+
+## EasyBacklog Skill / 安装任务管理 Skill
+
+The repository includes [`skills/easybacklog`](skills/easybacklog/SKILL.md). Downloading the tool alone does not install the Skill. These are agent workflow instructions, not restrictions enforced by the Web UI or CLI.
+
+仓库自带 EasyBacklog Skill。下载仓库后，将整个 `skills/easybacklog` 文件夹（包含 `SKILL.md` 和 `agents/openai.yaml`）安装到以下任一位置：
+
+- **用户级 / User-wide:** `~/.agents/skills/easybacklog`，Windows 通常为 `C:\Users\<用户名>\.agents\skills\easybacklog`。适用于该用户的多个项目。若现有环境已从 `$CODEX_HOME/skills` 或 `~/.codex/skills` 加载个人 Skill，可沿用该环境的路径。
+- **项目级 / Project-local:** `<目标项目>/.agents/skills/easybacklog`。将其随目标项目提交，方便协作者使用。
+
+若目标位置已有同名 Skill，先对比并备份个人修改，再决定是否替换。安装后开启新的 Codex 会话，在目标项目中使用 `$easybacklog`。Skill 会启动或复用目标项目的任务面板。
+
+Install the whole folder at one of the locations above, preserve any existing customizations, then start a new Codex session in the target project and invoke `$easybacklog`.
+
+目标项目须已配置 Backlog，且 `backlog` CLI 可用；本源码仓库可使用 `bun run cli`。Skill 不包含工具可执行文件，不会自动初始化其他项目。仅安装 Skill 不会把本仓库的源码修改安装到现有 CLI；使用本仓库构建的工具才能取得此次更新的内置指南。
+
+The target project must already use Backlog and have the CLI available. The Skill does not include the executable. Use a build from this repository to receive the updated built-in guides.
+
+任务规则：原范围内的小修复可复用已完成任务，但实施前必须改为进行中，验证通过后再关闭；新增功能或独立需求创建新任务，先搜索避免重复。完成后不会自动归档或删除。
+
+安装路径参考：[OpenAI 官方 Skill 文档](https://learn.chatgpt.com/docs/build-skills)。选择一个安装位置即可，避免同名 Skill 重复出现。
+
+常用任务指南保留核心流程和验收要求。复杂字段、示例、旧记录边界错误与归档操作可按需执行 `backlog instructions workflow-reference`；MCP 使用 `get_backlog_instructions` 的 `workflow-reference`，也可读取 `backlog://workflow/workflow-reference`。任务记录只追加关键变更、验证证据和遗留事项，不自动改写历史记录。
+
+### 初始化时选择自动任务管理 / Automatic task management
+
+CLI 和网页初始化先询问是否允许 AI 自动创建和管理任务。网页必须先选择；CLI 非交互初始化默认不允许。配置保存在 `automatic_task_management`，未配置的旧项目也不默认授权。重新初始化保留已有值，除非明确指定新值。
+
+```sh
+backlog init "My Project" --defaults --automatic-task-management true
+backlog init "My Project" --defaults --automatic-task-management false
+backlog config get automaticTaskManagement
+backlog config set automaticTaskManagement true
+```
+
+关闭时，普通开发请求不会自动创建、重开、分配或更新任务；用户明确要求操作任务时仍可执行。CLI/MCP 指南和 Skill 会读取此项目权限；手动网页和 CLI 操作不受影响。开启也不授权额外开发、提交、发布、归档或删除，现有验收要求仍适用。
+
+This is an agent workflow permission, not an API authorization barrier: the CLI and Web UI remain usable for explicit task operations. New or unconfigured projects default to no automatic task management. Noninteractive setup can opt in using `--automatic-task-management true`; re-initialization preserves an existing choice. CLI/MCP guides report the current policy; agents must refresh it when project configuration changes.

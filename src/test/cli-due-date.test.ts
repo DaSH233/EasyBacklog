@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { $ } from "bun";
 import { Core } from "../core/backlog.ts";
 import { getTestCliPath } from "./test-cli.ts";
@@ -19,6 +20,32 @@ describe("CLI due dates", () => {
 
 	afterEach(async () => {
 		await safeCleanup(testDir);
+	});
+
+	it("shows optional due dates in draft lists and board output/export", async () => {
+		await new Core(testDir).filesystem.saveDraft({
+			id: "DRAFT-1",
+			title: "Dated",
+			status: "Draft",
+			createdDate: "2026-08-01",
+			assignee: [],
+			labels: [],
+			dependencies: [],
+			dueDate: "2026-08-10",
+		});
+		await $`bun ${CLI_PATH} draft create Undated`.cwd(testDir).quiet();
+		const drafts = await $`bun ${CLI_PATH} draft list --plain`.cwd(testDir).text();
+		expect(drafts).toContain("Dated (due 2026-08-10)");
+		expect(drafts.split("\n").find((line) => line.includes("Undated"))).not.toContain("due");
+		await $`bun ${CLI_PATH} task create Dated --due-date 2026-08-10`.cwd(testDir).quiet();
+		await $`bun ${CLI_PATH} task create Undated`.cwd(testDir).quiet();
+		const board = await $`bun ${CLI_PATH} board`.cwd(testDir).text();
+		expect(board).toContain("Dated (due 2026-08-10)");
+		expect(board.split("\n").find((line) => line.includes("Undated"))).not.toContain("due");
+		await $`bun ${CLI_PATH} board export board.md`.cwd(testDir).quiet();
+		const exported = await Bun.file(join(testDir, "board.md")).text();
+		expect(exported).toContain("Dated (due 2026-08-10)");
+		expect(exported.split("\n").find((line) => line.includes("Undated"))).not.toContain("due");
 	});
 
 	it("creates, lists, edits, and clears task due dates", async () => {

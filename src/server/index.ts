@@ -2,7 +2,14 @@ import net from "node:net";
 import { dirname, isAbsolute, join } from "node:path";
 import type { Server, ServerWebSocket } from "bun";
 import { DEFAULT_STATUSES } from "../constants/index.ts";
-import { CONTENT_RECORD_WORDS, Core, formatCleanupResult, RecordRefusedError } from "../core/backlog.ts";
+import {
+	ChangeNotCommittedError,
+	CONTENT_RECORD_WORDS,
+	Core,
+	formatCleanupResult,
+	RecordRefusedError,
+	TaskDeletionAppliedError,
+} from "../core/backlog.ts";
 import type { ContentStore } from "../core/content-store.ts";
 import { initializeProject } from "../core/init.ts";
 import type { SearchService } from "../core/search-service.ts";
@@ -417,6 +424,7 @@ export class BacklogServer {
 					"/documentation/*": spaIndexHtml,
 					"/decisions": spaIndexHtml,
 					"/decisions/*": spaIndexHtml,
+					"/archive": spaIndexHtml,
 					"/statistics": spaIndexHtml,
 					"/settings": spaIndexHtml,
 
@@ -431,6 +439,54 @@ export class BacklogServer {
 					"/api/tasks/:id": {
 						GET: async (req: Request & { params: { id: string } }) => await this.handleGetTask(req.params.id),
 						PUT: async (req: Request & { params: { id: string } }) => await this.handleUpdateTask(req, req.params.id),
+					},
+					"/api/navigation/counts": {
+						GET: async () => {
+							const [
+								drafts,
+								milestones,
+								archived,
+								archivedDrafts,
+								archivedDocs,
+								archivedDecisions,
+								archivedMilestones,
+							] = await Promise.all([
+								this.core.filesystem.listDrafts(),
+								this.core.filesystem.listMilestones(),
+								this.core.filesystem.listArchivedTasks(),
+								this.core.filesystem.listArchivedDrafts(),
+								this.core.filesystem.listArchivedDocuments(),
+								this.core.filesystem.listArchivedDecisions(),
+								this.core.filesystem.listArchivedMilestones(),
+							]);
+							return Response.json({
+								drafts: drafts.length,
+								milestones: milestones.length,
+								archived:
+									archived.length +
+									archivedDrafts.length +
+									archivedDocs.length +
+									archivedDecisions.length +
+									archivedMilestones.length,
+							});
+						},
+					},
+					"/api/archive/:kind": {
+						GET: async (req: Request & { params: { kind: string } }) => this.handleListArchiveCategory(req.params.kind),
+					},
+					"/api/archive/:kind/:id": {
+						DELETE: async (req: Request & { params: { kind: string; id: string } }) =>
+							this.handleDeleteArchiveCategory(req, req.params.kind, req.params.id),
+					},
+					"/api/archive/:kind/:id/restore": {
+						POST: async (req: Request & { params: { kind: string; id: string } }) =>
+							this.handleRestoreArchiveCategory(req.params.kind, req.params.id),
+					},
+					"/api/archive/tasks": {
+						GET: async () => await this.handleListArchivedTasks(),
+					},
+					"/api/tasks/:id/restore": {
+						POST: async (req: Request & { params: { id: string } }) => await this.handleRestoreTask(req.params.id),
 					},
 					"/api/tasks/:id/archive": {
 						POST: async (req: Request & { params: { id: string } }) => await this.handleArchiveTask(req.params.id),
@@ -1253,6 +1309,116 @@ export class BacklogServer {
 		}
 	}
 
+	private async handleListArchiveCategory(kind: string): Promise<Response> {
+		switch (kind) {
+			case "drafts":
+				return Response.json(await this.core.filesystem.listArchivedDrafts());
+			case "documents":
+				return Response.json(await this.core.filesystem.listArchivedDocuments());
+			case "decisions":
+				return Response.json(await this.core.filesystem.listArchivedDecisions());
+			case "milestones":
+				return Response.json(await this.core.filesystem.listArchivedMilestones());
+			default:
+				return Response.json({ error: "Unknown archive category" }, { status: 404 });
+		}
+	}
+	private async handleDeleteArchiveCategory(req: Request, kind: string, id: string): Promise<Response> {
+		let body: unknown;
+		try {
+			body = await req.json();
+		} catch {
+			return Response.json({ error: "Explicit deletion confirmation required" }, { status: 400 });
+		}
+		if (!body || typeof body !== "object" || !("confirmed" in body) || body.confirmed !== true)
+			return Response.json({ error: "Explicit deletion confirmation required" }, { status: 400 });
+		try {
+			let result: unknown;
+			if (kind === "tasks") {
+				const deleted = await this.core.deleteTask(id);
+				result = deleted.success;
+			} else if (kind === "documents" || kind === "decisions")
+				result = await this.core.deleteContentRecord(kind === "documents" ? "document" : "decision", id);
+			else if (kind === "drafts" || kind === "milestones")
+				result = await this.core.deleteAuxiliaryRecord(kind === "drafts" ? "draft" : "milestone", id);
+			else return Response.json({ error: "Unknown archive category" }, { status: 404 });
+			if (!result) return Response.json({ error: `Archived record not found: ${id}` }, { status: 404 });
+			this.broadcastDataUpdated(kind === "milestones" ? "milestones" : "tasks");
+			return Response.json({ success: true });
+		} catch (error) {
+			if (error instanceof ChangeNotCommittedError || error instanceof TaskDeletionAppliedError) {
+				this.broadcastDataUpdated(kind === "milestones" ? "milestones" : "tasks");
+				return Response.json({ success: true, warning: error.message });
+			}
+			const conflict =
+				error instanceof RecordRefusedError ||
+				isAmbiguousIdError(error) ||
+				isAmbiguousTaskIdError(error) ||
+				isCreateLockError(error) ||
+				isTaskLockError(error);
+			return Response.json(
+				{ error: error instanceof Error ? error.message : "Delete failed" },
+				{ status: conflict ? 409 : 500 },
+			);
+		}
+	}
+
+	private async handleRestoreArchiveCategory(kind: string, id: string): Promise<Response> {
+		try {
+			let restored: unknown;
+			if (kind === "documents" || kind === "decisions")
+				restored = await this.core.restoreContentRecord(kind === "documents" ? "document" : "decision", id);
+			else if (kind === "drafts" || kind === "milestones")
+				restored = await this.core.restoreAuxiliaryRecord(kind === "drafts" ? "draft" : "milestone", id);
+			else return Response.json({ error: "Unknown archive category" }, { status: 404 });
+			if (!restored) return Response.json({ error: `Archived record not found: ${id}` }, { status: 404 });
+			this.broadcastDataUpdated(kind === "milestones" ? "milestones" : "tasks");
+			return Response.json({ success: true });
+		} catch (error) {
+			if (error instanceof ChangeNotCommittedError) {
+				this.broadcastDataUpdated(kind === "milestones" ? "milestones" : "tasks");
+				return Response.json({ success: true, warning: error.message });
+			}
+			const conflict =
+				error instanceof RecordRefusedError ||
+				isAmbiguousIdError(error) ||
+				isAmbiguousTaskIdError(error) ||
+				isCreateLockError(error) ||
+				isTaskLockError(error);
+			return Response.json(
+				{ error: error instanceof Error ? error.message : "Restore failed" },
+				{ status: conflict ? 409 : 500 },
+			);
+		}
+	}
+
+	private async handleListArchivedTasks(): Promise<Response> {
+		const tasks = await this.core.filesystem.listArchivedTasks();
+		return Response.json(tasks.map((task) => ({ ...task, source: "archived" })));
+	}
+
+	private async handleRestoreTask(id: string): Promise<Response> {
+		try {
+			if (!(await this.core.restoreTask(id))) return Response.json({ error: taskNotFoundMessage(id) }, { status: 404 });
+			this.broadcastDataUpdated();
+			return Response.json({ success: true });
+		} catch (error) {
+			if (error instanceof ChangeNotCommittedError) {
+				this.broadcastDataUpdated();
+				return Response.json({ success: true, warning: error.message });
+			}
+			const conflict =
+				isAmbiguousTaskIdError(error) ||
+				isCreateLockError(error) ||
+				isTaskLockError(error) ||
+				error instanceof RecordRefusedError;
+			return Response.json(
+				{ error: error instanceof Error ? error.message : "Failed to restore task" },
+				{ status: conflict ? 409 : 500 },
+			);
+		}
+	}
+
 	private async handleArchiveTask(taskId: string): Promise<Response> {
 		try {
 			if (!(await this.core.archiveTask(taskId))) {
@@ -2068,6 +2234,9 @@ export class BacklogServer {
 			const agentInstructions = Array.isArray(body.agentInstructions) ? body.agentInstructions : [];
 			const installClaudeAgentFlag = parseOptionalBoolean(body.installClaudeAgent) ?? false;
 			const filesystemOnly = parseOptionalBoolean(body.filesystemOnly) ?? false;
+			if (body.automaticTaskManagement !== undefined && typeof body.automaticTaskManagement !== "boolean") {
+				return Response.json({ error: "automaticTaskManagement must be true or false" }, { status: 400 });
+			}
 			const advancedConfig = body.advancedConfig || {};
 
 			// Input validation (browser layer responsibility)
@@ -2089,6 +2258,7 @@ export class BacklogServer {
 
 			// Call shared core init function
 			const result = await initializeProject(this.core, {
+				automaticTaskManagement: body.automaticTaskManagement,
 				projectName,
 				backlogDirectory,
 				backlogDirectorySource,

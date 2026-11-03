@@ -1,7 +1,10 @@
+import ReferencedBy from "./ReferencedBy";
+import { readContentViewMode, rememberContentViewMode } from "../utils/content-view-mode";
+import { useTranslation } from "../contexts/LanguageContext";
 import {useState, useEffect, memo, useCallback} from 'react';
 import {useParams, useNavigate, useSearchParams} from 'react-router-dom';
 import {apiClient, isAmbiguousIdConflict} from '../lib/api';
-import MDEditor from '@uiw/react-md-editor';
+import MDEditor from './LocalizedMarkdownEditor';
 import MermaidMarkdown from './MermaidMarkdown';
 import {type Document} from '../../types';
 import AmbiguousIdNotice from './AmbiguousIdNotice';
@@ -25,6 +28,7 @@ const MarkdownEditor = memo(function MarkdownEditor({
     isReadonly?: boolean;
 }) {
     const { theme } = useTheme();
+    const { t } = useTranslation();
     if (!isEditing) {
         // Preview mode - just show the rendered markdown without editor UI
         return (
@@ -44,11 +48,11 @@ const MarkdownEditor = memo(function MarkdownEditor({
                     value={value}
                     onChange={onChange}
                     preview="edit"
-                    height="100%"
+                    height="clamp(320px, 65dvh, 900px)"
                     hideToolbar={false}
                     data-color-mode={theme}
                     textareaProps={{
-                        placeholder: 'Write your documentation here...',
+                        placeholder: t('Write your documentation here...'),
                         style: {
                             fontSize: '14px',
                             resize: 'none'
@@ -77,6 +81,7 @@ interface DocumentationDetailProps {
 }
 
 export default function DocumentationDetail({docs, onRefreshData, dateFormat}: DocumentationDetailProps) {
+  const { t } = useTranslation();
     const {id, title} = useParams<{ id: string; title: string }>();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -113,7 +118,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
         if (id === 'new') {
             // Handle new document creation
             setIsNewDocument(true);
-            setEditRequested(true);
+            setEditRequested(rememberContentViewMode("document", routeIdentity ?? undefined, "edit") === "edit");
             setIsLoading(false);
             // Creating is unrelated to whatever failed to load before, so clear any load error.
             // Otherwise a previous ambiguity notice keeps rendering instead of the create editor.
@@ -127,7 +132,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
             setOriginalContent('');
         } else if (id) {
             setIsNewDocument(false);
-            setEditRequested(false); // Ensure we start in preview mode for existing documents
+            setEditRequested(readContentViewMode("document", routeIdentity ?? undefined) === "edit");
             void loadDocContent(() => active);
         }
         return () => { active = false; };
@@ -136,7 +141,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
     // Check for edit query parameter to start in edit mode
     useEffect(() => {
         if (searchParams.get('edit') === 'true') {
-            setEditRequested(true);
+            setEditRequested(rememberContentViewMode("document", routeIdentity ?? undefined, "edit") === "edit");
             // Remove the edit parameter from URL
             setSearchParams(params => {
                 params.delete('edit');
@@ -186,7 +191,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                     console.error('Failed to load document:', fetchError);
                 } else if (!doc) {
                     // If fetch fails and we don't have the doc in props, show error
-                    setError(new Error(`Document with ID "${prefixedId}" not found`));
+                    setError(new Error(t("Document with ID \"{0}\" not found", { "0": prefixedId })));
                     console.error('Failed to load document:', fetchError);
                 } else {
                     // We have basic info from props even if fetch failed
@@ -205,7 +210,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
         } finally {
             if (isCurrent()) setIsLoading(false);
         }
-    }, [routeIdentity, docs]);
+    }, [routeIdentity, docs, t]);
 
     const handleSave = useCallback(async () => {
         if (!docTitle.trim()) {
@@ -228,7 +233,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                 setShowSaveSuccess(true);
                 setTimeout(() => setShowSaveSuccess(false), 4000);
                 // Exit edit mode and navigate to the new document
-                setEditRequested(false);
+                setEditRequested(rememberContentViewMode("document", routeIdentity ?? undefined, "preview") === "edit");
                 setIsNewDocument(false);
                 setDocTitle(normalizedTitle);
                 setOriginalDocTitle(normalizedTitle);
@@ -270,7 +275,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                 setShowSaveSuccess(true);
                 setTimeout(() => setShowSaveSuccess(false), 4000);
                 // Exit edit mode and navigate to document detail page (this will load in preview mode)
-                setEditRequested(false);
+                setEditRequested(rememberContentViewMode("document", routeIdentity ?? undefined, "preview") === "edit");
                 navigate(`/documentation/${id}/${sanitizeUrlTitle(normalizedTitle)}`);
             }
         } catch (err) {
@@ -283,7 +288,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
     }, [id, docTitle, docPath, originalDocPath, content, isNewDocument, onRefreshData, navigate, loadDocContent]);
 
     const handleEdit = () => {
-        setEditRequested(true);
+        setEditRequested(rememberContentViewMode("document", routeIdentity ?? undefined, "edit") === "edit");
     };
 
     const handleCancelEdit = () => {
@@ -295,7 +300,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
             setContent(originalContent);
             setDocTitle(originalDocTitle);
             setDocPath(originalDocPath);
-            setEditRequested(false);
+            setEditRequested(rememberContentViewMode("document", routeIdentity ?? undefined, "preview") === "edit");
         }
     };
 
@@ -310,9 +315,8 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No document selected</h3>
-                    <p className="mt-1 text-sm text-gray-500">Select a document from the sidebar to view its
-                        content.</p>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">{t("No document selected")}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{t("Select a document from the sidebar to view its content.")}</p>
                 </div>
             </div>
         );
@@ -321,24 +325,24 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
     if (isLoading) {
         return (
             <div className="flex-1 flex items-center justify-center">
-                <div className="text-gray-500">Loading...</div>
+                <div className="text-gray-500">{t("Loading...")}</div>
             </div>
         );
     }
 
     if (isAmbiguousIdConflict(error)) {
-        return <AmbiguousIdNotice message={error.message} />;
+        return <AmbiguousIdNotice message={t(error.message)} />;
     }
 
     return (
         <ErrorBoundary>
-            <div className="h-full bg-white dark:bg-gray-900 flex flex-col transition-colors duration-200">
+            <div className="min-w-0 min-h-full bg-white dark:bg-gray-900 flex flex-col transition-colors duration-200">
                 {/* Header Section - Confluence/Linear Style */}
                 <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
-                    <div className="max-w-4xl mx-auto px-8 py-6">
+                    <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 py-6">
                         {/* The header and its metadata row wrap, so on a narrow window the buttons stay on the page. */}
                         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 mb-6">
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                                 {isEditing ? (
                                     <div className="space-y-3 mb-2">
                                         <input
@@ -346,7 +350,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                                             value={docTitle}
                                             onChange={(e) => setDocTitle(e.target.value)}
                                             className="text-3xl font-bold text-gray-900 dark:text-gray-100 w-full bg-transparent border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors duration-200"
-                                            placeholder="Document title"
+                                            placeholder={t("Document title")}
                                         />
                                         <input
                                             type="text"
@@ -358,7 +362,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                                     </div>
                                 ) : (
                                     <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 transition-colors duration-200">
-                                        {docTitle || document?.title || (title ? decodeURIComponent(title) : `Document ${id}`)}
+                                        {docTitle || document?.title || (title ? decodeURIComponent(title) : t("Document {0}", { "0": id }))}
                                     </h1>
                                 )}
                                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">
@@ -375,7 +379,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                   d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                                         </svg>
-                                        <span>Documentation</span>
+                                        <span>{t("Documentation")}</span>
                                     </div>
                                     {document?.path && (
                                         <div className="flex items-center space-x-2">
@@ -393,12 +397,12 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                       d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                             </svg>
-                                            <span>Created: <StoredDate value={document.createdDate} dateFormat={dateFormat} /></span>
+                                            <span>{t("Created:")}{" "}<StoredDate value={document.createdDate} dateFormat={dateFormat} /></span>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex items-center space-x-3">
+                            <div className="flex items-center flex-wrap gap-3">
                                 {isArchived ? null : !isEditing ? (
                                     <>
                                     <button
@@ -409,9 +413,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                                              viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                        </svg>
-                                        Edit
-                                    </button>
+                                        </svg>{t("Edit")}</button>
                                     {currentDocument && !isNewDocument && (
                                         <ArchiveButton onClick={archive} disabled={isArchiving} />
                                     )}
@@ -421,9 +423,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
 	                                        <button
 	                                            onClick={handleCancelEdit}
 	                                            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors duration-200"
-	                                        >
-	                                            Cancel
-	                                        </button>
+	                                        >{t("Cancel")}</button>
                                         <button
                                             onClick={handleSave}
                                             disabled={!hasChanges || isSaving}
@@ -438,7 +438,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                       d="M5 13l4 4L19 7"/>
                                             </svg>
-                                            {isSaving ? 'Saving...' : 'Save'}
+                                            {isSaving ? t("Saving...") : t("Save")}
                                         </button>
                                     </div>
                                 )}
@@ -450,24 +450,25 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
 
                 {/* Content Section */}
                 <div className="flex-1 bg-gray-50 dark:bg-gray-800 transition-colors duration-200 flex flex-col">
-                    <div className="flex-1 p-8 flex flex-col min-h-0">
+                    <div className="w-full max-w-[1440px] mx-auto flex-1 p-4 sm:p-8 flex flex-col min-h-0 min-w-0">
                         <MarkdownEditor
                             value={content}
                             onChange={(val) => setContent(val || '')}
                             isEditing={isEditing}
                         />
+{currentDocument && !isEditing && routeIdentity && <ReferencedBy recordKey={routeIdentity} />}
                     </div>
                 </div>
 
                 {/* Save Error Alert */}
                 {saveError && (
                     <div className="border-t border-red-200 bg-red-50 px-8 py-3">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center flex-wrap gap-3">
                             <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                             </svg>
-                            <span className="text-sm text-red-700">Failed to save: {saveError.message}</span>
+                            <span className="text-sm text-red-700">{t("Failed to save:")} {t(saveError.message)}</span>
                             <button
                                 onClick={() => setSaveError(null)}
                                 className="ml-auto text-red-700 hover:text-red-900"
@@ -485,7 +486,7 @@ export default function DocumentationDetail({docs, onRefreshData, dateFormat}: D
             {/* Save Success Toast */}
             {showSaveSuccess && (
                 <SuccessToast
-                    message={`Document "${docTitle}" saved successfully!`}
+                    message={t("Document \"{0}\" saved successfully!", { "0": docTitle })}
                     onDismiss={() => setShowSaveSuccess(false)}
                     icon={
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

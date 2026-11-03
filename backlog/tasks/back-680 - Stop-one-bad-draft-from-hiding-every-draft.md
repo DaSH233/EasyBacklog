@@ -1,11 +1,16 @@
 ---
 id: BACK-680
 title: Stop one bad draft from hiding every draft
-status: To Do
-assignee: []
-created_date: '2026-09-02 20:31'
+status: Done
+assignee:
+  - '@Codex'
+created_date: 2026-09-02 20:31
+updated_date: '2026-10-29T07:28:00Z'
 labels: []
 dependencies: []
+modified_files:
+  - src/file-system/operations.ts
+  - src/test/filesystem.test.ts
 ordinal: 312000
 ---
 
@@ -19,15 +24,33 @@ Found while auditing the due-date model, but nothing about it is due-date specif
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A draft that fails to parse is skipped without affecting the drafts returned alongside it
-- [ ] #2 Drafts match the behavior tasks and milestones already have for unparseable files
-- [ ] #3 The user can tell that a file was skipped rather than silently seeing a shorter list
-- [ ] #4 A test covers a directory containing one unparseable draft and several valid ones
+- [x] #1 A draft that fails to parse is skipped without affecting the drafts returned alongside it
+- [x] #2 Drafts match the behavior tasks and milestones already have for unparseable files
+- [x] #3 The user can tell that a file was skipped rather than silently seeing a shorter list
+- [x] #4 A test covers a directory containing one unparseable draft and several valid ones
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 bunx tsc --noEmit passes when TypeScript touched
-- [ ] #2 bun run check . passes when formatting/linting touched
-- [ ] #3 bun test (or scoped test) passes
+- [x] #1 bunx tsc --noEmit passes when TypeScript touched
+- [x] #2 bun run check . passes when formatting/linting touched
+- [x] #3 bun test (or scoped test) passes
 <!-- DOD:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Reuse the tolerant draft reader for all draft lists, report skipped filenames on stderr, and cover mixed valid/invalid files with regression tests.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented shared tolerant listing with filename warnings; 54 filesystem tests pass. Final type and lint checks pending.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Unified draft listing with the existing tolerant reader. Invalid files no longer hide valid drafts, and stderr warnings identify skipped files without modifying them. Mixed-file regression passes. Combined regression: 113 tests across 7 files; tsc --noEmit, bun check:types, Biome and build passed.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -48,6 +48,7 @@ function formatAgentInstructionResults(results: AgentInstructionWriteResult[]): 
 }
 
 export interface InitializeProjectOptions {
+	automaticTaskManagement?: boolean;
 	projectName: string;
 	backlogDirectory?: string;
 	backlogDirectorySource?: "backlog" | ".backlog" | "custom";
@@ -115,6 +116,9 @@ export async function initializeProject(
 		filesystemOnly = false,
 	} = options;
 
+	if (options.automaticTaskManagement !== undefined && typeof options.automaticTaskManagement !== "boolean") {
+		throw new Error("automaticTaskManagement must be true or false");
+	}
 	const isReInitialization = !!existingConfig;
 	// An explicitly requested prefix is always validated; existing prefixes are preserved below untouched.
 	const taskPrefixError = getTaskPrefixError(advancedConfig.taskPrefix ?? "");
@@ -166,6 +170,7 @@ export async function initializeProject(
 	const config: BacklogConfig = {
 		...baseConfig,
 		...(existingConfig ?? {}),
+		automaticTaskManagement: options.automaticTaskManagement ?? existingConfig?.automaticTaskManagement ?? false,
 		projectName,
 		filesystemOnly: effectiveFilesystemOnly || d.filesystemOnly,
 		autoCommit: normalizedAdvancedConfig.autoCommit ?? existingConfig?.autoCommit ?? d.autoCommit,

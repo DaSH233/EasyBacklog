@@ -7,6 +7,7 @@ import type { DuplicateRepairPlan } from '../../core/duplicate-task-repair';
 import { type Task, type Document, type Decision } from '../../types';
 
 interface LayoutProps {
+ dataVersion?: number;
 	projectName: string;
 	showSuccessToast: boolean;
 	onDismissToast: () => void;
@@ -21,6 +22,7 @@ interface LayoutProps {
 }
 
 export default function Layout({
+ dataVersion,
 	projectName,
 	showSuccessToast,
 	onDismissToast,
@@ -38,6 +40,8 @@ export default function Layout({
 			<HealthIndicator />
 			<SideNavigation 
 				taskCount={tasks.length}
+ tasks={tasks}
+ dataVersion={dataVersion}
 				docs={docs}
 				decisions={decisions}
 				isLoading={isLoading}

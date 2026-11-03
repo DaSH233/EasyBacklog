@@ -68,7 +68,7 @@ afterEach(() => {
 });
 
 describe("Web Cursor initialization", () => {
-	it("identifies Cursor under AGENTS.md and submits the shared target", async () => {
+	it.each([false, true])("chooses automatic management %s before Cursor setup", async (allowed) => {
 		const container = setupDom();
 		let submitted: Parameters<typeof apiClient.initializeProject>[0] | undefined;
 		let initialized = false;
@@ -83,6 +83,13 @@ describe("Web Cursor initialization", () => {
 			await Promise.resolve();
 		});
 
+		expect(container.querySelector("input[placeholder='My Awesome Project']")).toBeNull();
+		expect(button(container, "Next").disabled).toBe(true);
+		await click(container.querySelector(`input[name='automaticTaskManagement'][value='${allowed}']`) as HTMLInputElement);
+		await click(button(container, "Next"));
+		await click(button(container, "Back"));
+		expect((container.querySelector(`input[name='automaticTaskManagement'][value='${allowed}']`) as HTMLInputElement).checked).toBe(true);
+		await click(button(container, "Next"));
 		const projectName = container.querySelector("input[placeholder='My Awesome Project']") as HTMLInputElement;
 		await setInputValue(projectName, "Cursor Web Init");
 		await click(button(container, "Next"));
@@ -101,6 +108,7 @@ describe("Web Cursor initialization", () => {
 		await click(button(container, "Next"));
 		await click(button(container, "Initialize Project"));
 
+		expect(submitted?.automaticTaskManagement).toBe(allowed);
 		expect(submitted?.integrationMode).toBe("cli");
 		expect(submitted?.agentInstructions).toEqual(["AGENTS.md"]);
 		expect(initialized).toBe(true);

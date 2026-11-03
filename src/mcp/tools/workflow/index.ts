@@ -1,3 +1,4 @@
+import { withTaskManagementPolicy } from "../../../utils/task-management-policy.ts";
 import type { McpServer } from "../../server.ts";
 import type { McpToolHandler } from "../../types.ts";
 import { createSimpleValidatedTool } from "../../validation/tool-wrapper.ts";
@@ -35,7 +36,7 @@ function getToolPayload(key: WorkflowGuideKey): WorkflowGuideDefinition {
 	return overviewGuide;
 }
 
-function createWorkflowTool(): McpToolHandler {
+function createWorkflowTool(server: McpServer): McpToolHandler {
 	type WorkflowInstructionsInput = {
 		instruction?: WorkflowGuideKey;
 	};
@@ -51,7 +52,10 @@ function createWorkflowTool(): McpToolHandler {
 		workflowInstructionsSchema,
 		async (input: WorkflowInstructionsInput) => {
 			const guide = getToolPayload(input.instruction ?? "overview");
-			const toolText = guide.toolText ?? guide.resourceText;
+			const toolText = withTaskManagementPolicy(
+				guide.toolText ?? guide.resourceText,
+				await server.filesystem.loadConfig(),
+			);
 
 			return {
 				content: [
@@ -74,5 +78,5 @@ function createWorkflowTool(): McpToolHandler {
 }
 
 export function registerWorkflowTools(server: McpServer): void {
-	server.addTool(createWorkflowTool());
+	server.addTool(createWorkflowTool(server));
 }
