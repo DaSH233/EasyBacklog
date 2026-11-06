@@ -1,498 +1,54 @@
-<p align="center">
-  <img src="./.github/backlog-logo.png" alt="Backlog.md logo" width="120">
-</p>
+# EasyBacklog
 
-<h1 align="center">Backlog.md</h1>
-<p align="center"><strong>Markdown‑native Task Manager &amp; Kanban visualizer for any Git repository</strong></p>
-<p align="center">AI agents write the code. You review the tasks: before, during, and after.</p>
+EasyBacklog 是一个本地任务管理工具，基于 Alex Gavrilescu 发起的 [Backlog.md](https://github.com/MrLesk/Backlog.md)。它沿用上游的 Markdown 任务格式、`backlog` 命令行和终端看板。你可以用命令行创建任务，在浏览器里查看或编辑同一条记录，也可以直接阅读项目中的任务文件。项目沿用 [MIT 许可证](LICENSE)。
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/backlog.md"><img src="https://img.shields.io/npm/v/backlog.md?color=brightgreen" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/backlog.md"><img src="https://img.shields.io/npm/dm/backlog.md" alt="npm downloads"></a>
-  <a href="https://github.com/MrLesk/Backlog.md/blob/main/LICENSE"><img src="https://img.shields.io/github/license/MrLesk/Backlog.md" alt="MIT license"></a>
-  <a href="https://github.com/MrLesk/Backlog.md"><img src="https://img.shields.io/github/stars/MrLesk/Backlog.md?style=social" alt="GitHub stars"></a>
-</p>
+## 相对上游的主要改动
 
-<p align="center">
-<code>npm i -g backlog.md</code>
-</p>
+以下对照的是本仓库开发 EasyBacklog 时采用的 Backlog.md v1.55.3 基线。
 
-![Backlog demo GIF using: backlog board](./.github/backlog-v1.40.gif)
+| 改动 | 使用时能做什么 |
+| --- | --- |
+| Web 界面支持简体中文 | 在设置中切换 English 或简体中文，刷新后仍保留所选语言。切换只影响界面文字，任务正文和自定义状态保留原文。 |
+| 统一归档页面 | 从侧栏进入「归档」，按任务、草稿、文档、决策或里程碑分类搜索、预览和恢复。恢复保留原 ID，遇到冲突会提示；永久删除前可以核对所选记录。 |
+| 任务与文档、决策互相引用 | 在任务正文中写入 `doc-1` 或 `#decision-2`，Web 界面会链接到对应记录。在文档或决策页也能看到哪些任务引用了它。 |
+| 项目可控制 AI 自动管理任务 | 初始化时选择是否允许 AI 在开发过程中自动创建和更新任务。默认关闭时，仍可手动管理任务，也可明确要求 AI 操作指定任务。 |
+| 提供 EasyBacklog Skill | 在 Codex 中调用 Skill 可以打开或复用当前项目的看板，并按项目设置和任务阶段读取相应指南。 |
 
+## 使用方法
 
----
+### 从源码构建 CLI
 
-> **Backlog.md** turns any folder into a **self‑contained project board**
-> powered by plain Markdown files and a zero‑config CLI.
-
-## Why Backlog.md in the AI era
-
-AI agents can now produce more plausible code in an hour than you can carefully read in a day.
-The bottleneck is no longer writing code. It's your attention. You can't meaningfully review
-15,000 generated lines in one sitting, but you can read a screenful of task specs with acceptance
-criteria before any code exists, and push back while a misunderstanding is still one sentence,
-not a rebuilt feature.
-
-Backlog.md structures agent work around **three review checkpoints**:
-
-1. **Review the spec:** the agent decomposes your idea into tasks with descriptions, acceptance
-   criteria, and milestones before implementation starts.
-2. **Review the plan:** the agent researches your codebase and writes its implementation plan
-   into the task. Approve it or steer before any code is written.
-3. **Review the code:** one task = one context window = one PR. Diffs stay a size a human can
-   actually read.
-
-Afterwards, the completed tasks remain in Git as a permanent record of what was attempted and why,
-legible to you, your team, and the next agent.
-
-**Dogfooded:** nearly all of Backlog.md's own code is written by AI agents working through
-Backlog.md itself. The full task ledger lives in this repo's [backlog folder](backlog/tasks).
-
-📺 **See it in action:** [Devoxx Belgium 2025](https://www.youtube.com/watch?v=LSoDQU_9MMA) · [AI Engineer Code Summit 2025](https://www.youtube.com/watch?v=zMXKhhwiCIc)
-
-## Features
-
-* 🤖 **AI-ready** -- works with Claude Code, Gemini CLI, Codex, Kiro & any other MCP or CLI compatible AI assistant
-
-* 📝 **Markdown-native tasks** -- every task is a plain `.md` file in your repo
-
-* ✅ **Acceptance criteria & Definition of Done** -- verifiable scope per task, plus a reusable DoD checklist for every new task
-
-* 🎯 **Milestones & dependencies** -- structure bigger efforts and make execution order reviewable, with task detail showing what a task waits on and what waits on it
-
-* 📊 **Terminal Kanban** -- `backlog board` paints a live board in your shell; `backlog board export` creates shareable markdown reports
-
-* 🌐 **Web UI** -- `backlog browser` serves a local Kanban board with drag-and-drop and task editing forms
-
-* 🔍 **Search** -- fuzzy search across tasks, docs & decisions with `backlog search`
-
-* 🔒 **Local-first** -- no server, no account, no telemetry; tasks are plain files in your repo, and remote Git operations are optional
-
-* 💻 Cross-platform (macOS, Linux, Windows) · 🆓 MIT-licensed & open-source
-
-
----
-
-## <img src="./.github/5-minute-tour-256.png" alt="Getting started" width="28" height="28" align="center"> Getting started
-
-```bash
-# Install
-npm i -g backlog.md
-# or: bun add -g backlog.md
-# or: brew install backlog-md
-# or: nix run github:MrLesk/Backlog.md
-
-# Initialize in any Git repo
-backlog init "My Awesome Project"
-
-# Or initialize without Git for local/non-code projects
-backlog init "Personal Planning" --no-git
-```
-
-> [!TIP]
-> **Trying it without installing?** Use the full package name: `npx backlog.md init "My Project"`, `npx backlog.md board`.
-
-### Run with Nix
-
-Run Backlog.md directly from the repository flake:
-
-```bash
-nix run github:MrLesk/Backlog.md -- --version
-```
-
-Or install the named package into your Nix profile:
-
-```bash
-nix profile install github:MrLesk/Backlog.md#backlog-md
-```
-
-The Nix flake supports `x86_64-linux`, `aarch64-linux`, and
-`aarch64-darwin`. The x86_64 Linux package uses
-[Bun's unified x64 runtime](https://bun.com/docs/installation#cpu-requirements),
-with an SSE4.2 minimum and automatic CPU-specific paths. Pre-AVX2 compatibility
-is checked under Ivy Bridge emulation. Intel macOS users can use the npm, Bun,
-or Homebrew installation instead.
-
-The init wizard will ask how you want to connect AI tools:
-- **CLI instructions** (recommended): creates a short instruction file that tells agents to run `backlog instructions overview`.
-- **MCP connector**: optionally auto-configures Claude Code, Codex, Gemini CLI, Kiro or Cursor for teams that prefer MCP.
-- **Skip**: no AI setup; use Backlog.md purely as a task manager.
-
-For Cursor with CLI instructions, select AGENTS.md or pass `--agent-instructions cursor`; both use the same AGENTS.md target. Backlog.md preserves existing AGENTS.md content and does not migrate or remove unrelated user-managed `.cursor/rules` files.
-
-Everything is stored as human-readable Markdown in a project-local backlog folder such as `backlog/`, `.backlog/`, or a custom project-relative path configured through `backlog.config.yml` (e.g. `backlog_directory: my-backlog`). Task IDs use a configurable prefix (`backlog init --task-prefix`): the default produces `TASK-1`-style IDs, while this repository uses `back`, so examples below show `BACK-1`-style IDs. Git is optional: `backlog init --no-git` creates a filesystem-only project.
-
-> [!TIP]
-> **Want an architecture diagram of your repo, kept up to date automatically?** See the [Backlog.md + Groma.md integration](#groma-md) below.
-
----
-
-## Working with AI agents
-
-This is the recommended flow for Claude Code, Codex, Gemini CLI, Kiro and similar tools, following the **spec‑driven AI development** approach.
-After running `backlog init`, agents should start by running `backlog instructions overview`. Work in this loop:
-
-**Step 1: Describe your idea.** Tell the agent what you want to build and ask it to split the work into small tasks with clear descriptions and acceptance criteria.
-
-**🤖 Ask your AI Agent:**
-> I want to add a search feature to the web view that searches tasks, docs, and decisions. Please decompose this into small Backlog.md tasks.
-
-> [!NOTE]
-> **Review checkpoint #1:** read the task descriptions and acceptance criteria.
-
-**Step 2: One task at a time.** Work on a single task per agent session, one PR per task. Good task splitting means each session can work independently without conflicts. Make sure each task is small enough to complete in a single conversation. You want to avoid running out of context window.
-
-**Step 3: Plan before coding.** Ask the agent to research and write an implementation plan in the task. Do this right before implementation so the plan reflects the current state of the codebase.
-
-**🤖 Ask your AI Agent:**
-> Work on BACK-10 only. Research the codebase and write an implementation plan in the task. Wait for my approval before coding.
-
-> [!NOTE]
-> **Review checkpoint #2:** read the plan. Does the approach make sense? Approve it or ask the agent to revise.
-
-**Step 4: Implement and verify.** Let the agent implement the task.
-
-> [!NOTE]
-> **Review checkpoint #3:** review the code, run tests, check linting, and verify the results match your expectations.
-
-Mark verified work Done (or the configured final status). During periodic cleanup, `backlog task archive` moves it off the board; the same command takes canceled, duplicate, or invalid work off the board at any time. An archived task keeps its ID, record, and dependency links, stays readable with `backlog task view`, and is read-only. `backlog task restore` brings an archived task back to the board with the same ID. To remove a task for good, archive it and then run `backlog task delete`, which releases its ID once no other branch or worktree still holds the task.
-
-If the output is not good enough: clear the plan/notes/final summary, refine the task description and acceptance criteria, and run the task again in a fresh session.
-
----
-
-## Working without AI agents
-
-Use Backlog.md as a standalone task manager from the terminal or browser.
-
-```bash
-# Create and refine tasks
-backlog task create "Render markdown as kanban"
-backlog task edit BACK-1 -d "Detailed context" --ac "Clear acceptance criteria"
-
-# Track work
-backlog task list -s "To Do"
-backlog task list --json | jq '.tasks[] | .id'
-backlog task edit BACK-1 --comment "Can we split the UI work into a separate PR?" --comment-author @sara
-backlog search "kanban"
-backlog board
-
-# Work visually in the browser
-backlog browser
-```
-
-You can switch between AI-assisted and manual workflows at any time; both operate on the same Markdown task files. Just prefer Backlog.md commands (CLI/MCP/Web) over hand-editing task files, so field types and metadata stay consistent.
-
-Read commands support stable, versioned JSON for scripts and integrations. Use `--json` with `task list`, `task view`, the `task <id>` shorthand, `draft list`, `decision list`, and `search`. JSON mode is noninteractive and keeps successful stdout machine-readable. Add `--watch` to `task list --json` for an initial full list followed by changed full replacements, using the exact same JSON format. Read successive complete JSON values; each response replaces the previous list.
-
-**Learn more:** [CLI reference](CLI-INSTRUCTIONS.md) | [Advanced configuration](ADVANCED-CONFIG.md)
-
----
-
-<a id="groma-md"></a>
-
-## 🗺️ Backlog.md + Groma.md
-
-Backlog.md keeps the spec, the plan and the code reviewable. [Groma.md](https://groma.md) adds the
-architecture: it scans your repository into a C4 map that you or your coding agent curate, stored next
-to your code as an [Open Knowledge Format 0.2](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md)
-bundle. It reads your Backlog.md tasks, so the two work well together:
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./.github/groma-map-dark.webp">
-  <img src="./.github/groma-map-light.webp" alt="Backlog.md's own architecture in Groma.md: Backlog.md tasks pinned to the components they touch, with one task selected and its acceptance criteria open" width="100%">
-</picture>
-
-* 📍 **Tasks on the map** -- every task is pinned to the components it touches, so you see where the work lands in your system, not only in a list
-
-* 👀 **Who is doing what** -- with several agents at work, the map shows where each one is busy
-
-* 🔍 **Review a task by its architecture** -- select a task to highlight the components it touches and inspect its changes without leaving the map
-
-* 📦 **Open Knowledge Format 0.2** -- one Markdown document per element, so the map stays portable and readable without Groma.md
-
-* 📝 **Still plain files** -- both run locally, need no account, and keep everything as Markdown in your repo
-
-Groma.md is a separate install, and Backlog.md works fine without it. To add the map to a repo that
-already uses Backlog.md:
-
-```bash
-npm i -g groma.md
-groma web
-```
-
-Backlog.md uses it on itself: every push to main updates its map, and every pull request gets a comment
-showing what it changes in the architecture.
-
-👉 **[Get started at groma.md](https://groma.md)**
-
-🗺️ **[Explore Backlog.md's own architecture, live](https://mrlesk.github.io/Backlog.md/architecture/auto/)**
-
----
-
-## <img src="./.github/web-interface-256.png" alt="Web Interface" width="28" height="28" align="center"> Web Interface
-
-Launch a web interface for visual task management on the local machine. The server listens on `127.0.0.1` and is not
-reachable from other devices on the LAN or VPN:
-
-```bash
-# Start the web server (opens browser automatically)
-backlog browser
-
-# Custom port
-backlog browser --port 8080
-
-# Don't open browser automatically
-backlog browser --no-open
-```
-
-**Features:**
-- Interactive Kanban board with drag-and-drop
-- Multi-select cards to move several tasks to one column
-- Task creation and editing with forms
-- Interactive acceptance criteria editor with checklists
-- Real-time updates across all views
-- Responsive design for desktop and mobile
-- Task archiving with confirmation dialogs
-- Seamless CLI integration - all changes sync with markdown files
-
-![Web Interface Screenshot](./.github/web.jpeg)
-
-To keep the Web UI running as an auto-starting local service, see [Running Backlog.md as a Service](backlog/docs/doc-003%20-%20Running-Backlog-Browser-as-a-Service.md).
-
----
-
-## 🔧 MCP Integration (Model Context Protocol)
-
-CLI instructions are the default AI setup. MCP remains supported for AI coding assistants like Claude Code, Codex, Gemini CLI and Kiro when you explicitly prefer an MCP connector.
-You can run `backlog init` (even if you already initialized Backlog.md) and choose MCP integration, or follow the manual steps below.
-
-### Client guides
-
-<details>
-  <summary><strong>Claude Code</strong></summary>
-
-  ```bash
-  claude mcp add backlog --scope user -- backlog mcp start
-  ```
-
-</details>
-
-<details>
-  <summary><strong>Codex</strong></summary>
-
-  ```bash
-  codex mcp add backlog -- backlog mcp start
-  ```
-
-</details>
-
-<details>
-  <summary><strong>Gemini CLI</strong></summary>
-
-  ```bash
-  gemini mcp add backlog -s user backlog mcp start
-  ```
-
-</details>
-
-<details>
-  <summary><strong>Kiro</strong></summary>
-
-  ```bash
-  kiro-cli mcp add --scope global --name backlog --command backlog --args mcp,start
-  ```
-
-</details>
-
-<details>
-  <summary><strong>Cursor / other MCP clients</strong></summary>
-
-  Use the manual JSON config below in your client's MCP settings.
-
-</details>
-
-Use the shared `backlog` server name everywhere. The server finds the active project from your client's MCP roots, and re-resolves when you switch workspace or worktree. A single user-scope server covers every repo.
-
-<details>
-  <summary><strong>Manual config</strong></summary>
-
-```json
-{
-  "mcpServers": {
-    "backlog": {
-      "command": "backlog",
-      "args": ["mcp", "start"],
-      "env": {
-        "BACKLOG_CWD": "/absolute/path/to/your/project"
-      }
-    }
-  }
-}
-```
-
-Set `BACKLOG_CWD` to pin the server to one project and stop workspace following. Use it to always target the same backlog, or when your client can't report MCP roots.
-If your IDE supports custom args but not env vars, you can also use `["mcp", "start", "--cwd", "/absolute/path/to/your/project"]`.
-Until the server finds an initialized project, it serves `backlog://init-required`.
-
-</details>
-
-> [!IMPORTANT]
-> When adding the MCP server manually, add a short instruction to your CLAUDE.md/AGENTS.md files telling agents to read `backlog://workflow/overview`.
-> This step is not required when using `backlog init` as it adds these instructions automatically.
-> For CLI-based setups, use `backlog instructions overview` to fetch the current workflow guidance.
-
-
-Once connected, agents can read the Backlog.md workflow instructions via `backlog://workflow/overview`, with detailed guides at `backlog://workflow/task-creation`, `backlog://workflow/task-execution`, and `backlog://workflow/task-finalization`.
-Use `/mcp` command in your AI tool (Claude Code, Codex, Kiro) to verify if the connection is working.
-
----
-
-## <img src="./.github/cli-reference-256.png" alt="CLI Reference" width="28" height="28" align="center"> CLI reference
-
-Full command reference covering task management, search, board, docs, decisions, and more: **[CLI-INSTRUCTIONS.md](CLI-INSTRUCTIONS.md)**
-
-Quick examples: `backlog`, `backlog instructions`, `backlog task create`, `backlog task list`, `backlog task edit`, `backlog milestone add`, `backlog milestone rename`, `backlog milestone remove`, `backlog search`, `backlog board`, `backlog browser`.
-
-Full help: `backlog --help`
-
----
-
-## <img src="./.github/configuration-256.png" alt="Configuration" width="28" height="28" align="center"> Configuration
-
-Backlog.md works with zero configuration. Settings merge from CLI flags, then the project config file (`backlog.config.yml` when present, otherwise `backlog/config.yml` or `.backlog/config.yml`), then built‑in defaults.
-
-Run `backlog config` with no arguments to launch the interactive wizard (the same experience triggered from `backlog init` advanced setup). It walks through cross-branch accuracy (`checkActiveBranches`, `remoteOperations`, `activeBranchDays`), Git workflow (`autoCommit`, `bypassGitHooks`), ID formatting (`zeroPaddedIds`), editor integration (`defaultEditor`), Definition of Done defaults, and Web UI defaults (`defaultPort`, `autoOpenBrowser`). Skipping the wizard applies the safe built-in defaults, and rerunning `backlog init` or `backlog config` pre-populates prompts with your current values.
-
-For filesystem-only projects (`backlog init --no-git`), the saved config forces `checkActiveBranches=false`, `remoteOperations=false`, and `autoCommit=false` so CLI, Web, and MCP local-file workflows do not depend on a Git repository.
-
-### Web interface language
-
-In the browser, choose **Settings → Language → English / 简体中文**. The change applies immediately and is remembered in this browser, including after a reload. English is the default and the fallback for untranslated messages. Task content, custom status/type/priority names, and project configuration remain unchanged. This preference does not change the CLI or TUI language.
-
-### Definition of Done defaults
-
-Set project-wide DoD items with `backlog config` (or during `backlog init` advanced setup), in the Web UI (Settings → Definition of Done Defaults), or by editing the project config file directly:
-
-```yaml
-definition_of_done:
-  - Tests pass
-  - Documentation updated
-  - No regressions introduced
-```
-
-When a project uses root config discovery, edit `backlog.config.yml` instead of `backlog/config.yml`.
-
-These items are added to every new task by default. You can add more on create with `--dod`, or disable defaults per task with `--no-dod-defaults`.
-
-For the full configuration reference (all options, default values, commands, and detailed notes), see **[ADVANCED-CONFIG.md](ADVANCED-CONFIG.md)**.
-
----
-
-## Troubleshooting
-
-### Apple Silicon (macOS)
-
-On M-series Macs, `backlog` can fail with `illegal hardware instruction` or `Binary package not installed for darwin-...` when Node, Bun, or Homebrew run under Rosetta (x64 emulation) and install the Intel binary instead of the arm64 one — or the other way around. The launcher runs whichever darwin variant (arm64 or x64) is actually installed, but a clean native-arch install is the reliable fix.
-
-Check what your tools report:
-
-```bash
-uname -m                            # arm64 = Apple Silicon hardware; x86_64 = Intel or a Rosetta shell
-node -p process.arch                # architecture of your Node/Bun runtime
-sysctl -in sysctl.proc_translated   # 1 = current shell runs under Rosetta
-which brew                          # /opt/homebrew = arm64 brew, /usr/local = Intel brew
-```
-
-If the architectures disagree, reinstall with the native one:
-
-```bash
-# Homebrew: make sure `which brew` prints /opt/homebrew, then
-brew reinstall backlog-md
-
-# npm
-arch -arm64 npm i -g backlog.md
-
-# Bun
-arch -arm64 bun add -g backlog.md
-```
-
-Running an x64 Node under Rosetta on purpose also works: `backlog` falls back to whichever `backlog.md-darwin-*` package is present.
-
----
-
-## 📺 Talks & Community
-
-Watch Backlog.md in action:
-
-- **Devoxx Belgium 2025**: [the spec-driven agent workflow behind Backlog.md, live on stage](https://www.youtube.com/watch?v=LSoDQU_9MMA)
-- **AI Engineer Code Summit 2025**: [Backlog.md: task management for AI agents](https://www.youtube.com/watch?v=zMXKhhwiCIc)
-- Slides from these and more talks: [mrlesk.com/talks](https://mrlesk.com/talks)
-
-### Community tools
-
-- **[vscode-backlog-md](https://marketplace.visualstudio.com/items?itemName=ysamlan.vscode-backlog-md)** - VS Code extension with issues panel, kanban view, and editing. ([ysamlan/vscode-backlog-md](https://github.com/ysamlan/vscode-backlog-md))
-
----
-
-## License
-
-Backlog.md is released under the **MIT License**: do anything, just give credit. See [LICENSE](LICENSE).
-
-### Linking tasks to documents and decisions
-
-In task descriptions, plans, notes, summaries, or comments, write `doc-1` or `#decision-2` to link to that record in the Web UI. Links show the target title when available. Document and decision pages list referencing tasks under **Referenced by**; this list is computed from loaded tasks without changing any files. Inline code, fenced code, and existing Markdown links are not rewritten.
-
-在任务描述、计划、备注、总结或评论中写入 `doc-1` 或 `#decision-2`，Web 界面会自动生成链接，并在目标存在时显示标题。文档和决策页的“引用此内容的任务”列表会随已加载任务更新，不写入记录文件。行内代码、代码块及已有 Markdown 链接不会被改写。
-
-### Task archive
-
-Open **Task archive** in the Web sidebar to search archived tasks by ID or title, inspect their read-only details, and restore an individual task. Restoration preserves its original ID, status and content. Conflicting IDs are refused; failures remain visible on the page.
-
-在 Web 侧栏打开“任务归档”，可按 ID 或标题搜索归档任务、查看只读详情，并逐项恢复。恢复保留原 ID、状态和内容；ID 冲突时拒绝覆盖，错误会显示在页面中。
-
-The **Archive** page now groups tasks, drafts, documents, decisions and milestones. Select a category to search, preview and restore its records. Drafts return to Drafts; documents, decisions and milestones return to their own lists. Files keep their original contents and IDs; restoring refuses conflicting IDs or destination files. The sidebar archive count includes all five categories.
-
-“归档”页支持任务、草稿、文档、决策和里程碑分类查看及恢复。恢复后回到各自原列表，保留原 ID 和文件内容；遇到 ID 或文件冲突时不会覆盖。侧栏归档数量为五类记录合计。
-
-Archive rows also support permanent deletion. Select individual rows or all currently filtered rows, then choose **Delete selected**. The confirmation dialog lists the exact IDs/titles and count. Nothing is deleted until confirmation; partial failures stay in the list and can be retried. Permanent deletion cannot be undone from the archive.
-
-归档支持单项和批量永久删除，可勾选单项或当前筛选结果。确认框会列出待删除的 ID、标题和数量；确认前不会删除，失败项会保留并显示原因。永久删除后无法从归档恢复。
-
-## EasyBacklog Skill / 安装任务管理 Skill
-
-The repository includes [`skills/easybacklog`](skills/easybacklog/SKILL.md). Downloading the tool alone does not install the Skill. These are agent workflow instructions, not restrictions enforced by the Web UI or CLI.
-
-仓库自带 EasyBacklog Skill。下载仓库后，将整个 `skills/easybacklog` 文件夹（包含 `SKILL.md` 和 `agents/openai.yaml`）安装到以下任一位置：
-
-- **用户级 / User-wide:** `~/.agents/skills/easybacklog`，Windows 通常为 `C:\Users\<用户名>\.agents\skills\easybacklog`。适用于该用户的多个项目。若现有环境已从 `$CODEX_HOME/skills` 或 `~/.codex/skills` 加载个人 Skill，可沿用该环境的路径。
-- **项目级 / Project-local:** `<目标项目>/.agents/skills/easybacklog`。将其随目标项目提交，方便协作者使用。
-
-若目标位置已有同名 Skill，先对比并备份个人修改，再决定是否替换。安装后开启新的 Codex 会话，在目标项目中使用 `$easybacklog`。Skill 会启动或复用目标项目的任务面板。
-
-Install the whole folder at one of the locations above, preserve any existing customizations, then start a new Codex session in the target project and invoke `$easybacklog`.
-
-目标项目须已配置 Backlog，且 `backlog` CLI 可用；本源码仓库可使用 `bun run cli`。Skill 不包含工具可执行文件，不会自动初始化其他项目。仅安装 Skill 不会把本仓库的源码修改安装到现有 CLI；使用本仓库构建的工具才能取得此次更新的内置指南。
-
-The target project must already use Backlog and have the CLI available. The Skill does not include the executable. Use a build from this repository to receive the updated built-in guides.
-
-任务规则：原范围内的小修复可复用已完成任务，但实施前必须改为进行中，验证通过后再关闭；新增功能或独立需求创建新任务，先搜索避免重复。完成后不会自动归档或删除。
-
-安装路径参考：[OpenAI 官方 Skill 文档](https://learn.chatgpt.com/docs/build-skills)。选择一个安装位置即可，避免同名 Skill 重复出现。
-
-常用任务指南保留核心流程和验收要求。复杂字段、示例、旧记录边界错误与归档操作可按需执行 `backlog instructions workflow-reference`；MCP 使用 `get_backlog_instructions` 的 `workflow-reference`，也可读取 `backlog://workflow/workflow-reference`。任务记录只追加关键变更、验证证据和遗留事项，不自动改写历史记录。
-
-### 初始化时选择自动任务管理 / Automatic task management
-
-CLI 和网页初始化先询问是否允许 AI 自动创建和管理任务。网页必须先选择；CLI 非交互初始化默认不允许。配置保存在 `automatic_task_management`，未配置的旧项目也不默认授权。重新初始化保留已有值，除非明确指定新值。
+准备 Git、Bun 1.4.4 和 Node.js 26.12.1 或更高版本。以下步骤构建的是本仓库的 EasyBacklog，生成的命令名为 `backlog`。[开发环境说明](DEVELOPMENT.md)
 
 ```sh
-backlog init "My Project" --defaults --automatic-task-management true
-backlog init "My Project" --defaults --automatic-task-management false
-backlog config get automaticTaskManagement
-backlog config set automaticTaskManagement true
+git clone https://github.com/DaSH233/EasyBacklog.git
+cd EasyBacklog
+bun install --frozen-lockfile
+bun run build
 ```
 
-关闭时，普通开发请求不会自动创建、重开、分配或更新任务；用户明确要求操作任务时仍可执行。CLI/MCP 指南和 Skill 会读取此项目权限；手动网页和 CLI 操作不受影响。开启也不授权额外开发、提交、发布、归档或删除，现有验收要求仍适用。
+将生成的 `dist` 目录加入终端的 `PATH`，然后运行 `backlog --version`。Windows 的可执行文件是 `dist/backlog.exe`，macOS 和 Linux 上是 `dist/backlog`。如果只想查看本源码仓库的任务，可直接在仓库根目录运行 `bun run cli task list --plain`。
 
-This is an agent workflow permission, not an API authorization barrier: the CLI and Web UI remain usable for explicit task operations. New or unconfigured projects default to no automatic task management. Noninteractive setup can opt in using `--automatic-task-management true`; re-initialization preserves an existing choice. CLI/MCP guides report the current policy; agents must refresh it when project configuration changes.
+### 在独立目录创建第一条任务
+
+在源码仓库之外新建一个空目录，进入该目录后依次执行：
+
+```sh
+backlog init "我的第一个项目" --defaults --no-git
+backlog task create "整理安装步骤" --ac "新成员可以按文档启动看板" --plain
+backlog task view TASK-1 --plain
+```
+
+第一条命令会创建本地 `backlog/` 目录；`--no-git` 适合独立试用。在空项目中，第二条命令会输出分配的 ID `TASK-1` 和任务文件路径。第三条命令按 ID 显示标题、状态及验收标准。在已有项目中，请使用创建命令实际返回的 ID。
+
+### 查看和管理看板
+
+在刚才的项目目录运行 `backlog browser`，打开输出的本地地址即可查看或编辑任务，按 Ctrl+C 停止服务。使用终端看板可运行 `backlog board`。
+
+<a id="-configuration"></a>
+
+### 配置项目和 AI 协作
+
+运行 `backlog config` 打开项目配置向导，或用 `backlog config get automaticTaskManagement` 查看当前项目的自动任务管理设置。[配置参考](ADVANCED-CONFIG.md)
+
+使用 Codex 时，可将仓库中的整个 [EasyBacklog Skill 目录](skills/easybacklog) 复制到目标项目的 `.agents/skills/easybacklog`，在新会话中输入 `$easybacklog`。目标项目需已初始化，并能在其目录运行上面构建的 `backlog` 命令。
