@@ -37,7 +37,7 @@ describe("addAgentInstructions", () => {
 		expect(agents).toContain("<!-- BACKLOG.MD GUIDELINES START -->");
 		expect(agents).toContain("<!-- BACKLOG.MD GUIDELINES END -->");
 		expect(agents).toContain(CLI_AGENT_NUDGE);
-		expect(agents).not.toContain("# Instructions for the usage of Backlog.md CLI Tool");
+		expect(agents).not.toContain("# Instructions for the usage of EasyBacklog CLI Tool");
 
 		expect(claude).toContain("<!-- BACKLOG.MD GUIDELINES START -->");
 		expect(claude).toContain("<!-- BACKLOG.MD GUIDELINES END -->");
@@ -190,7 +190,7 @@ describe("addAgentInstructions", () => {
 	it("loads guideline content from file paths", async () => {
 		const pathGuideline = join(__dirname, "../guidelines/agent-guidelines.md");
 		const content = await _loadAgentGuideline(pathGuideline);
-		expect(content).toContain("# Instructions for the usage of Backlog.md CLI Tool");
+		expect(content).toContain("# Instructions for the usage of EasyBacklog CLI Tool");
 	});
 
 	it("full agent workflow plans only after pickup and current-state research", async () => {
@@ -218,7 +218,7 @@ describe("addAgentInstructions", () => {
 		expect(workflow).not.toContain("Share the plan with the user and wait for approval");
 	});
 
-	it("preserves existing content and adds Backlog.md content only once", async () => {
+	it("preserves existing content and adds EasyBacklog content only once", async () => {
 		const existingContent = "# My Existing Claude Instructions\n\nThis is my custom content.\n";
 		await Bun.write(join(TEST_DIR, "CLAUDE.md"), existingContent);
 
@@ -226,7 +226,7 @@ describe("addAgentInstructions", () => {
 		await addAgentInstructions(TEST_DIR, undefined, ["CLAUDE.md"]);
 		const firstRun = await Bun.file(join(TEST_DIR, "CLAUDE.md")).text();
 
-		// Second run - should not duplicate Backlog.md content
+		// Second run - should not duplicate EasyBacklog content
 		await addAgentInstructions(TEST_DIR, undefined, ["CLAUDE.md"]);
 		const secondRun = await Bun.file(join(TEST_DIR, "CLAUDE.md")).text();
 
@@ -298,7 +298,7 @@ describe("addAgentInstructions", () => {
 
 		expect(section).toContain("single-quoted CLI arguments");
 		expect(section).toContain("backlog task create 'Document `backlog init` setup'");
-		expect(section).toContain("Backlog.md cannot recover the original text after the shell has already executed it");
+		expect(section).toContain("EasyBacklog cannot recover the original text after the shell has already executed it");
 	});
 
 	// BACK-267: every installed instruction block carries a machine-readable version

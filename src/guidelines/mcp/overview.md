@@ -1,8 +1,8 @@
-## Backlog.md Overview (MCP)
+## EasyBacklog Overview (MCP)
 
 Project permission takes precedence: only `automaticTaskManagement: true` allows automatic task creation and updates for authorized development. False, missing, or unknown permission means task mutations require an explicit user task request. Read-only inspection remains allowed. Never enable this setting on the user's behalf without authorization. Preserve verification requirements either way; refresh permission when project/configuration changes.
 
-Backlog.md tracks committed work: what will be built, fixed, or changed.
+EasyBacklog tracks committed work: what will be built, fixed, or changed.
 
 ### When to Use Backlog
 

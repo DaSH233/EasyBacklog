@@ -1,10 +1,10 @@
-# Instructions for the usage of Backlog.md CLI Tool
+# Instructions for the usage of EasyBacklog CLI Tool
 
-## Backlog.md: Comprehensive Project Management Tool via CLI
+## EasyBacklog: Comprehensive Project Management Tool via CLI
 
 ### Assistant Objective
 
-Efficiently manage all project tasks, status, and documentation using the Backlog.md CLI, ensuring all project metadata
+Efficiently manage all project tasks, status, and documentation using the EasyBacklog CLI, ensuring all project metadata
 remains fully synchronized and up-to-date.
 
 ### Core Capabilities
@@ -39,7 +39,7 @@ remains fully synchronized and up-to-date.
 
 # ⚠️ CRITICAL: NEVER EDIT TASK FILES DIRECTLY. Edit Only via CLI
 
-**ALL task operations MUST use the Backlog.md CLI commands**
+**ALL task operations MUST use the EasyBacklog CLI commands**
 
 - ✅ **DO**: Use `backlog task edit` and other CLI commands
 - ✅ **DO**: Use `backlog task create` to create new tasks
@@ -63,10 +63,10 @@ remains fully synchronized and up-to-date.
 
 ### 🔧 **ACTING** (How to change things)
 
-- **All task operations MUST use the Backlog.md CLI tool**
+- **All task operations MUST use the EasyBacklog CLI tool**
 - This ensures metadata is correctly updated and the project stays in sync
 - **Use `--plain`** when listing or viewing tasks for readable text. Use `--json` when consuming fields programmatically.
-- Create and update project docs through Backlog.md APIs so frontmatter and paths stay valid. For CLI users, run `backlog doc create "Title" -p guides/setup` or `backlog doc update doc-1 --content "Updated markdown"`; MCP users should use `document_create` / `document_update`.
+- Create and update project docs through EasyBacklog APIs so frontmatter and paths stay valid. For CLI users, run `backlog doc create "Title" -p guides/setup` or `backlog doc update doc-1 --content "Updated markdown"`; MCP users should use `document_create` / `document_update`.
 - Document paths are relative to `backlog/docs/`; absolute paths and `..` traversal are rejected.
 
 ---
@@ -642,7 +642,7 @@ Do not expect the literal sequence `\n` inside double quotes to become a newline
 
 ### Literal Backticks in CLI Task Text
 
-When a task title, description, acceptance criterion, note, comment, or summary needs Markdown code spans, quote the value so the shell passes the backticks literally. Unescaped backticks in double-quoted or unquoted arguments are command substitution in many shells, and Backlog.md cannot recover the original text after the shell has already executed it.
+When a task title, description, acceptance criterion, note, comment, or summary needs Markdown code spans, quote the value so the shell passes the backticks literally. Unescaped backticks in double-quoted or unquoted arguments are command substitution in many shells, and EasyBacklog cannot recover the original text after the shell has already executed it.
 
 Prefer single-quoted CLI arguments for values that contain literal backticks:
 
@@ -651,7 +651,7 @@ backlog task create 'Document `backlog init` setup' \
   --ac 'Instructions mention `backlog init --defaults` literally'
 ```
 
-If single quotes are not practical in your shell, escape each literal backtick before running the command. Do not rely on Backlog.md to sanitize accidental command output after substitution.
+If single quotes are not practical in your shell, escape each literal backtick before running the command. Do not rely on EasyBacklog to sanitize accidental command output after substitution.
 
 ### Implementation Notes Formatting
 
@@ -731,7 +731,7 @@ Tasks may include images for screenshots, diagrams, or visual references. Local 
 
 > Docs are used for long-term project reference information, such as development standards, configuration guides, architecture documentation, etc. They differ from `tasks/` (specific tasks), `decisions/` (decision records), and `drafts/` (drafts).
 
-Use Backlog.md public interfaces for document creation and updates so IDs, frontmatter, paths, and search metadata stay consistent.
+Use EasyBacklog public interfaces for document creation and updates so IDs, frontmatter, paths, and search metadata stay consistent.
 
 #### CLI Usage
 

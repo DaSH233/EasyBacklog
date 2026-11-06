@@ -212,11 +212,11 @@ Use the Inspector tooling when you want to exercise the stdio server outside an 
 2. Choose **STDIO** transport.
 3. Fill the connection fields exactly as follows:
    - **Command**: `bun`
-   - **Arguments** (enter each item separately): `--cwd`, `/Users/<you>/Projects/Backlog.md`, `src/cli.ts`, `mcp`, `start`
+   - **Arguments** (enter each item separately): `--cwd`, `/Users/<you>/Projects/EasyBacklog`, `src/cli.ts`, `mcp`, `start`
    - Remove any proxy token; it is not needed for local stdio.
 4. Connect and use the tools/resources panes to issue MCP requests.
 
-> Replace `/Users/<you>/Projects/Backlog.md` with the absolute path to your local Backlog.md checkout.
+> Replace `/Users/<you>/Projects/EasyBacklog` with the absolute path to your local EasyBacklog checkout.
 
 `bun run mcp` by itself prints Bun's `$ bun …` preamble, which breaks the Inspector’s JSON parser. If you prefer using the package script here, add `--silent` so the startup log disappears:
 
@@ -225,7 +225,7 @@ Command: bun
 Arguments: run, --silent, mcp
 ```
 
-> Remember to substitute your own project directory for `/Users/<you>/Projects/Backlog.md`.
+> Remember to substitute your own project directory for `/Users/<you>/Projects/EasyBacklog`.
 
 #### CLI workflow (`npx @modelcontextprotocol/inspector-cli`)
 
@@ -236,7 +236,7 @@ npx @modelcontextprotocol/inspector-cli \
   --cli \
   --transport stdio \
   --method tools/list \
-  -- bun --cwd /Users/<you>/Projects/Backlog.md src/cli.ts mcp start
+  -- bun --cwd /Users/<you>/Projects/EasyBacklog src/cli.ts mcp start
 ```
 
 The key detail in both flows is to call `src/cli.ts mcp start` directly (or `bun run --silent mcp`) so stdout stays pure JSON for the MCP handshake.
@@ -247,7 +247,7 @@ The key detail in both flows is to call `src/cli.ts mcp start` directly (or `bun
 ### Project Structure
 
 ```
-backlog.md/
+easybacklog/
 ├── src/
 │   ├── mcp/
 │   │   ├── errors/          # MCP error helpers
@@ -263,7 +263,7 @@ backlog.md/
 
 ## Release
 
-Backlog.md now relies on npm Trusted Publishing with GitHub Actions OIDC. The
+EasyBacklog now relies on npm Trusted Publishing with GitHub Actions OIDC. The
 release workflow builds binaries, publishes all npm packages, and records
 provenance automatically. Follow the steps below to keep the setup healthy.
 
@@ -274,10 +274,10 @@ provenance automatically. Follow the steps below to keep the setup healthy.
   `package.json` files to match the tag, so you do **not** need to edit the
   version field manually.
 - In npm's **Trusted publishers** settings, link the
-  `MrLesk/Backlog.md` repository and the `Release multi-platform executables`
-  workflow for each package: `backlog.md`,
-  `backlog.md-linux-{x64,arm64}`, `backlog.md-darwin-{x64,arm64}`, and
-  `backlog.md-windows-x64`.
+  `DaSH233/EasyBacklog` repository and the `Release multi-platform executables`
+  workflow for each package: `easybacklog`,
+  `easybacklog-linux-{x64,arm64}`, `easybacklog-darwin-{x64,arm64}`, and
+  `easybacklog-windows-x64`.
 - Remove the legacy `NODE_AUTH_TOKEN` repository secret. Publishing now uses
   the GitHub-issued OIDC token, so no long-lived npm tokens should remain.
 - The workflow pins Node.js 26.12.1 and npm 12.2.1 for trusted publishing.

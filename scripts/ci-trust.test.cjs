@@ -19,7 +19,7 @@ for (const workflow of ["ci.yml", "release.yml", "architecture.yml"]) {
 		assert.ok(match, "execute the actual inline Node program");
 		const directory = mkdtempSync(path.join(os.tmpdir(), "backlog-workflow-trust-test-"));
 		try {
-			const repository = "https://github.com/MrLesk/Backlog.md";
+			const repository = "https://github.com/DaSH233/EasyBacklog";
 			const inherited = Object.fromEntries(
 				Object.entries(process.env).filter(
 					([key]) => !/^git_(?:config_(?:count|parameters|key_\d+|value_\d+)|ssl_no_verify)$/i.test(key),
@@ -31,7 +31,7 @@ for (const workflow of ["ci.yml", "release.yml", "architecture.yml"]) {
 				RUNNER_TEMP: directory,
 				GITHUB_ENV: path.join(directory, "environment"),
 				GITHUB_SERVER_URL: "https://github.com",
-				GITHUB_REPOSITORY: "MrLesk/Backlog.md",
+				GITHUB_REPOSITORY: "DaSH233/EasyBacklog",
 				GIT_CONFIG_COUNT: "1",
 				GIT_CONFIG_KEY_0: "http.extraHeader",
 				GIT_CONFIG_VALUE_0: "X-Fixture-Indexed: preserved",

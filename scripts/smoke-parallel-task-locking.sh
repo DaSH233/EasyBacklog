@@ -19,7 +19,7 @@ usage() {
 	cat <<EOF
 Usage: $(basename "$0") [--jobs N] [--keep-temp]
 
-Runs real parallel smoke tests against the local Backlog.md CLI:
+Runs real parallel smoke tests against the local EasyBacklog CLI:
   1. concurrent task creation
   2. concurrent draft promotion
   3. concurrent task demotion

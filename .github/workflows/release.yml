@@ -252,8 +252,8 @@ jobs:
               .bin = {backlog:"cli.js"} |
               .files = ["cli.js","resolveBinary.cjs","postuninstall.cjs","package.json","README.md","LICENSE"] |
               .scripts = {"postuninstall": "node postuninstall.cjs"} |
-              .repository = {"type":"git","url":"https://github.com/MrLesk/Backlog.md"} |
-              .optionalDependencies |= map_values("'$TAG'")' package.json > dist/package.json
+              .repository = {"type":"git","url":"https://github.com/DaSH233/EasyBacklog"} |
+              .optionalDependencies = (["linux-x64","linux-arm64","darwin-x64","darwin-arm64","windows-x64","windows-arm64"] | map({key: ("easybacklog-" + .), value: "'$TAG'"}) | from_entries)' package.json > dist/package.json
           cp LICENSE README.md dist/ 2>/dev/null || true
       - uses: actions/setup-node@v7.1.0
         with:
@@ -279,27 +279,27 @@ jobs:
       matrix:
         include:
           - target: bun-linux-x64
-            package: backlog.md-linux-x64
+            package: easybacklog-linux-x64
             os: linux
             cpu: x64
           - target: bun-linux-arm64
-            package: backlog.md-linux-arm64
+            package: easybacklog-linux-arm64
             os: linux
             cpu: arm64
           - target: bun-darwin-x64
-            package: backlog.md-darwin-x64
+            package: easybacklog-darwin-x64
             os: darwin
             cpu: x64
           - target: bun-darwin-arm64
-            package: backlog.md-darwin-arm64
+            package: easybacklog-darwin-arm64
             os: darwin
             cpu: arm64
           - target: bun-windows-x64
-            package: backlog.md-windows-x64
+            package: easybacklog-windows-x64
             os: win32
             cpu: x64
           - target: bun-windows-arm64
-            package: backlog.md-windows-arm64
+            package: easybacklog-windows-arm64
             os: win32
             cpu: arm64
     runs-on: ubuntu-latest
@@ -351,7 +351,7 @@ jobs:
             "files": ["backlog${{ contains(matrix.target,'windows') && '.exe' || '' }}","package.json","LICENSE"],
             "repository": {
               "type": "git",
-              "url": "https://github.com/MrLesk/Backlog.md"
+              "url": "https://github.com/DaSH233/EasyBacklog"
             }
           }
           EOF
@@ -395,7 +395,7 @@ jobs:
           VERSION="${GITHUB_REF##refs/tags/v}"
           MAX_ATTEMPTS=40
           SLEEP_SECONDS=15
-          PACKAGE_NAME="$(node -e 'const map = { win32: "windows", darwin: "darwin", linux: "linux" }; const platform = map[process.platform]; const arch = process.arch; if (!platform || !["x64","arm64"].includes(arch)) { process.exit(1); } process.stdout.write(`backlog.md-${platform}-${arch}`);')"
+          PACKAGE_NAME="$(node -e 'const map = { win32: "windows", darwin: "darwin", linux: "linux" }; const platform = map[process.platform]; const arch = process.arch; if (!platform || !["x64","arm64"].includes(arch)) { process.exit(1); } process.stdout.write(`easybacklog-${platform}-${arch}`);')"
           BINARY_PATH="node_modules/${PACKAGE_NAME}/backlog"
 
           echo "Waiting for ${PACKAGE_NAME}@${VERSION} to become installable..."
@@ -435,12 +435,12 @@ jobs:
           MAX_ATTEMPTS=40
           SLEEP_SECONDS=15
           PACKAGES=(
-            "backlog.md-linux-x64"
-            "backlog.md-linux-arm64"
-            "backlog.md-darwin-x64"
-            "backlog.md-darwin-arm64"
-            "backlog.md-windows-x64"
-            "backlog.md-windows-arm64"
+            "easybacklog-linux-x64"
+            "easybacklog-linux-arm64"
+            "easybacklog-darwin-x64"
+            "easybacklog-darwin-arm64"
+            "easybacklog-windows-x64"
+            "easybacklog-windows-arm64"
           )
 
           for pkg in "${PACKAGES[@]}"; do
@@ -477,7 +477,7 @@ jobs:
             throw "Unsupported runner arch: $Arch"
           }
 
-          $PackageName = "backlog.md-windows-$Arch"
+          $PackageName = "easybacklog-windows-$Arch"
           $BinaryPath = Join-Path -Path "node_modules/$PackageName" -ChildPath "backlog.exe"
 
           Write-Host "Waiting for $PackageName@$Version to become installable..."
@@ -539,8 +539,8 @@ jobs:
           VERSION="${GITHUB_REF##refs/tags/v}"
           MAX_ATTEMPTS=40
           SLEEP_SECONDS=15
-          EXPECTED_PACKAGE="$(node -e 'const map = { win32: "windows", darwin: "darwin", linux: "linux" }; const platform = map[process.platform]; const arch = process.arch; if (!platform || !["x64","arm64"].includes(arch)) { process.exit(1); } process.stdout.write(`backlog.md-${platform}-${arch}`);')"
-          echo "Waiting for backlog.md@${VERSION} install + ${EXPECTED_PACKAGE} optional dependency..."
+          EXPECTED_PACKAGE="$(node -e 'const map = { win32: "windows", darwin: "darwin", linux: "linux" }; const platform = map[process.platform]; const arch = process.arch; if (!platform || !["x64","arm64"].includes(arch)) { process.exit(1); } process.stdout.write(`easybacklog-${platform}-${arch}`);')"
+          echo "Waiting for easybacklog@${VERSION} install + ${EXPECTED_PACKAGE} optional dependency..."
 
           for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
             rm -rf sanity
@@ -548,7 +548,7 @@ jobs:
             cd sanity
             npm init -y >/dev/null 2>&1
 
-            if npm i "backlog.md@${VERSION}" --prefer-online --no-audit --no-fund; then
+            if npm i "easybacklog@${VERSION}" --prefer-online --no-audit --no-fund; then
               if npx backlog -v; then
                 echo "Install sanity succeeded on attempt ${attempt}/${MAX_ATTEMPTS}."
                 exit 0
@@ -570,7 +570,7 @@ jobs:
             fi
           done
 
-          echo "Install sanity timed out for backlog.md@${VERSION}."
+          echo "Install sanity timed out for easybacklog@${VERSION}."
           exit 1
       - name: Install and run backlog -v (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
@@ -585,8 +585,8 @@ jobs:
             throw "Unsupported runner arch: $Arch"
           }
 
-          $ExpectedPackage = "backlog.md-windows-$Arch"
-          Write-Host "Waiting for backlog.md@$Version install + $ExpectedPackage optional dependency..."
+          $ExpectedPackage = "easybacklog-windows-$Arch"
+          Write-Host "Waiting for easybacklog@$Version install + $ExpectedPackage optional dependency..."
 
           for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
             if (Test-Path "sanity") {
@@ -597,7 +597,7 @@ jobs:
 
             try {
               npm init -y | Out-Null
-              npm i "backlog.md@$Version" --prefer-online --no-audit --no-fund
+              npm i "easybacklog@$Version" --prefer-online --no-audit --no-fund
               if ($LASTEXITCODE -eq 0) {
                 npx backlog -v
                 if ($LASTEXITCODE -eq 0) {
@@ -623,7 +623,7 @@ jobs:
             }
           }
 
-          throw "Install sanity timed out for backlog.md@$Version."
+          throw "Install sanity timed out for easybacklog@$Version."
 
   github-release:
     needs: build

@@ -218,7 +218,7 @@ function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
 }
 
 const helpOutput = await run([executable, "--help"]);
-assert(helpOutput.includes("Backlog.md - Project management CLI"), "Compiled CLI help is missing its title.");
+assert(helpOutput.includes("EasyBacklog - Project management CLI"), "Compiled CLI help is missing its title.");
 
 const versionOutput = (await run([executable, "--version"])).trim();
 assert(versionOutput === expectedVersion, `Expected compiled version ${expectedVersion}, received ${versionOutput}.`);

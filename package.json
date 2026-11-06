@@ -1,6 +1,6 @@
 {
-  "name": "backlog.md",
-  "version": "1.55.3",
+  "name": "easybacklog",
+  "version": "1.0.0",
   "type": "module",
   "module": "src/cli.ts",
   "files": [
@@ -10,14 +10,6 @@
   ],
   "bin": {
     "backlog": "scripts/cli.cjs"
-  },
-  "optionalDependencies": {
-    "backlog.md-darwin-arm64": "*",
-    "backlog.md-darwin-x64": "*",
-    "backlog.md-linux-arm64": "*",
-    "backlog.md-linux-x64": "*",
-    "backlog.md-windows-arm64": "*",
-    "backlog.md-windows-x64": "*"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.2",
@@ -78,12 +70,12 @@
   "author": "Alex Gavrilescu (https://github.com/MrLesk)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MrLesk/Backlog.md.git"
+    "url": "git+https://github.com/DaSH233/EasyBacklog.git"
   },
   "bugs": {
-    "url": "https://github.com/MrLesk/Backlog.md/issues"
+    "url": "https://github.com/DaSH233/EasyBacklog/issues"
   },
-  "homepage": "https://backlog.md",
+  "homepage": "https://github.com/DaSH233/EasyBacklog",
   "keywords": [
     "cli",
     "markdown",

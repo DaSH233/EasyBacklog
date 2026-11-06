@@ -1,6 +1,6 @@
-# Contributing to Backlog.md
+# Contributing to EasyBacklog
 
-Thank you for your interest in contributing to Backlog.md. This project is managed using the Backlog.md workflow and we welcome community involvement.
+Thank you for your interest in contributing to EasyBacklog. This project is managed using the EasyBacklog workflow and we welcome community involvement.
 
 ## Opening Issues
 

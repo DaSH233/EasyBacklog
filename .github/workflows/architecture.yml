@@ -1,6 +1,6 @@
 name: Groma architecture
 
-# Publishes Backlog.md's groma.md architecture map to GitHub Pages, with a before/after comparison for
+# Publishes EasyBacklog's groma.md architecture map to GitHub Pages, with a before/after comparison for
 # every open pull request, and keeps one comment on each pull request linking to its comparison.
 # The same setup as the groma.md repository's own architecture workflow, on the released Action.
 #

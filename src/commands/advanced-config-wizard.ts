@@ -625,7 +625,7 @@ export async function runAdvancedConfigWizard({
 			{
 				type: "confirm",
 				name: "installClaudeAgent",
-				message: "Install Claude Code Backlog.md agent?",
+				message: "Install Claude Code EasyBacklog agent?",
 				hint: "Adds configuration under .claude/agents/",
 				initial: false,
 			},

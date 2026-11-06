@@ -2,6 +2,8 @@
 
 EasyBacklog 是一个本地任务管理工具，基于 Alex Gavrilescu 发起的 [Backlog.md](https://github.com/MrLesk/Backlog.md)。它沿用上游的 Markdown 任务格式、`backlog` 命令行和终端看板。你可以用命令行创建任务，在浏览器里查看或编辑同一条记录，也可以直接阅读项目中的任务文件。项目沿用 [MIT 许可证](LICENSE)。
 
+当前 EasyBacklog 版本为 **1.0.0**。[项目仓库](https://github.com/DaSH233/EasyBacklog)
+
 ## 相对上游的主要改动
 
 以下对照的是本仓库开发 EasyBacklog 时采用的 Backlog.md v1.55.3 基线。

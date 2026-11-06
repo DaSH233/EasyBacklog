@@ -286,7 +286,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 	const renderIntegrationModeStep = () => (
 		<div>
 			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{t("AI Integration Mode")}</h2>
-			<p className="text-gray-600 dark:text-gray-400 mb-6">{t("How would you like your AI tools to connect to Backlog.md?")}</p>
+			<p className="text-gray-600 dark:text-gray-400 mb-6">{t("How would you like your AI tools to connect to EasyBacklog?")}</p>
 			<div className="space-y-3">
 				<label
 					className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -305,7 +305,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 					/>
 					<div>
 						<div className="font-medium text-gray-900 dark:text-gray-100">{t("MCP Connector (Recommended)")}</div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">{t("For Claude Code, Codex, Gemini CLI, Kiro, Cursor, etc. Agents learn the Backlog.md workflow through MCP tools, resources, and prompts.")}</div>
+						<div className="text-sm text-gray-500 dark:text-gray-400">{t("For Claude Code, Codex, Gemini CLI, Kiro, Cursor, etc. Agents learn the EasyBacklog workflow through MCP tools, resources, and prompts.")}</div>
 					</div>
 				</label>
 
@@ -326,7 +326,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 					/>
 					<div>
 						<div className="font-medium text-gray-900 dark:text-gray-100">{t("CLI Commands (Broader Compatibility)")}</div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">{t("Agents will use Backlog.md by invoking CLI commands directly. Creates instruction files for various AI tools.")}</div>
+						<div className="text-sm text-gray-500 dark:text-gray-400">{t("Agents will use EasyBacklog by invoking CLI commands directly. Creates instruction files for various AI tools.")}</div>
 					</div>
 				</label>
 
@@ -446,7 +446,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						className="mt-1 mr-3"
 					/>
 					<div>
-						<div className="font-medium text-gray-900 dark:text-gray-100">{t("Install Claude Code Backlog.md Agent")}</div>
+						<div className="font-medium text-gray-900 dark:text-gray-100">{t("Install Claude Code EasyBacklog Agent")}</div>
 						<div className="text-sm text-gray-500 dark:text-gray-400">{t("Adds configuration under .claude/agents/ for enhanced Claude Code integration")}</div>
 					</div>
 				</label>
@@ -928,7 +928,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							/>
 						</svg>
 					</div>
-					<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t("Initialize Backlog.md")}</h1>
+					<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t("Initialize EasyBacklog")}</h1>
 				</div>
 
 				{/* Step Indicator */}

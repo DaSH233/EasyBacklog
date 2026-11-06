@@ -23,7 +23,7 @@ export function registerTaskTools(server: McpServer, config: BacklogConfig): voi
 	const createTaskTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "task_create",
-			description: "Create a new task using Backlog.md",
+			description: "Create a new task using EasyBacklog",
 			inputSchema: taskCreateSchema,
 			annotations: { title: "Create Task", destructiveHint: false },
 		},
@@ -35,7 +35,7 @@ export function registerTaskTools(server: McpServer, config: BacklogConfig): voi
 		{
 			name: "task_list",
 			description:
-				"List Backlog.md tasks with optional filtering by status, type, project, assignee (or unassigned: true for tasks with no assignee), milestone, labels, and search",
+				"List EasyBacklog tasks with optional filtering by status, type, project, assignee (or unassigned: true for tasks with no assignee), milestone, labels, and search",
 			inputSchema: taskListSchema,
 			annotations: { title: "List Tasks", readOnlyHint: true, destructiveHint: false },
 		},
@@ -46,7 +46,7 @@ export function registerTaskTools(server: McpServer, config: BacklogConfig): voi
 	const searchTaskTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "task_search",
-			description: "Search Backlog.md tasks by title, description, task type, project, and modified file path filters",
+			description: "Search EasyBacklog tasks by title, description, task type, project, and modified file path filters",
 			inputSchema: taskSearchSchema,
 			annotations: { title: "Search Tasks", readOnlyHint: true, destructiveHint: false },
 		},
@@ -58,7 +58,7 @@ export function registerTaskTools(server: McpServer, config: BacklogConfig): voi
 		{
 			name: "task_edit",
 			description:
-				"Edit a Backlog.md task, including metadata (status, priority, type, project), implementation plan/notes, dependencies, acceptance criteria, and task-specific Definition of Done items",
+				"Edit a EasyBacklog task, including metadata (status, priority, type, project), implementation plan/notes, dependencies, acceptance criteria, and task-specific Definition of Done items",
 			inputSchema: taskEditSchema,
 			annotations: { title: "Edit Task", destructiveHint: false },
 		},
@@ -69,7 +69,7 @@ export function registerTaskTools(server: McpServer, config: BacklogConfig): voi
 	const viewTaskTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "task_view",
-			description: "View a Backlog.md task details",
+			description: "View a EasyBacklog task details",
 			inputSchema: taskViewSchema,
 			annotations: { title: "View Task", readOnlyHint: true, destructiveHint: false },
 		},

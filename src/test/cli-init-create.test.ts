@@ -140,7 +140,7 @@ describe("CLI Integration", () => {
 				"At the beginning of each conversation in this project, run `backlog instructions overview` before answering or taking action. Re-read it only if you have not read it yet in the current conversation.",
 			);
 			expect(agents).not.toContain("`backlog instructions` to list available guides");
-			expect(agents).not.toContain("# Instructions for the usage of Backlog.md CLI Tool");
+			expect(agents).not.toContain("# Instructions for the usage of EasyBacklog CLI Tool");
 		});
 
 		it("maps Cursor to AGENTS.md while preserving existing instructions and user Cursor rules", async () => {

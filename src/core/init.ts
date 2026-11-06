@@ -19,7 +19,7 @@ import { getTaskPrefixError } from "../utils/prefix-config.ts";
 import type { Core } from "./backlog.ts";
 
 export const MCP_SERVER_NAME = "backlog";
-export const MCP_GUIDE_URL = "https://github.com/MrLesk/Backlog.md#-mcp-integration-model-context-protocol";
+export const MCP_GUIDE_URL = "https://github.com/DaSH233/EasyBacklog/blob/main/src/mcp/README.md";
 
 export type IntegrationMode = "mcp" | "cli" | "none";
 export type McpClient = "claude" | "codex" | "gemini" | "kiro" | "guide";

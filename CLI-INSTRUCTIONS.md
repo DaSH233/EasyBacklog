@@ -1,8 +1,8 @@
 # CLI Reference
 
-Full command reference for Backlog.md. For getting started, see [README.md](README.md).
+Full command reference for EasyBacklog. For getting started, see [README.md](README.md).
 
-All examples use the `backlog` command, available after installing the `backlog.md` package globally (`npm i -g backlog.md`) or as a project dependency. For one-off runs without installing, use the full package name — `npx backlog.md <command>`, e.g. `npx backlog.md board`; without an install, `npx backlog` resolves to an unrelated third-party npm package, not this tool.
+Build this repository and add its `dist` directory to your PATH to run the `backlog` command. See [README.md](README.md) for setup.
 
 ## Project Setup
 
@@ -17,7 +17,7 @@ All examples use the `backlog` command, available after installing the `backlog.
 - **Backlog folder** – choose `backlog/`, `.backlog/`, or a custom project-relative path.
 - **Config location** – for built-in folders, choose folder-local `config.yml` or root `backlog.config.yml`; custom paths use root `backlog.config.yml`.
 - **Integration choice** – decide whether your AI tools use **CLI instructions** (recommended), the optional **MCP connector**, or no AI setup.
-- **Instruction files (CLI path)** – the CLI setup writes a short nudge to AGENTS.md by default in non-interactive setup. `--agent-instructions cursor` also selects AGENTS.md, and the interactive CLI and Web setup identify Cursor under that shared target. Existing user-managed `.cursor/rules` files may coexist; Backlog.md does not migrate or remove them, and repeated initialization preserves non-Backlog content in AGENTS.md.
+- **Instruction files (CLI path)** – the CLI setup writes a short nudge to AGENTS.md by default in non-interactive setup. `--agent-instructions cursor` also selects AGENTS.md, and the interactive CLI and Web setup identify Cursor under that shared target. Existing user-managed `.cursor/rules` files may coexist; EasyBacklog does not migrate or remove them, and repeated initialization preserves non-Backlog content in AGENTS.md.
 - **Advanced settings prompt** – default answer "No" finishes init immediately; choosing "Yes" jumps straight into the advanced wizard documented in [ADVANCED-CONFIG.md](ADVANCED-CONFIG.md).
 
 The advanced wizard includes interactive Definition of Done defaults editing (add/remove/reorder/clear), so project checklist defaults can be managed without manual YAML edits.
@@ -177,7 +177,7 @@ Absent scalar fields are `null`, and absent collections are `[]`. Date-only valu
 ### Replacing legacy sections without markers
 
 Replacing or clearing an old description, plan, notes, or final summary can be refused when it has no section markers
-and contains another `##` heading. That heading might belong to the section or start a separate section, so Backlog.md
+and contains another `##` heading. That heading might belong to the section or start a separate section, so EasyBacklog
 leaves the file unchanged instead of guessing. Unchanged content and appends remain supported and keep an ambiguous
 section unmarked, so a later replacement still requires a person to choose its boundary.
 
@@ -246,7 +246,7 @@ The same shape works for `--plan`, `--notes`, `--comment`, `--final-summary`, an
 
 ### Literal backticks in task text
 
-When task text includes Markdown code spans, quote it so the shell passes the backticks literally. Unescaped backticks in double-quoted or unquoted arguments are command substitution in many shells, and Backlog.md cannot recover the original text after the shell has already executed it.
+When task text includes Markdown code spans, quote it so the shell passes the backticks literally. Unescaped backticks in double-quoted or unquoted arguments are command substitution in many shells, and EasyBacklog cannot recover the original text after the shell has already executed it.
 
 Use single-quoted CLI arguments for values that contain literal backticks:
 
@@ -255,7 +255,7 @@ backlog task create 'Document `backlog init` setup' \
   --ac 'Instructions mention `backlog init --defaults` literally'
 ```
 
-If single quotes are not practical in your shell, escape each literal backtick before running the command. Do not rely on Backlog.md to sanitize accidental command output after substitution.
+If single quotes are not practical in your shell, escape each literal backtick before running the command. Do not rely on EasyBacklog to sanitize accidental command output after substitution.
 
 ## Milestone Management
 
@@ -373,7 +373,7 @@ Dependents (2 direct, 2 total):
 
 The Web UI listens only on `127.0.0.1`; it is not reachable from other devices on the LAN or VPN.
 
-To keep the Web UI running in the background with auto-start on boot, see [Running Backlog.md as a Service](backlog/docs/doc-003%20-%20Running-Backlog-Browser-as-a-Service.md).
+To keep the Web UI running in the background with auto-start on boot, see [Running EasyBacklog as a Service](backlog/docs/doc-003%20-%20Running-Backlog-Browser-as-a-Service.md).
 
 ## Documentation
 
@@ -435,7 +435,7 @@ Full help: `backlog --help`
 Export your Kanban board to a clean, shareable markdown file:
 
 ```bash
-# Export to default Backlog.md file
+# Export to default EasyBacklog.md file
 backlog board export
 
 # Export to custom file
@@ -458,7 +458,7 @@ Perfect for sharing project status, creating reports, or storing snapshots in ve
 
 ## Shell Tab Completion
 
-Backlog.md can install tab completion for bash, zsh, fish, and PowerShell.
+EasyBacklog can install tab completion for bash, zsh, fish, and PowerShell.
 
 **Quick Installation:**
 ```bash

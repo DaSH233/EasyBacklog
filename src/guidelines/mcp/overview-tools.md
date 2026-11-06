@@ -1,8 +1,8 @@
-## Backlog.md Overview (Tools)
+## EasyBacklog Overview (Tools)
 
 Project permission takes precedence: only `automaticTaskManagement: true` allows automatic task creation and updates for authorized development. False, missing, or unknown permission means task mutations require an explicit user task request. Read-only inspection remains allowed. Never enable this setting on the user's behalf without authorization. Preserve verification requirements either way; refresh permission when project/configuration changes.
 
-Backlog.md tracks committed work. Create a task when work requires planning, decisions, or handoff notes. Skip task creation for questions, exploration, and obvious mechanical edits.
+EasyBacklog tracks committed work. Create a task when work requires planning, decisions, or handoff notes. Skip task creation for questions, exploration, and obvious mechanical edits.
 
 For new requirements, search with a keyword and limit using `task_search` or `task_list`, then read matching work with `task_view`. Use the existing task, or follow the creation guide if none fits.
 

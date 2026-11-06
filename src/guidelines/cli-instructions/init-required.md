@@ -1,6 +1,6 @@
-## Backlog.md Initialization Required
+## EasyBacklog Initialization Required
 
-This directory does not have Backlog.md initialized.
+This directory does not have EasyBacklog initialized.
 
 To initialize the current project, run:
 

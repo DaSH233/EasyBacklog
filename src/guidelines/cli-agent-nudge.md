@@ -1,8 +1,8 @@
 <CRITICAL_INSTRUCTION>
 
-## Backlog.md Workflow
+## EasyBacklog Workflow
 
-This project uses Backlog.md for task and project management.
+This project uses EasyBacklog for task and project management.
 
 **At the beginning of each conversation in this project, run `backlog instructions overview` before answering or taking action. Re-read it only if you have not read it yet in the current conversation.**
 

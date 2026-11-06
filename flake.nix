@@ -1,5 +1,5 @@
 {
-  description = "Backlog.md - A markdown-based task management CLI tool";
+  description = "EasyBacklog - A markdown-based task management CLI tool";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -246,8 +246,8 @@
 
             meta = {
               description = "A markdown-based task management CLI tool with Kanban board";
-              homepage = "https://backlog.md";
-              changelog = "https://github.com/MrLesk/Backlog.md/releases";
+              homepage = "https://github.com/DaSH233/EasyBacklog";
+              changelog = "https://github.com/DaSH233/EasyBacklog/releases";
               license = pkgs.lib.licenses.mit;
               mainProgram = "backlog";
             };

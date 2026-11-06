@@ -26,7 +26,7 @@ import { DEFAULT_DIRECTORIES, DEFAULT_FILES, DEFAULT_STATUSES } from "./constant
 import { type ArchivedTaskMovePlan, moveArchivedTasks, previewArchivedTaskMove } from "./core/archived-task-move.ts";
 import { CONTENT_RECORD_WORDS, describeContentRecordChange, formatCleanupResult } from "./core/backlog.ts";
 import { type DuplicateRepairPlan, findLocalDuplicateTaskIds } from "./core/duplicate-task-repair.ts";
-import { initializeProject } from "./core/init.ts";
+import { initializeProject, MCP_GUIDE_URL } from "./core/init.ts";
 import { buildMilestoneBuckets, collectArchivedMilestoneKeys, milestoneKey } from "./core/milestones.ts";
 import { loadTaskDetail, loadTaskListItems } from "./core/task-detail.ts";
 import { isConfigValueError } from "./file-system/operations.ts";
@@ -429,7 +429,7 @@ function printDuplicateRepairPlan(plan: DuplicateRepairPlan): void {
 				console.log(`    - ${location.branch}:${location.path} (${location.state})`);
 			}
 		}
-		console.log("Switch to the affected branches and reconcile these paths; Backlog.md will not edit another branch.");
+		console.log("Switch to the affected branches and reconcile these paths; EasyBacklog will not edit another branch.");
 	}
 	if (plan.groups.length > 0) {
 		if (plan.references.length > 0) {
@@ -888,14 +888,14 @@ async function requireRuntimeCwd(): Promise<string> {
 }
 
 /**
- * Resolves the Backlog.md project root from the current working directory.
+ * Resolves the EasyBacklog project root from the current working directory.
  * Walks up the directory tree to find backlog/ or backlog.json, with git root fallback.
- * Exits with error message if no Backlog.md project is found.
+ * Exits with error message if no EasyBacklog project is found.
  */
 async function requireProjectRoot(): Promise<string> {
 	const root = await findBacklogRoot(await requireRuntimeCwd());
 	if (!root) {
-		console.error("No Backlog.md project found. Run `backlog init` to initialize.");
+		console.error("No EasyBacklog project found. Run `backlog init` to initialize.");
 		process.exit(1);
 	}
 	return root;
@@ -967,7 +967,7 @@ try {
 		const first = rawArgs[0];
 		if (
 			typeof first === "string" &&
-			/node_modules[\\/]+backlog\.md-(darwin|linux|windows)-[^\\/]+[\\/]+backlog(\.exe)?$/.test(first)
+			/node_modules[\\/]+easybacklog-(darwin|linux|windows)-[^\\/]+[\\/]+backlog(\.exe)?$/.test(first)
 		) {
 			rawArgs = rawArgs.slice(1);
 		}
@@ -1064,7 +1064,7 @@ if (shouldRunMigration) {
 const program = new Command();
 program
 	.name("backlog")
-	.description("Backlog.md - Project management CLI")
+	.description("EasyBacklog - Project management CLI")
 	.version(version, "-v, --version", "display version number")
 	.showSuggestionAfterError()
 	.showHelpAfterError("Run with --help to see accepted fields and examples.");
@@ -1168,7 +1168,7 @@ addHelpSchema(program.command("init [projectName]"), {
 						return;
 					}
 					const repositoryMode = await clack.select({
-						message: "No git repository found. How should Backlog.md initialize this project?",
+						message: "No git repository found. How should EasyBacklog initialize this project?",
 						initialValue: "git",
 						options: [
 							{
@@ -1371,7 +1371,7 @@ addHelpSchema(program.command("init [projectName]"), {
 						}
 					} else {
 						const locationPrompt = await clack.select({
-							message: "Where should Backlog.md store project files?",
+							message: "Where should EasyBacklog store project files?",
 							initialValue: defaultBacklogSource,
 							options: [
 								{
@@ -1387,7 +1387,7 @@ addHelpSchema(program.command("init [projectName]"), {
 								{
 									label: "Custom project-relative path",
 									value: "custom",
-									hint: `Backlog.md will store project config in ${backlogResolution.rootConfigPath}`,
+									hint: `EasyBacklog will store project config in ${backlogResolution.rootConfigPath}`,
 								},
 							],
 						});
@@ -1419,7 +1419,7 @@ addHelpSchema(program.command("init [projectName]"), {
 						} else {
 							backlogDirectory = backlogDirectorySource;
 							const configPrompt = await clack.select({
-								message: "Where should Backlog.md store project configuration?",
+								message: "Where should EasyBacklog store project configuration?",
 								initialValue: defaultConfigLocation,
 								options: [
 									{
@@ -1500,7 +1500,6 @@ addHelpSchema(program.command("init [projectName]"), {
 				let agentFiles: AgentInstructionFile[] = [];
 				let agentInstructionsSkipped = false;
 				let mcpClientSetupSummary: string | undefined;
-				const mcpGuideUrl = "https://github.com/MrLesk/Backlog.md#-mcp-integration-model-context-protocol";
 
 				if (
 					!integrationOption &&
@@ -1532,7 +1531,7 @@ addHelpSchema(program.command("init [projectName]"), {
 							integrationTipShown = true;
 						}
 						const integrationPrompt = await clack.select({
-							message: "How would you like your AI tools to connect to Backlog.md?",
+							message: "How would you like your AI tools to connect to EasyBacklog?",
 							initialValue: "cli",
 							options: [
 								{
@@ -1544,7 +1543,7 @@ addHelpSchema(program.command("init [projectName]"), {
 									value: "mcp",
 								},
 								{
-									label: "Skip for now (I am not using Backlog.md with AI tools)",
+									label: "Skip for now (I am not using EasyBacklog with AI tools)",
 									value: "none",
 								},
 							],
@@ -1692,7 +1691,7 @@ addHelpSchema(program.command("init [projectName]"), {
 								}
 								if (client === "guide") {
 									console.log("    Opening MCP setup guide in your browser...");
-									await openUrlInBrowser(mcpGuideUrl);
+									await openUrlInBrowser(MCP_GUIDE_URL);
 									results.push("Setup guide opened");
 									await recordGuidelinesForClient(client);
 								}
@@ -1942,7 +1941,7 @@ addHelpSchema(program.command("init [projectName]"), {
 
 				// Log Claude agent result from shared init
 				if (integrationMode === "cli" && initResult.mcpResults?.claudeAgent) {
-					clack.log.info(`Claude Code Backlog.md agent ${initResult.mcpResults.claudeAgent}`);
+					clack.log.info(`Claude Code EasyBacklog agent ${initResult.mcpResults.claudeAgent}`);
 				}
 
 				// Final warning if remote operations were enabled but no git remotes are configured
@@ -2031,7 +2030,7 @@ addHelpSchema(taskCmd.command("create [title]"), {
 			description: "Only for finished, verified work created directly in a configured terminal status",
 		},
 	],
-	writes: "Creates a task or draft markdown file through Backlog.md",
+	writes: "Creates a task or draft markdown file through EasyBacklog",
 	output: "Created task details; use --plain for text output",
 	examples: [
 		'backlog task create "Add OAuth" --ac "Login succeeds"',
@@ -3941,7 +3940,7 @@ const taskEditCommand = addHelpSchema(taskCmd.command("edit [taskIds...]"), {
 		{ name: "append-final-summary", type: "Markdown", description: "Append to final summary; repeatable" },
 		{ name: "check-ac", type: "Integer", description: "1-based acceptance criterion index" },
 	],
-	writes: "Updates task metadata and structured task sections through Backlog.md",
+	writes: "Updates task metadata and structured task sections through EasyBacklog",
 	output: "Updated task details; use --plain for text output",
 	examples: [
 		'backlog task edit {{TASK_ID:1}} --status "<active status>" -a @sara',
@@ -4363,7 +4362,7 @@ const draftEditCommand = addHelpSchema(draftCmd.command("edit [taskId]"), {
 		{ name: "clear-docs", type: "Boolean", description: "Remove all documentation" },
 		{ name: "plain", type: "Boolean", description: "Use plain text output after editing" },
 	],
-	writes: "Updates draft metadata and structured sections through Backlog.md",
+	writes: "Updates draft metadata and structured sections through EasyBacklog",
 	output: "Updated draft details; use --plain for text output",
 	examples: ['backlog draft edit DRAFT-1 -t "Renamed draft"', "backlog draft edit DRAFT-1 --check-ac 1"],
 }).description("edit an existing draft");
@@ -4802,8 +4801,8 @@ boardCmd
 				await updateReadmeWithBoard(finalTasks, statuses, projectName, exportVersion);
 				console.log("Updated README.md with Kanban board.");
 			} else {
-				// Use filename argument or default to Backlog.md
-				const outputFile = filename || "Backlog.md";
+				// Use filename argument or default to EasyBacklog.md
+				const outputFile = filename || "EasyBacklog.md";
 				const outputPath = join(cwd, outputFile as string);
 
 				// Check if file exists and handle overwrite confirmation
@@ -5257,20 +5256,20 @@ const agentsCmd = addHelpSchema(program.command("agents"), {
 		{
 			name: "--update-instructions",
 			type: "Boolean",
-			description: "Interactively select instruction files and refresh the short Backlog.md CLI nudge",
+			description: "Interactively select instruction files and refresh the short EasyBacklog CLI nudge",
 		},
 	],
 	writes:
-		"Creates or updates the managed Backlog.md CLI nudge in selected instruction files; preserves existing content outside the managed block",
+		"Creates or updates the managed EasyBacklog CLI nudge in selected instruction files; preserves existing content outside the managed block",
 	output: "Interactive file selection followed by created, updated, or unchanged file summary",
 	examples: ["backlog agents --update-instructions"],
 });
 
 agentsCmd
-	.description("manage the short Backlog.md CLI nudge in agent instruction files")
+	.description("manage the short EasyBacklog CLI nudge in agent instruction files")
 	.option(
 		"--update-instructions",
-		"update the Backlog.md CLI nudge in agent instruction files while preserving existing content",
+		"update the EasyBacklog CLI nudge in agent instruction files while preserving existing content",
 	)
 	.action(async (options) => {
 		if (!options.updateInstructions) {
@@ -5326,7 +5325,7 @@ const CONFIG_AVAILABLE_KEYS =
 	"Available keys: defaultEditor, projectName, defaultAssignee, defaultStatus, statuses, labels, priorities, types, projects, milestones, definitionOfDone, dateFormat, maxColumnWidth, defaultPort, autoOpenBrowser, hideEmptyColumns, remoteOperations, autoCommit, automaticTaskManagement, filesystemOnly, bypassGitHooks, zeroPaddedIds, checkActiveBranches, activeBranchDays";
 
 const configCmd = addHelpSchema(program.command("config"), {
-	reads: "Project Backlog.md configuration",
+	reads: "Project EasyBacklog configuration",
 	required: [],
 	optional: [],
 	writes: "Interactive configuration updates when run without a subcommand",
@@ -5386,7 +5385,7 @@ const configCmd = addHelpSchema(program.command("config"), {
 			}
 			if (shouldInstallClaude) {
 				await installClaudeAgent(cwd);
-				console.log("✓ Claude Code Backlog.md agent installed to .claude/agents/");
+				console.log("✓ Claude Code EasyBacklog agent installed to .claude/agents/");
 			}
 			if (completionResult) {
 				const instructions = completionResult.instructions.trim();
@@ -5415,7 +5414,7 @@ const configCmd = addHelpSchema(program.command("config"), {
 	});
 
 addHelpSchema(configCmd.command("get <key>"), {
-	reads: "Project Backlog.md configuration",
+	reads: "Project EasyBacklog configuration",
 	required: [{ name: "key", type: choiceType(CONFIG_GET_KEYS), description: "Configuration value to print" }],
 	optional: [],
 	output: "The selected configuration value",
@@ -5534,7 +5533,7 @@ addHelpSchema(configCmd.command("set <key> <value>"), {
 		{ name: "value", type: "String", description: "New value; parsed based on key type" },
 	],
 	optional: [],
-	writes: "Updates the project Backlog.md configuration file",
+	writes: "Updates the project EasyBacklog configuration file",
 	output: "Confirmation of the updated config value",
 	examples: [
 		'backlog config set defaultEditor "code --wait"',
@@ -5768,7 +5767,7 @@ addHelpSchema(configCmd.command("set <key> <value>"), {
 	});
 
 addHelpSchema(configCmd.command("list"), {
-	reads: "Project Backlog.md configuration",
+	reads: "Project EasyBacklog configuration",
 	required: [],
 	optional: [],
 	output: "All public configuration values",

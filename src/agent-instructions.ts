@@ -47,7 +47,7 @@ function getMarkers(kind: GuidelineMarkerKind = "default"): { start: string; end
 }
 
 /**
- * Checks if the Backlog.md guidelines are already present in the content
+ * Checks if the EasyBacklog guidelines are already present in the content
  */
 function hasBacklogGuidelines(content: string): boolean {
 	const { start } = getMarkers();
@@ -65,7 +65,7 @@ function versionMarkerLine(version: string): string {
 }
 
 /**
- * Wraps the Backlog.md guidelines with appropriate markers
+ * Wraps the EasyBacklog guidelines with appropriate markers
  */
 function wrapWithMarkers(content: string, version: string, kind: GuidelineMarkerKind = "default"): string {
 	const { start, end } = getMarkers(kind);
@@ -176,7 +176,7 @@ export async function addAgentInstructions(
 					results.push({ action: "unchanged", fileName: name, filePath });
 					continue;
 				} else {
-					// Append Backlog.md guidelines with markers
+					// Append EasyBacklog guidelines with markers
 					if (!existing.endsWith("\n")) existing += "\n";
 					finalContent = existing + wrapWithMarkers(content, version);
 				}

@@ -64,7 +64,7 @@ describe("BacklogServer loopback binding", () => {
 			await server.start(port, true);
 
 			expect(internals(server).server?.hostname).toBe("127.0.0.1");
-			expect(logs).toContain(`🚀 Backlog.md browser interface running at http://127.0.0.1:${port}`);
+			expect(logs).toContain(`🚀 EasyBacklog browser interface running at http://127.0.0.1:${port}`);
 			expect(openedUrl).toBe(`http://127.0.0.1:${port}`);
 		} finally {
 			logSpy.mockRestore();
@@ -87,7 +87,7 @@ describe("BacklogServer loopback binding", () => {
 			await server.start(port, false);
 
 			expect(opened).toBe(false);
-			expect(logs).toContain(`🚀 Backlog.md browser interface running at http://127.0.0.1:${port}`);
+			expect(logs).toContain(`🚀 EasyBacklog browser interface running at http://127.0.0.1:${port}`);
 			expect(logs).toContain("💡 Open your browser and navigate to the URL above");
 			expect(logs).not.toContain("🌐 Opening browser...");
 		} finally {

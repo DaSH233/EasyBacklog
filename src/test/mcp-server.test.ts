@@ -417,7 +417,7 @@ describe("McpServer bootstrap", () => {
 			"backlog://workflow/task-finalization",
 			"backlog://workflow/workflow-reference",
 		]);
-		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Backlog.md Overview (MCP)");
+		expect(MCP_WORKFLOW_OVERVIEW).toContain("## EasyBacklog Overview (MCP)");
 
 		const resourceTemplates = await server.testInterface.listResourceTemplates();
 		expect(resourceTemplates.resourceTemplates).toEqual([]);

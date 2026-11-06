@@ -2,7 +2,7 @@
 
 At the beginning of each conversation, read [MANIFESTO.md](MANIFESTO.md) in the
 repository root before doing anything else. It is the project's constitution: who
-Backlog.md serves, its core loop, source of truth, surface hierarchy, interface posture,
+EasyBacklog serves, its core loop, source of truth, surface hierarchy, interface posture,
 design principles, boundaries, and risks. All architecture and product decisions must
 align with it.
 
@@ -57,15 +57,15 @@ is necessary to prevent misunderstanding or error, and never use it to restate t
 
 ## Core Structure
 
-- **CLI Tool**: Built with Bun and TypeScript as a global npm package (`npm i -g backlog.md`)
+- **CLI Tool**: Built with Bun and TypeScript as a standalone CLI (`bun run build`)
 - **Source Code**: Located in `/src` directory with modular TypeScript structure
 - **Task Management**: Uses markdown files in `backlog/` directory structure
 - **Workflow**: Git-integrated with task IDs referenced in commits and PRs
 
 ## Agent POV
 
-- Treat Backlog.md as a shipped CLI/MCP binary that may be used from other repositories where agents cannot inspect this source tree.
-- Backlog.md is not a supported JavaScript or TypeScript library API for external consumers. Do not treat exported source symbols, classes, or methods in `/src` as stable public interfaces unless they are explicitly documented in shipped CLI/MCP/instruction surfaces.
+- Treat EasyBacklog as a shipped CLI/MCP binary that may be used from other repositories where agents cannot inspect this source tree.
+- EasyBacklog is not a supported JavaScript or TypeScript library API for external consumers. Do not treat exported source symbols, classes, or methods in `/src` as stable public interfaces unless they are explicitly documented in shipped CLI/MCP/instruction surfaces.
 - Use only the stable public surface—CLI behavior, MCP tools/resources and schemas,
   configuration, CLI help, and shipped instruction files—when deciding what external
   agents can rely on or evaluating compatibility. Internal TypeScript exports are
@@ -76,7 +76,7 @@ is necessary to prevent misunderstanding or error, and never use it to restate t
 
 ## Maintainer Workflow Guardrails
 
-- Treat GitHub issues as reports, proposals, or evidence, not implementation specs. Do not automatically implement the requested solution; first evaluate whether the change fits Backlog.md's public CLI/MCP/instruction surface and current documented behavior.
+- Treat GitHub issues as reports, proposals, or evidence, not implementation specs. Do not automatically implement the requested solution; first evaluate whether the change fits EasyBacklog's public CLI/MCP/instruction surface and current documented behavior.
 - Escalate ambiguous product behavior to Alex before implementation. For example, pause before deciding whether ordinal-only task ordering changes should update edit metadata.
 - PRs should normally link to a scoped issue first. If a broad feature PR or request has no issue, ask for an issue or discussion before implementation rather than turning the PR into the scope definition.
 - Investigations should not create implementation PRs by default. Leave findings as comments, reports, or notes unless a narrow accepted fix is clear.
@@ -112,9 +112,9 @@ Do not manually bump the root `package.json` version or start a release with a r
 <!-- BACKLOG.MD GUIDELINES START -->
 <CRITICAL_INSTRUCTION>
 
-## Backlog.md Workflow
+## EasyBacklog Workflow
 
-This project uses Backlog.md for task and project management.
+This project uses EasyBacklog for task and project management.
 
 **At the beginning of each conversation in this project, run `backlog instructions overview` before answering or taking action. Re-read it only if you have not read it yet in the current conversation.**
 

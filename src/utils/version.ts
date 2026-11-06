@@ -13,7 +13,7 @@ export async function getVersion(): Promise<string> {
 
 	// In development, read from package.json
 	try {
-		const packageJson = await Bun.file("package.json").json();
+		const packageJson = await Bun.file(new URL("../../package.json", import.meta.url)).json();
 		return packageJson.version || "0.0.0";
 	} catch {
 		return "0.0.0";

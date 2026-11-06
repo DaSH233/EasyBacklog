@@ -34,7 +34,7 @@ describe("installClaudeAgent", () => {
 		expect(content).toContain(CLAUDE_AGENT_CONTENT.trimEnd());
 		expect(content).toContain("name: project-manager-backlog");
 		expect(content).toContain(
-			"You are an expert project manager specializing in the backlog.md task management system",
+			"You are an expert project manager specializing in the EasyBacklog task management system",
 		);
 	});
 

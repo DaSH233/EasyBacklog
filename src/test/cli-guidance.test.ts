@@ -28,7 +28,7 @@ describe("CLI Integration", () => {
 			const output = result.stdout.toString() + result.stderr.toString();
 
 			expect(result.exitCode).toBe(0);
-			expect(output).toContain("Backlog.md v");
+			expect(output).toContain("EasyBacklog v");
 			expect(output).toContain("Local instructions:");
 			expect(output).toContain("backlog instructions overview");
 			expect(output).not.toContain("unknown option '--plain'");
@@ -41,7 +41,7 @@ describe("CLI Integration", () => {
 		it("prints the guide index by default", async () => {
 			const output = await $`bun ${CLI_PATH} instructions`.cwd(TEST_DIR).text();
 
-			expect(output).toContain("Backlog.md instructions");
+			expect(output).toContain("EasyBacklog instructions");
 			expect(output).toContain("Start here:");
 			expect(output).toMatch(/'backlog instructions overview'\s+Required first read before answering any user request/);
 			expect(output).not.toMatch(/^\s+'backlog instructions'\s+List workflow guides/m);
@@ -82,7 +82,7 @@ describe("CLI Integration", () => {
 			);
 			const initRequired = normalizeCliOutput(await $`bun ${CLI_PATH} instructions init-required`.cwd(TEST_DIR).text());
 
-			expect(overview).toContain("## Backlog.md Overview (CLI)");
+			expect(overview).toContain("## EasyBacklog Overview (CLI)");
 			expect(overview).toContain("### Find and Read Work");
 			expect(overview).not.toContain("The detailed guides contain the procedure");
 			expect(overview).toContain('backlog search "query" --limit 10 --plain');
@@ -193,9 +193,9 @@ describe("CLI Integration", () => {
 			expect(taskCreation).toContain("### Shell Quoting for Literal Backticks");
 			expect(taskCreation).toContain("backlog task create 'Document `backlog init` setup'");
 			expect(taskCreation).toContain(
-				"Backlog.md cannot recover the original text after the shell has already executed it",
+				"EasyBacklog cannot recover the original text after the shell has already executed it",
 			);
-			expect(initRequired).toContain("This directory does not have Backlog.md initialized.");
+			expect(initRequired).toContain("This directory does not have EasyBacklog initialized.");
 			expect(initRequired).toContain("backlog init --defaults");
 		}, 15_000);
 

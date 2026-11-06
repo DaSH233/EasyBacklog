@@ -9,7 +9,7 @@ import { getTestCliPath } from "./test-cli.ts";
 import { createUniqueTestDir, getPlatformTimeout, isWindows, observeChildClose, safeCleanup } from "./test-utils.ts";
 
 const CLI_PATH = getTestCliPath();
-const START_MESSAGE = "Backlog.md MCP server started (stdio transport)";
+const START_MESSAGE = "EasyBacklog MCP server started (stdio transport)";
 
 let TEST_DIR: string;
 

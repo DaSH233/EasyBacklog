@@ -43,7 +43,7 @@ describe("CLI agents command", () => {
 		const output = result.stdout.toString();
 
 		expect(result.exitCode).toBe(0);
-		expect(output).toContain("manage the short Backlog.md CLI nudge in agent instruction files");
+		expect(output).toContain("manage the short EasyBacklog CLI nudge in agent instruction files");
 		expect(output).toContain("--update-instructions");
 		expect(output).toContain("preserving existing content");
 		expect(output).toContain("Input schema:");

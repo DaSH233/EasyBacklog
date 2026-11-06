@@ -54,7 +54,7 @@ export function DuplicateIdRepairModal({ isOpen, plan, onClose, onRepaired }: Du
 			initialFocusRef={cancelButtonRef}
 		>
 			<div className="space-y-5">
-				<p className="text-sm text-gray-700 dark:text-gray-300">{t("Backlog.md found")}{" "}{plan.groups.length}{" "}{t("duplicate ID")}{" "}{plan.groups.length === 1 ? "group" : "groups"}{t(". The repair keeps one file in each group at its current ID and assigns new incremental IDs to the others.")}</p>
+				<p className="text-sm text-gray-700 dark:text-gray-300">{t("EasyBacklog found")}{" "}{plan.groups.length}{" "}{t("duplicate ID")}{" "}{plan.groups.length === 1 ? "group" : "groups"}{t(". The repair keeps one file in each group at its current ID and assigns new incremental IDs to the others.")}</p>
 
 				<div>
 					<h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{t("Files to rename")}</h3>
@@ -85,7 +85,7 @@ export function DuplicateIdRepairModal({ isOpen, plan, onClose, onRepaired }: Du
 					<p className="mt-1 text-sm text-amber-900 dark:text-amber-200">
 						{plan.referenceScanComplete
 							? t("References are not changed automatically because an old duplicate ID does not identify which task was meant.")
-							: t("Backlog.md could not inspect every Markdown file, so automatic repair is blocked until the failures below are resolved.")}
+							: t("EasyBacklog could not inspect every Markdown file, so automatic repair is blocked until the failures below are resolved.")}
 					</p>
 					{plan.references.length > 0 && (
 						<ul className="mt-3 max-h-40 space-y-2 overflow-y-auto text-xs text-amber-950 dark:text-amber-100">
