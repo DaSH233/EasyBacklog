@@ -13,6 +13,7 @@ import ChipInput from "./ChipInput";
 import DependencyInput from "./DependencyInput";
 import { DependencyGraphSection } from "./DependencyGraphSection";
 import StoredDate from "./StoredDate";
+import ReferenceLink from "./ReferenceLink";
 import { getPriorityOptions } from "../../utils/priority-config";
 import { getProjectValues, resolveProjectValue } from "../../utils/project-config";
 import { getTaskTypeValues, resolveTaskTypeValue } from "../../utils/task-type-config";
@@ -397,6 +398,8 @@ export const TaskDetailsModal: React.FC<Props> = ({
   const typeUpdateRequestRef = useRef(0);
   const [dependencies, setDependencies] = useState<string[]>(task?.dependencies || []);
   const [references, setReferences] = useState<string[]>(task?.references || []);
+  const [fileOpenError, setFileOpenError] = useState<string | null>(null);
+  useEffect(() => { setFileOpenError(null); }, [task?.id, isOpen]);
   const [modifiedFiles, setModifiedFiles] = useState<string[]>(task?.modifiedFiles || []);
   const [milestone, setMilestone] = useState<string>(task?.milestone || "");
   const [dueDate, setDueDate] = useState<string>(task?.dueDate || "");
@@ -1329,20 +1332,15 @@ export const TaskDetailsModal: React.FC<Props> = ({
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
             <SectionHeader title={t("References")} />
             <div className="space-y-3">
-              {references.length > 0 ? (
+              {references.some(ref => !modifiedFiles.includes(ref)) ? (
                 <ul className="space-y-2">
-                  {references.map((ref, idx) => (
+                  {references.map((ref, idx) => {
+                    if (modifiedFiles.includes(ref)) return null;
+                    return (
                     <li key={idx} className="flex items-center gap-3 group">
                       <span className="flex-1 min-w-0">
                         {ref.startsWith("http://") || ref.startsWith("https://") ? (
-                          <a
-                            href={ref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline break-all"
-                          >
-                            {ref}
-                          </a>
+                          <ReferenceLink href={ref} />
                         ) : (
                           <code className="text-sm font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded break-all">
                             {ref}
@@ -1364,7 +1362,8 @@ export const TaskDetailsModal: React.FC<Props> = ({
                         </button>
                       )}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">{t("No references")}</p>
@@ -1375,7 +1374,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
                     e.preventDefault();
                     const input = e.currentTarget.elements.namedItem("newRef") as HTMLInputElement;
                     const value = input.value.trim();
-                    if (value && !references.includes(value)) {
+                    if (/^https?:\/\//i.test(value) && !references.includes(value)) {
                       handleInlineMetaUpdate({ references: [...references, value] });
                       input.value = "";
                     }
@@ -1384,8 +1383,9 @@ export const TaskDetailsModal: React.FC<Props> = ({
                 >
                   <input
                     name="newRef"
-                    type="text"
-                    placeholder={t("URL or file path...")}
+                    type="url"
+                    pattern="https?://.*"
+                    placeholder={t("Web URL...")}
                     className="flex-1 text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
                   <button
@@ -1408,9 +1408,14 @@ export const TaskDetailsModal: React.FC<Props> = ({
                   {modifiedFiles.map((file, idx) => (
                     <li key={idx} className="flex items-start gap-3 group">
                       <span className="flex-1 min-w-0">
-                        <code className="text-sm font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded break-all">
+                        <button type="button" disabled={!task} title={t("Open in local editor")} className="text-sm font-mono text-blue-600 dark:text-blue-400 hover:underline break-all text-left" onClick={async () => {
+                          if (!task) return;
+                          setFileOpenError(null);
+                          try { await apiClient.openTaskFile(task.id, file); }
+                          catch (error) { setFileOpenError(error instanceof Error ? error.message : "File not found or unavailable"); }
+                        }}>
                           {file}
-                        </code>
+                        </button>
                       </span>
                       {!isReadOnly && (
                         <button
@@ -1439,7 +1444,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
                     const input = e.currentTarget.elements.namedItem("newModifiedFile") as HTMLInputElement;
                     const value = input.value.trim();
                     if (value && !modifiedFiles.includes(value)) {
-                      handleInlineMetaUpdate({ modifiedFiles: [...modifiedFiles, value] });
+                      handleInlineMetaUpdate({ modifiedFiles: [...modifiedFiles, value], references: references.filter(ref => ref !== value) });
                       input.value = "";
                     }
                   }}
@@ -1460,6 +1465,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
             </div>
           </div>
 
+          {fileOpenError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{t(fileOpenError)}</p>}
           {/* Documentation */}
           {documentation.length > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">

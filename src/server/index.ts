@@ -1,5 +1,6 @@
+import { realpath } from "node:fs/promises";
 import net from "node:net";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Server, ServerWebSocket } from "bun";
 import { DEFAULT_STATUSES } from "../constants/index.ts";
 import {
@@ -30,6 +31,7 @@ import {
 import { launchBrowser } from "../utils/browser-launch.ts";
 import type { BrowserLoadingState } from "../utils/browser-loading-state.ts";
 import { normalizeDueDate } from "../utils/due-date.ts";
+import { openInEditor } from "../utils/editor.ts";
 import { isAmbiguousIdError } from "../utils/entity-id.ts";
 import { resolveMilestoneInputForStorage } from "../utils/milestone-storage.ts";
 import { DRAFT_PREFIX, extractAnyPrefix, getTaskPrefixError } from "../utils/prefix-config.ts";
@@ -442,6 +444,9 @@ export class BacklogServer {
 					"/api/tasks/:id": {
 						GET: async (req: Request & { params: { id: string } }) => await this.handleGetTask(req.params.id),
 						PUT: async (req: Request & { params: { id: string } }) => await this.handleUpdateTask(req, req.params.id),
+					},
+					"/api/tasks/:id/open-file": {
+						POST: async (req: Request & { params: { id: string } }) => this.handleOpenTaskFile(req, req.params.id),
 					},
 					"/api/navigation/counts": {
 						GET: async () => {
@@ -1137,6 +1142,49 @@ export class BacklogServer {
 		if (resolved instanceof Response) return resolved;
 		await this.ensureServicesReady();
 		return Response.json(await loadTaskDetail(this.core, resolved, { includeCrossBranch: true }));
+	}
+
+	private async handleOpenTaskFile(req: Request, taskId: string): Promise<Response> {
+		const origin = req.headers.get("origin");
+		if (origin && origin !== new URL(req.url).origin)
+			return Response.json({ error: "Invalid request origin" }, { status: 403 });
+		if (!req.headers.get("content-type")?.startsWith("application/json"))
+			return Response.json({ error: "Expected JSON" }, { status: 415 });
+		const task = await this.resolveDetailTask(taskId);
+		if (task instanceof Response) return task;
+		let path: unknown;
+		try {
+			path = (await req.json()).path;
+		} catch {
+			return Response.json({ error: "Expected JSON" }, { status: 400 });
+		}
+		if (typeof path !== "string" || !task.modifiedFiles?.includes(path)) {
+			return Response.json({ error: "File is not listed in this task's modified files" }, { status: 404 });
+		}
+		const normalized = path.replaceAll("\\", "/");
+		if (!normalized || isAbsolute(normalized) || normalized.includes(":") || normalized.split("/").includes("..")) {
+			return Response.json({ error: "Only files inside the project can be opened" }, { status: 400 });
+		}
+		try {
+			const root = await realpath(this.core.filesystem.rootDir);
+			const filePath = await realpath(resolve(root, normalized));
+			const withinRoot = relative(root, filePath);
+			if (withinRoot === ".." || withinRoot.startsWith(`..${sep}`) || isAbsolute(withinRoot)) {
+				return Response.json({ error: "Only files inside the project can be opened" }, { status: 403 });
+			}
+			const file = Bun.file(filePath);
+			const stat = await file.stat();
+			if (!stat.isFile()) return Response.json({ error: "Path is not a file" }, { status: 400 });
+			const opened = await openInEditor(filePath, await this.core.filesystem.loadConfig(), { wait: false });
+			return opened
+				? Response.json({ success: true })
+				: Response.json(
+						{ error: "Could not open the editor. Configure a desktop editor in Settings." },
+						{ status: 503 },
+					);
+		} catch {
+			return Response.json({ error: "File not found or unavailable" }, { status: 404 });
+		}
 	}
 
 	private async handleUpdateTask(req: Request, taskId: string): Promise<Response> {

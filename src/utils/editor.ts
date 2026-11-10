@@ -66,23 +66,37 @@ export async function isEditorAvailable(
 /**
  * Open a file in the editor
  */
-export async function openInEditor(filePath: string, config?: BacklogConfig | null): Promise<boolean> {
+export async function openInEditor(
+	filePath: string,
+	config?: BacklogConfig | null,
+	options: { wait?: boolean } = {},
+): Promise<boolean> {
 	const editor = resolveEditor(config);
 
 	try {
 		// Split the editor command in case it has arguments
-		const parts = editor.split(" ");
+		let parts = editor.split(" ");
+		// A browser click cannot provide a terminal. Prefer the configured GUI editor,
+		// falling back to the platform text editor when that command is unavailable.
+		if (options.wait === false && !Bun.which(parts[0] ?? editor)) {
+			parts = [getPlatformDefaultEditor()];
+		}
 		const command = parts[0] ?? editor;
 		const args = [...parts.slice(1), filePath];
+		if (options.wait === false && /^(?:nano|vi|vim|nvim)$/.test(command)) return false;
 
 		// Use Bun.spawn with explicit stdio inheritance for interactive editors
 		// Interactive editors like vim/neovim require direct access to stdin/stdout/stderr
 		// to properly render their UI and receive user input
 		const subprocess = Bun.spawn([command, ...args], {
-			stdin: "inherit",
-			stdout: "inherit",
-			stderr: "inherit",
+			stdin: options.wait === false ? "ignore" : "inherit",
+			stdout: options.wait === false ? "ignore" : "inherit",
+			stderr: options.wait === false ? "ignore" : "inherit",
 		});
+		if (options.wait === false) {
+			subprocess.unref();
+			return true;
+		}
 
 		const exitCode = await subprocess.exited;
 		return exitCode === 0;

@@ -98,6 +98,10 @@ are found, the commit will be blocked until fixed.
 
 - **Branching**: Use feature branches when working on tasks (e.g. `tasks/back-123-feature-name`)
 - **Committing**: Use the following format: `BACK-123 - Title of the task`
+- **Commit links**: After each task-related commit, append its full commit URL to every corresponding task with `bun run cli task edit <id> --add-ref <url>`. Use the repository's actual remote URL and final commit SHA; preserve existing references and avoid duplicates. This task-metadata update is explicitly authorized even when automatic task management is disabled.
+- **Recording links**: Record links after the implementation commit exists, then include the task-record changes in a subsequent commit when committing is authorized. Do not amend an implementation commit just to add its own URL: amending changes its SHA. A commit that only records these links does not need a link to itself. If the commit is not pushed, report that its remote link will become available after pushing.
+- **Historical links**: Bind commits only when task IDs or reviewed changes establish the relationship. A shared implementation commit may belong to several tasks. Do not create tasks or guess associations solely to attach a commit; report commits without a matching task. Adding references alone does not reopen tasks or change their assignees or acceptance criteria.
+- **Changed files**: Record actual local file changes in `modified_files`, without duplicating those paths in `references`. Keep external URLs and other context in references; when a planned file reference becomes a modified file, remove the duplicate reference through the CLI.
 - **PR titles**: Use `{taskId} - {taskTitle}` (e.g. `BACK-123 - Title of the task`)
 - **Github CLI**: Use `gh` whenever possible for PRs and issues
 

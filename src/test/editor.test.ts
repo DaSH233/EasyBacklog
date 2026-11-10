@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BacklogConfig } from "../types/index.ts";
@@ -127,6 +127,25 @@ describe("Editor utilities", () => {
 	});
 
 	describe("openInEditor", () => {
+		it("returns after launching a desktop editor without waiting for it to close", async () => {
+			process.env.EDITOR = "desktop-editor";
+			const available = spyOn(Bun, "which").mockReturnValue("desktop-editor");
+			let detached = false;
+			const spawn = spyOn(Bun, "spawn").mockReturnValue({
+				exited: new Promise(() => {}),
+				unref: () => {
+					detached = true;
+				},
+			} as unknown as ReturnType<typeof Bun.spawn>);
+			try {
+				expect(await openInEditor("/project/README.md", undefined, { wait: false })).toBe(true);
+				expect(detached).toBe(true);
+				expect(spawn.mock.calls[0]?.[0]).toEqual(["desktop-editor", "/project/README.md"]);
+			} finally {
+				spawn.mockRestore();
+				available.mockRestore();
+			}
+		});
 		let TEST_DIR: string;
 		let testFile: string;
 
@@ -151,7 +170,7 @@ describe("Editor utilities", () => {
 				labels: [],
 				milestones: [],
 				dateFormat: "yyyy-mm-dd",
-				defaultEditor: "echo",
+				defaultEditor: process.platform === "win32" ? "cmd /c echo" : "echo",
 			};
 
 			const success = await openInEditor(testFile, config);
@@ -216,7 +235,7 @@ describe("Editor utilities", () => {
 				labels: [],
 				milestones: [],
 				dateFormat: "yyyy-mm-dd",
-				defaultEditor: "echo test-argument",
+				defaultEditor: process.platform === "win32" ? "cmd /c echo test-argument" : "echo test-argument",
 			};
 
 			const success = await openInEditor(testFile, config);

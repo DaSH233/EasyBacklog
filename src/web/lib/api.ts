@@ -363,6 +363,13 @@ export class ApiClient {
 		return this.fetchJson(`${API_BASE}/navigation/counts`);
 	}
 
+	async openTaskFile(id: string, path: string): Promise<void> {
+		await this.fetchWithoutRetry(`${API_BASE}/tasks/${encodeURIComponent(id)}/open-file`, {
+			method: "POST",
+			body: JSON.stringify({ path }),
+		});
+	}
+
 	async fetchArchivedTasks(): Promise<Task[]> {
 		return this.fetchJson<Task[]>(`${API_BASE}/archive/tasks`);
 	}
