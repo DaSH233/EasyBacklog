@@ -1,17 +1,13 @@
-import ArchivePage from "./components/ArchivePage";
 import { LanguageProvider, useTranslation } from "./contexts/LanguageContext";
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import BoardPage from './components/BoardPage';
-import DocumentationDetail from './components/DocumentationDetail';
-import DecisionDetail from './components/DecisionDetail';
 import TaskList from './components/TaskList';
 import DraftsList from './components/DraftsList';
 import Settings from './components/Settings';
 import Statistics from './components/Statistics';
 import MilestonesPage from './components/MilestonesPage';
-import TaskDetailsModal from './components/TaskDetailsModal';
 import InitializationScreen from './components/InitializationScreen';
 import LoadingSpinner from './components/LoadingSpinner';
 import { SuccessToast } from './components/SuccessToast';
@@ -42,6 +38,12 @@ import { createUrlPath } from './utils/urlHelpers';
 import { filterKanbanTasks } from './utils/kanban-tasks';
 import { reconcileById } from './utils/reconcile';
 import { parseBrowserLoadingState } from '../utils/browser-loading-state';
+
+// Keep Markdown rendering and editing out of the initial board bundle.
+const ArchivePage = lazy(() => import('./components/ArchivePage'));
+const DocumentationDetail = lazy(() => import('./components/DocumentationDetail'));
+const DecisionDetail = lazy(() => import('./components/DecisionDetail'));
+const TaskDetailsModal = lazy(() => import('./components/TaskDetailsModal'));
 
 type TaskRouteNavigationState = {
   taskModalFrom?: string;
@@ -1070,6 +1072,8 @@ function AppContent() {
         </div>
       )}
 
+      {showModal && (
+      <Suspense fallback={<LoadingSpinner className="fixed inset-0 z-50 bg-white/80 dark:bg-gray-900/80" />}>
       <TaskDetailsModal
         task={editingTask || undefined}
         isOpen={showModal}
@@ -1092,6 +1096,8 @@ function AppContent() {
         defaultAssignee={config?.defaultAssignee}
         dateFormat={config?.dateFormat}
       />
+      </Suspense>
+      )}
 
       {dependencyCleanupNotice && (
         <SuccessToast

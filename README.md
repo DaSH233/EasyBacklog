@@ -47,6 +47,8 @@ backlog task view TASK-1 --plain
 
 在刚才的项目目录运行 `backlog browser`，打开输出的本地地址即可查看或编辑任务，按 Ctrl+C 停止服务。使用终端看板可运行 `backlog board`。
 
+日常使用看板请运行构建后的 CLI：Windows 为 `./dist/backlog.exe browser`，macOS/Linux 为 `./dist/backlog browser`（在本仓库根目录执行）。构建产物会按需加载详情编辑器等前端资源；`bun run cli browser` 用于源码开发，目前仍会生成较大的单个 JavaScript 文件。
+
 <a id="-configuration"></a>
 
 ### 配置项目和 AI 协作

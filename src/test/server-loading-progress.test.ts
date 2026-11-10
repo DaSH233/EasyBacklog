@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { FileSystem } from "../file-system/operations.ts";
 import { BacklogServer } from "../server/index.ts";
 import type { Task } from "../types/index.ts";
+import { ApiClient } from "../web/lib/api.ts";
 import { createUniqueTestDir, retry, safeCleanup, withTimeout } from "./test-utils.ts";
 
 let testDir: string;
@@ -77,6 +78,34 @@ afterEach(async () => {
 });
 
 describe("browser corpus loading progress", () => {
+	it("keeps a slow cold search alive beyond the remote fetch timeout without retrying", async () => {
+		server = new BacklogServer(testDir);
+		let loads = 0;
+		internals(server).core.loadTasks = async () => {
+			loads += 1;
+			// A remote fetch can consume ten seconds before local indexing even starts.
+			await Bun.sleep(11_000);
+			return [];
+		};
+		await server.start(0, false);
+		const originalFetch = globalThis.fetch;
+		let requests = 0;
+		globalThis.fetch = Object.assign(
+			(input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+				requests += 1;
+				return originalFetch(new URL(String(input), `http://127.0.0.1:${server?.getPort()}`), init);
+			},
+			{ preconnect: originalFetch.preconnect },
+		);
+		try {
+			expect(await new ApiClient({ retries: 0 }).search()).toEqual([]);
+			expect(loads).toBe(1);
+			expect(requests).toBe(1);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	}, 20_000);
+
 	it("forwards Core progress verbatim to current and late sockets without duplicating the shared load", async () => {
 		let loadCalls = 0;
 		let reportPhase: () => void = () => {};

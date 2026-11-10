@@ -1,4 +1,6 @@
 import { Outlet } from 'react-router-dom';
+import { Suspense } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 import SideNavigation from './SideNavigation';
 import Navigation from './Navigation';
 import { HealthIndicator, HealthSuccessToast } from './HealthIndicator';
@@ -53,7 +55,9 @@ export default function Layout({
 				<Navigation projectName={projectName} loadingMessage={loadingMessage} />
 				<DuplicateIdWarning plan={duplicateRepairPlan} onRepaired={onRefreshData} />
 				<main className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
-					<Outlet context={{ tasks, docs, decisions, isLoading, onRefreshData }} />
+					<Suspense fallback={<LoadingSpinner className="h-full" />}>
+						<Outlet context={{ tasks, docs, decisions, isLoading, onRefreshData }} />
+					</Suspense>
 				</main>
 			</div>
 			{showSuccessToast && (

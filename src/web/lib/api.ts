@@ -142,7 +142,8 @@ interface RequestConfig {
 // Default configuration
 const DEFAULT_CONFIG: RequestConfig = {
 	retries: 3,
-	timeout: 10000,
+	// Cold reads can spend ten seconds fetching refs before indexing local tasks.
+	timeout: 30000,
 };
 
 export class ApiClient {
@@ -154,16 +155,14 @@ export class ApiClient {
 
 	// Enhanced fetch with retry logic and better error handling
 	private async fetchWithRetry(url: string, options: RequestInit = {}, retriesOverride?: number): Promise<Response> {
-		const { retries: configuredRetries = 3, timeout = 10000 } = this.config;
+		const { retries: configuredRetries = 3, timeout = 30000 } = this.config;
 		const retries = retriesOverride ?? configuredRetries;
 		let lastError: Error | undefined;
 
 		for (let attempt = 0; attempt <= retries; attempt++) {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), timeout);
 			try {
-				// Add timeout to the request
-				const controller = new AbortController();
-				const timeoutId = setTimeout(() => controller.abort(), timeout);
-
 				const response = await fetch(url, {
 					...options,
 					signal: controller.signal,
@@ -172,8 +171,6 @@ export class ApiClient {
 						...options.headers,
 					},
 				});
-
-				clearTimeout(timeoutId);
 
 				if (!response.ok) {
 					let errorData: unknown = null;
@@ -193,12 +190,13 @@ export class ApiClient {
 				if (error instanceof ApiError && error.status && error.status >= 400 && error.status < 500) {
 					throw error;
 				}
-
-				// For network errors or server errors, retry with exponential backoff
-				if (attempt < retries) {
-					const delay = Math.min(1000 * 2 ** attempt, 10000);
-					await new Promise((resolve) => setTimeout(resolve, delay));
-				}
+			} finally {
+				clearTimeout(timeoutId);
+			}
+			// Retry only after disposing the previous attempt's timeout.
+			if (attempt < retries) {
+				const delay = Math.min(1000 * 2 ** attempt, 10000);
+				await new Promise((resolve) => setTimeout(resolve, delay));
 			}
 		}
 

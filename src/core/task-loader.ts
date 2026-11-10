@@ -25,6 +25,7 @@ import { normalizeTaskLifecyclePath } from "./task-identity-index.ts";
 
 /** Default prefix for tasks */
 const DEFAULT_TASK_PREFIX = "task";
+const HYDRATION_CONCURRENCY = 8;
 
 export function getBranchHistoryCutoff(activeBranchDays: number, now = Date.now()): Date | undefined {
 	if (!activeBranchDays) return undefined;
@@ -225,7 +226,6 @@ function normalizeLocalBranch(branch: string, currentBranch: string): string | n
  * Only call this for the "winner" tasks that we actually need
  */
 async function hydrateTasks(winners: HydrationCandidate[], options: HydrationOptions): Promise<boolean> {
-	const CONCURRENCY = 8;
 	let i = 0;
 	let complete = true;
 
@@ -251,7 +251,7 @@ async function hydrateTasks(winners: HydrationCandidate[], options: HydrationOpt
 		}
 	}
 
-	await Promise.all(Array.from({ length: Math.min(CONCURRENCY, winners.length) }, worker));
+	await Promise.all(Array.from({ length: Math.min(HYDRATION_CONCURRENCY, winners.length) }, worker));
 	return complete;
 }
 
@@ -457,10 +457,13 @@ export class BranchTaskLoader {
 			);
 		};
 
+		const remoteCandidates = candidatesFor(remoteIndex, "remote");
+		const localCandidates = candidatesFor(localIndex, "local-branch");
+		await this.preloadTaskBatches([...remoteCandidates, ...localCandidates]);
 		const loadTask = (commit: string, path: string) => this.loadCachedTask(commit, path);
 		const hydrationResults = await Promise.all([
-			hydrateTasks(candidatesFor(remoteIndex, "remote"), { source: "remote", loadTask }),
-			hydrateTasks(candidatesFor(localIndex, "local-branch"), {
+			hydrateTasks(remoteCandidates, { source: "remote", loadTask }),
+			hydrateTasks(localCandidates, {
 				source: "local-branch",
 				loadTask,
 			}),
@@ -547,18 +550,48 @@ export class BranchTaskLoader {
 		}
 	}
 
+	private async preloadTaskBatches(candidates: HydrationCandidate[]): Promise<void> {
+		const groups = new Map<string, Set<string>>();
+		for (const { commit, path } of candidates) {
+			if (this.taskCache.has(`${commit}\0${path}`)) continue;
+			let paths = groups.get(commit);
+			if (!paths) {
+				paths = new Set();
+				groups.set(commit, paths);
+			}
+			paths.add(path);
+		}
+		for (const [commit, paths] of groups) {
+			// Small reads already fit in one hydration wave. Batch larger histories.
+			if (paths.size <= HYDRATION_CONCURRENCY) continue;
+			try {
+				const contents = await this.git.showFiles(commit, [...paths]);
+				for (const [path, content] of contents) {
+					this.taskCache.set(`${commit}\0${path}`, {
+						commit,
+						promise: Promise.resolve(this.parseTaskContent(commit, path, content)),
+					});
+				}
+			} catch {
+				// Preserve per-file recovery if a batch could not be read.
+			}
+		}
+	}
+
+	private parseTaskContent(commit: string, path: string, content: string): Task | null {
+		try {
+			return normalizeTaskIdentity(parseTask(content));
+		} catch (error) {
+			console.error(`Failed to parse task ${commit}:${path}`, error);
+			return null;
+		}
+	}
+
 	private async loadCachedTask(commit: string, path: string): Promise<Task | null> {
 		const key = `${commit}\0${path}`;
 		let cached = this.taskCache.get(key);
 		if (!cached) {
-			const promise = this.git.showFile(commit, path).then((content) => {
-				try {
-					return normalizeTaskIdentity(parseTask(content));
-				} catch (error) {
-					console.error(`Failed to parse task ${commit}:${path}`, error);
-					return null;
-				}
-			});
+			const promise = this.git.showFile(commit, path).then((content) => this.parseTaskContent(commit, path, content));
 			cached = { commit, promise };
 			this.taskCache.set(key, cached);
 		}

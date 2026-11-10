@@ -25,6 +25,7 @@ const result = await Bun.build({
 	entrypoints: ["src/cli.ts"],
 	target: "bun",
 	minify: true,
+	splitting: true,
 	define: {
 		__EMBEDDED_VERSION__: JSON.stringify(version),
 		"process.env.NODE_ENV": JSON.stringify("production"),

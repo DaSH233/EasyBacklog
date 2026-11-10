@@ -411,6 +411,9 @@ export class BacklogServer {
 			const serveOptions = {
 				port: finalPort,
 				hostname: BROWSER_HOST,
+				// Keep cold corpus reads alive past Git's ten-second fetch deadline and
+				// the browser's thirty-second request budget.
+				idleTimeout: 60,
 				development: process.env.NODE_ENV === "development",
 				routes: {
 					"/": spaIndexHtml,

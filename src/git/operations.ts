@@ -956,6 +956,44 @@ export class GitOperations {
 		return stdout;
 	}
 
+	/** Read a pinned commit's task blobs in one process instead of one process per file. */
+	async showFiles(ref: string, paths: string[]): Promise<Map<string, string>> {
+		const files = new Map<string, string>();
+		if (paths.length === 0 || !(await this.isRepository())) return files;
+		if (/[\r\n\0]/.test(ref)) throw new Error("Invalid batch Git ref");
+		const batchPaths = [...new Set(paths)].filter((path) => !/[\r\n\0]/.test(path));
+		// The line-based batch protocol cannot represent newlines in a path.
+		for (const path of paths.filter((path) => /[\r\n\0]/.test(path))) {
+			files.set(path, await this.showFile(ref, path));
+		}
+		if (batchPaths.length === 0) return files;
+		const { stdoutBytes } = await this.execGit(["cat-file", "--batch"], {
+			readOnly: true,
+			input: `${batchPaths.map((path) => `${ref}:${path}`).join("\n")}\n`,
+		});
+		let offset = 0;
+		for (const path of batchPaths) {
+			const end = stdoutBytes.indexOf(10, offset);
+			if (end < 0) throw new Error("Incomplete Git batch header");
+			const header = stdoutBytes.subarray(offset, end).toString("utf8");
+			offset = end + 1;
+			if (header.endsWith(" missing") || header.endsWith(" ambiguous")) continue;
+			const match = /^[a-f\d]+ blob (\d+)$/.exec(header);
+			const size = Number(match?.[1]);
+			if (
+				!match ||
+				!Number.isSafeInteger(size) ||
+				offset + size >= stdoutBytes.length ||
+				stdoutBytes[offset + size] !== 10
+			) {
+				throw new Error("Invalid Git batch blob");
+			}
+			files.set(path, stdoutBytes.subarray(offset, offset + size).toString("utf8"));
+			offset += size + 1;
+		}
+		return files;
+	}
+
 	/**
 	 * Resolve a ref (branch name, tag, remote-tracking ref, ...) to its immutable
 	 * commit SHA. Returns null when the ref cannot be resolved.
@@ -1093,7 +1131,7 @@ export class GitOperations {
 			acceptedExitCodes?: readonly number[];
 			timeoutMs?: number;
 		},
-	): Promise<{ stdout: string; stderr: string }> {
+	): Promise<{ stdout: string; stderr: string; stdoutBytes: Buffer }> {
 		// Use Bun.spawn so we can explicitly control stdio behaviour on Windows. When running
 		// under the MCP stdio transport, delegating to git with inherited stdin can deadlock.
 		const env = {
@@ -1122,22 +1160,22 @@ export class GitOperations {
 		});
 		const stdoutReader = subprocess.stdout?.getReader();
 		const stderrReader = subprocess.stderr?.getReader();
-		const readAll = async (reader: ReadableStreamDefaultReader<Uint8Array> | undefined): Promise<string> => {
-			if (!reader) return "";
-			const decoder = new TextDecoder();
-			let output = "";
+		const readAll = async (reader: ReadableStreamDefaultReader<Uint8Array> | undefined): Promise<Buffer> => {
+			if (!reader) return Buffer.alloc(0);
+			const chunks: Uint8Array[] = [];
 			while (true) {
 				const { done, value } = await reader.read();
-				if (done) return `${output}${decoder.decode()}`;
-				output += decoder.decode(value, { stream: true });
+				if (done) return Buffer.concat(chunks);
+				chunks.push(value);
 			}
 		};
+		// Drain output while feeding batch input; either pipe can otherwise fill and deadlock.
+		const completion = Promise.all([subprocess.exited, readAll(stdoutReader), readAll(stderrReader)]);
 		if (options?.input !== undefined && subprocess.stdin) {
 			subprocess.stdin.write(options.input);
 			await subprocess.stdin.end();
 		}
 
-		const completion = Promise.all([subprocess.exited, readAll(stdoutReader), readAll(stderrReader)]);
 		const killDirectly = () => {
 			try {
 				subprocess.kill("SIGKILL");
@@ -1198,13 +1236,15 @@ export class GitOperations {
 		} finally {
 			if (timeout) clearTimeout(timeout);
 		}
-		const [exitCode, stdout, stderr] = result;
+		const [exitCode, stdoutBytes, stderrBytes] = result;
+		const stdout = stdoutBytes.toString("utf8");
+		const stderr = stderrBytes.toString("utf8");
 
 		if (exitCode !== 0 && !options?.acceptedExitCodes?.includes(exitCode)) {
 			throw new Error(`Git command failed (exit code ${exitCode}): git ${args.join(" ")}\n${stderr}`);
 		}
 
-		return { stdout, stderr };
+		return { stdout, stderr, stdoutBytes };
 	}
 
 	private async getPathContext(targetPath: string): Promise<GitPathContext | null> {
