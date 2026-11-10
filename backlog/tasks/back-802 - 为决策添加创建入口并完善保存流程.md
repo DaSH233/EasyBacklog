@@ -5,9 +5,12 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-11-10T12:59:00Z'
-updated_date: '2026-11-10T13:06:00Z'
+updated_date: '2026-11-10T13:09:00Z'
 labels: []
 dependencies: []
+references:
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/7ae065a6080127e74664a3f23044b8839effc604
 modified_files:
   - src/core/backlog.ts
   - src/server/index.ts
@@ -57,5 +60,5 @@ ordinal: 412000
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-已增加侧栏决策创建入口，表单一次保存标题、背景、决策和影响。空标题禁用提交，取消不落盘，保存失败显示错误并保留输入；列表刷新不再清空新建草稿。验证：bun run check:types 通过；5 个 Biome 覆盖的变更文件检查通过，TSX 按现有配置不受 Biome 覆盖；相关三份测试 26 通过、1 跳过（平台符号链接测试），0 失败；生产构建通过。隔离浏览器实测入口、空标题、取消、断线失败后恢复重试、保存跳转和刷新回读均通过。DoD 文档专用项不适用，未运行全量测试。当前项目面板已更新至验证过的构建；尚未提交。
+已增加侧栏决策创建入口，表单一次保存标题、背景、决策和影响。空标题禁用提交，取消不落盘，保存失败显示错误并保留输入；列表刷新不再清空新建草稿。验证：bun run check:types 通过；5 个 Biome 覆盖的变更文件检查通过，TSX 按现有配置不受 Biome 覆盖；相关三份测试 26 通过、1 跳过（平台符号链接测试），0 失败；生产构建通过。隔离浏览器实测入口、空标题、取消、断线失败后恢复重试、保存跳转和刷新回读均通过。DoD 文档专用项不适用，未运行全量测试。当前项目面板已更新至验证过的构建；实现提交见引用。
 <!-- SECTION:FINAL_SUMMARY:END -->
