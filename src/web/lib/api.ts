@@ -576,16 +576,19 @@ export class ApiClient {
 		}
 	}
 
-	async createDecision(title: string): Promise<Decision> {
+	async createDecision(
+		title: string,
+		sections?: Pick<Decision, "context" | "decision" | "consequences">,
+	): Promise<Decision> {
 		const response = await fetch(`${API_BASE}/decisions`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({ title }),
+			body: JSON.stringify({ title, sections }),
 		});
 		if (!response.ok) {
-			throw new Error("Failed to create decision");
+			throw await toApiError(response, "Failed to create decision");
 		}
 		return response.json();
 	}

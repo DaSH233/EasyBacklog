@@ -50,6 +50,58 @@ describe("decision section round trips", () => {
 		return read.json();
 	}
 
+	it("creates a proposed decision with all supplied sections and preserves them on reload", async () => {
+		const sections = {
+			context: "需要一个入口。\n\n### 细节\n\n保留 **Markdown**。",
+			decision: "从侧栏创建。",
+			consequences: "无需命令行；内容保存在本地。",
+		};
+		const response = await fetch(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "  新建决策  ", sections }),
+		});
+		expect(response.status).toBe(201);
+		const created = (await response.json()) as Decision;
+		expect(created).toMatchObject({ title: "新建决策", status: "proposed", ...sections });
+		const reloaded = await (await fetch(`${url}/${created.id}`)).json();
+		expect(reloaded).toMatchObject({ id: created.id, title: "新建决策", ...sections });
+		const listed = (await (await fetch(url)).json()) as Decision[];
+		expect(listed.some((item) => item.id === created.id)).toBe(true);
+	});
+
+	it("accepts empty sections without inserting placeholder text", async () => {
+		const sections = { context: "", decision: "", consequences: "" };
+		const response = await fetch(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "Empty", sections }),
+		});
+		expect(response.status).toBe(201);
+		const created = (await response.json()) as Decision;
+		expect(await (await fetch(`${url}/${created.id}`)).json()).toMatchObject(sections);
+	});
+
+	it.each([
+		null,
+		{},
+		{ title: "   " },
+		{ title: 1 },
+		{ title: "Invalid", sections: null },
+		{
+			title: "Invalid",
+			sections: { context: 1, decision: "", consequences: "" },
+		},
+	])("rejects invalid create inputs without writing a decision: %j", async (input) => {
+		const response = await fetch(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(input),
+		});
+		expect(response.status).toBe(400);
+		expect(await (await fetch(url)).json()).toHaveLength(1);
+	});
+
 	it.each(["\n", "\r\n"])("preserves nested headings and inline hashes with %j line endings", async (newline) => {
 		const sections = {
 			context: "Before\n\n### Detail\n\nContext tail",

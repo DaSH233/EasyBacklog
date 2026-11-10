@@ -4461,7 +4461,11 @@ export class Core {
 		await this.createDecision(updatedDecision, autoCommit);
 	}
 
-	async createDecisionWithTitle(title: string, autoCommit?: boolean): Promise<Decision> {
+	async createDecisionWithTitle(
+		title: string,
+		autoCommit?: boolean,
+		sections?: Pick<Decision, "context" | "decision" | "consequences">,
+	): Promise<Decision> {
 		const id = await generateNextDecisionId(this);
 
 		const decision: Decision = {
@@ -4469,9 +4473,9 @@ export class Core {
 			title,
 			date: formatUtcTimestamp(),
 			status: "proposed",
-			context: "[Describe the context and problem that needs to be addressed]",
-			decision: "[Describe the decision that was made]",
-			consequences: "[Describe the consequences of this decision]",
+			context: sections?.context ?? "[Describe the context and problem that needs to be addressed]",
+			decision: sections?.decision ?? "[Describe the decision that was made]",
+			consequences: sections?.consequences ?? "[Describe the consequences of this decision]",
 			rawContent: "",
 		};
 

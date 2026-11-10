@@ -94,6 +94,8 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 	const [error, setError] = useState<Error | null>(null);
 	const [isNewDecision, setIsNewDecision] = useState(false);
 	const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+	const [saveError, setSaveError] = useState<string | null>(null);
+	const [sections, setSections] = useState({ context: '', decision: '', consequences: '' });
 	// An archived decision is read-only: it shows the Archived label and no Archive button.
 	const routeIdentity = id && id !== 'new' ? decisionIdKey(id) : null;
 	const currentDecision = decision && routeIdentity && decisionIdKey(decision.id) === routeIdentity ? decision : null;
@@ -109,7 +111,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 	);
 
 	useEffect(() => {
-		let active = true;
+		setSaveError(null);
 		if (id === 'new') {
 			// Handle new decision creation
 			setIsNewDecision(true);
@@ -123,7 +125,13 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 			setOriginalDecisionTitle('');
 			setContent('');
 			setOriginalContent('');
-		} else if (id) {
+			setSections({ context: '', decision: '', consequences: '' });
+		}
+	}, [id]);
+
+	useEffect(() => {
+		let active = true;
+		if (id && id !== 'new') {
 			setIsNewDecision(false);
 			setEditRequested(false); // Ensure we start in preview mode for existing decisions
 			void loadDecisionContent(() => active);
@@ -197,19 +205,17 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 	};
 
 	const handleSave = async () => {
-		if (!decisionTitle.trim()) {
-			console.error('Decision title is required');
+		if (!decisionTitle.trim() || isSaving) {
 			return;
 		}
 
 		try {
 			setIsSaving(true);
+			setSaveError(null);
 			
 			if (isNewDecision) {
 				// Create new decision
-				const decision = await apiClient.createDecision(decisionTitle);
-				// Refresh data and navigate to the new decision
-				await onRefreshData();
+				const decision = await apiClient.createDecision(decisionTitle.trim(), sections);
 				// Show success toast
 				setShowSaveSuccess(true);
 				setTimeout(() => setShowSaveSuccess(false), 4000);
@@ -217,7 +223,9 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 				setEditRequested(false);
 				setIsNewDecision(false);
 				const newId = stripIdPrefix(decision.id);
-				navigate(`/decisions/${newId}/${sanitizeUrlTitle(decisionTitle)}`);
+				navigate(`/decisions/${newId}/${sanitizeUrlTitle(decision.title)}`);
+				// The create succeeded; a list refresh failure must not invite a duplicate create.
+				void onRefreshData().catch(error => console.error('Failed to refresh decisions:', error));
 			} else {
 				// Update existing decision
 				if (!id) return;
@@ -232,6 +240,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 				navigate(`/decisions/${id}/${sanitizeUrlTitle(decisionTitle)}`);
 			}
 		} catch (error) {
+			setSaveError(error instanceof Error ? error.message : 'Failed to save decision');
 			console.error('Failed to save decision:', error);
 		} finally {
 			setIsSaving(false);
@@ -255,6 +264,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 	};
 
 	const hasChanges = content !== originalContent || decisionTitle !== originalDecisionTitle;
+	const canSave = !!decisionTitle.trim() && (isNewDecision || hasChanges) && !isSaving;
 
 	const getStatusColor = (status: string) => {
 		const colors = {
@@ -308,6 +318,8 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 									onChange={(e) => setDecisionTitle(e.target.value)}
 									className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 w-full bg-transparent border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors duration-200"
 									placeholder={t("Decision title")}
+									aria-label={t("Decision title")}
+									disabled={isSaving}
 								/>
 							) : (
 								<h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 transition-colors duration-200">
@@ -320,7 +332,7 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a.997.997 0 01-1.414 0l-7-7A1.997 1.997 0 013 12V7a4 4 0 014-4z" />
 									</svg>
-									<span>ID: {decision?.id}</span>
+									<span>{decision?.id ? `ID: ${decision.id}` : t("New decision")}</span>
 								</div>
 								<div className="flex items-center space-x-2">
 									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,13 +380,14 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 								<div className="flex items-center space-x-2">
 										<button
 											onClick={handleCancelEdit}
+											disabled={isSaving}
 											className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors duration-200"
 										>{t("Cancel")}</button>
 									<button
 										onClick={handleSave}
-										disabled={!hasChanges || isSaving}
+											disabled={!canSave}
 											className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors duration-200 ${
-												hasChanges && !isSaving
+												canSave
 													? 'bg-blue-600 dark:bg-blue-600 text-white hover:bg-blue-700 dark:hover:bg-blue-700 focus:ring-blue-500 dark:focus:ring-blue-400'
 													: 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
 											}`}
@@ -390,16 +403,33 @@ export default function DecisionDetail({ decisions, onRefreshData, dateFormat }:
 					</div>
 				</div>
 				{archiveError && <ArchiveRefusal message={archiveError} onDismiss={dismissArchiveError} />}
+				{saveError && <div role="alert" className="px-4 sm:px-8 pb-4 text-red-600 dark:text-red-400">{t(saveError)}</div>}
 			</div>
 
 			{/* Content Section */}
 			<div className="flex-1 bg-gray-50 dark:bg-gray-800 transition-colors duration-200 flex flex-col">
 				<div className="w-full max-w-[1440px] mx-auto flex-1 p-4 sm:p-8 flex flex-col min-h-0 min-w-0">
-					<MarkdownEditor
+					{isNewDecision ? (
+						<div className="space-y-5">
+							{([['context', 'Context'], ['decision', 'Decision'], ['consequences', 'Consequences']] as const).map(([field, label]) => (
+								<div key={field}>
+									<label htmlFor={`decision-${field}`} className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">{t(label)}</label>
+									<textarea
+										id={`decision-${field}`}
+										value={sections[field]}
+										onChange={event => setSections(previous => ({ ...previous, [field]: event.target.value }))}
+										disabled={isSaving}
+										rows={4}
+										className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 p-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+									/>
+								</div>
+							))}
+						</div>
+					) : <MarkdownEditor
 						value={content}
 						onChange={(val) => setContent(val || '')}
 						isEditing={isEditing}
-					/>
+					/>}
 {currentDecision && !isEditing && routeIdentity && <ReferencedBy recordKey={routeIdentity} />}
 				</div>
 			</div>

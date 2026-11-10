@@ -1704,10 +1704,20 @@ export class BacklogServer {
 	}
 
 	private async handleCreateDecision(req: Request): Promise<Response> {
-		const { title } = await req.json();
+		const input = await req.json().catch(() => null);
+		if (!input || typeof input.title !== "string" || !input.title.trim()) {
+			return Response.json({ error: "Decision title is required" }, { status: 400 });
+		}
+		const { title, sections } = input;
+		if (
+			sections !== undefined &&
+			(!sections || ["context", "decision", "consequences"].some((key) => typeof sections[key] !== "string"))
+		) {
+			return Response.json({ error: "Invalid decision sections" }, { status: 400 });
+		}
 
 		try {
-			const decision = await this.core.createDecisionWithTitle(title);
+			const decision = await this.core.createDecisionWithTitle(title.trim(), undefined, sections);
 			return Response.json(decision, { status: 201 });
 		} catch (error) {
 			console.error("Error creating decision:", error);
