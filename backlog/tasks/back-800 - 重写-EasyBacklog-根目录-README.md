@@ -5,11 +5,12 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-11-06T08:41:00Z'
-updated_date: '2026-11-06T09:30:00Z'
+updated_date: '2026-11-10T09:20:00Z'
 labels: []
 dependencies: []
 references:
-  - README.md
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/464a249e53c5a37d543264c30d8eba6245e02a77
 modified_files:
   - README.md
 type: docs

@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@Codex'
 created_date: 2026-04-25 12:14
-updated_date: '2026-10-29T07:45:00Z'
+updated_date: '2026-11-09T08:41:00Z'
 labels:
   - web-ui
   - editor
@@ -13,6 +13,8 @@ labels:
 dependencies: []
 references:
   - https://github.com/MrLesk/Backlog.md/issues/291
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/94f70c81fd979129aaaaa0131eedcd67ac3352cd
 priority: low
 ---
 

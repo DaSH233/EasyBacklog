@@ -5,9 +5,14 @@ status: Done
 assignee:
   - '@Codex'
 created_date: '2026-10-30T05:40:00Z'
-updated_date: '2026-10-30T05:42:00Z'
+updated_date: '2026-11-10T12:29:00Z'
 labels: []
 dependencies: []
+references:
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/94f70c81fd979129aaaaa0131eedcd67ac3352cd
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/46716fbdd6ffc1b78cb5db3fe61396850cd39c73
 ordinal: 406000
 ---
 

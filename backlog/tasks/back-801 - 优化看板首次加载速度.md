@@ -5,9 +5,12 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-11-10T07:57:00Z'
-updated_date: '2026-11-10T08:10:00Z'
+updated_date: '2026-11-10T12:28:00Z'
 labels: []
 dependencies: []
+references:
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/591fa8129f9fcaf0eaf99853ac9054027a4b747e
 modified_files:
   - src/web/App.tsx
   - src/web/components/Layout.tsx

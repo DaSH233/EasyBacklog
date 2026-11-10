@@ -5,12 +5,12 @@ status: Done
 assignee:
   - '@Codex'
 created_date: '2026-10-25T07:55:00Z'
-updated_date: '2026-10-25T08:27:00Z'
+updated_date: '2026-11-10T09:20:00Z'
 labels: []
 dependencies: []
 references:
-  - src/web/App.tsx
-  - src/web/components/Settings.tsx
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/94f70c81fd979129aaaaa0131eedcd67ac3352cd
 modified_files:
   - src/web/contexts/LanguageContext.tsx
   - src/web/locales/zh-CN.json

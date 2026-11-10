@@ -5,11 +5,14 @@ status: Done
 assignee:
   - '@Codex'
 created_date: '2026-10-25T09:02:00Z'
-updated_date: '2026-10-29T08:32:00Z'
+updated_date: '2026-11-10T09:20:00Z'
 labels: []
 dependencies: []
 references:
-  - backlog/config.yml
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/94f70c81fd979129aaaaa0131eedcd67ac3352cd
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/0953bb4ed11c1c89a4bb0911509a0c910e9e5024
 modified_files:
   - backlog/config.yml
 ordinal: 401000
