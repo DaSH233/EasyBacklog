@@ -99,7 +99,7 @@ describe("stored UTC timestamps", () => {
 		}
 	});
 
-	it("writes draft, document and decision timestamps and preserves opaque document metadata", async () => {
+	it("writes draft, document timestamps and preserves opaque document metadata", async () => {
 		await cli("task", "create", "Draft", "--draft");
 		expect((await core.filesystem.loadDraft("draft-1"))?.createdDate).toMatch(UTC_TIMESTAMP);
 		await cli("doc", "create", "Guide", "--plain");
@@ -119,8 +119,6 @@ describe("stored UTC timestamps", () => {
 		const updated = await core.getDocument("doc-1");
 		expect(updated?.createdDate).toBe("2026-10-18T00:00:00Z");
 		expect(updated?.updatedDate).toMatch(UTC_TIMESTAMP);
-		await cli("decision", "create", "Use UTC", "--plain");
-		expect((await core.getDecision("decision-1"))?.date).toMatch(UTC_TIMESTAMP);
 	});
 
 	it("keeps a comment before an unquoted timestamp outside the stored date value", async () => {
@@ -143,6 +141,5 @@ describe("stored UTC timestamps", () => {
 		expect((await core.filesystem.loadTask(task.id))?.createdDate).toBe("2026-10-19T00:00:00Z");
 		const doc = await core.createDocumentFromInput({ title: "Midnight guide" });
 		expect(doc.createdDate).toBe("2026-10-19T00:00:00Z");
-		expect((await core.createDecisionWithTitle("Midnight choice")).date).toBe("2026-10-19T00:00:00Z");
 	});
 });

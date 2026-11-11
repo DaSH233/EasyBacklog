@@ -6,7 +6,7 @@ import Navigation from './Navigation';
 import { HealthIndicator, HealthSuccessToast } from './HealthIndicator';
 import { DuplicateIdWarning } from './DuplicateIdWarning';
 import type { DuplicateRepairPlan } from '../../core/duplicate-task-repair';
-import { type Task, type Document, type Decision } from '../../types';
+import { type Task, type Document } from '../../types';
 
 interface LayoutProps {
  dataVersion?: number;
@@ -15,7 +15,6 @@ interface LayoutProps {
 	onDismissToast: () => void;
 	tasks: Task[];
 	docs: Document[];
-	decisions: Decision[];
 	isLoading: boolean;
 	loadingMessage?: string | null;
 	error?: Error | null;
@@ -30,7 +29,6 @@ export default function Layout({
 	onDismissToast,
 	tasks,
 	docs,
-	decisions,
 	isLoading,
 	loadingMessage,
 	error,
@@ -45,7 +43,6 @@ export default function Layout({
  tasks={tasks}
  dataVersion={dataVersion}
 				docs={docs}
-				decisions={decisions}
 				isLoading={isLoading}
 				error={error}
 				onRetry={onRefreshData}
@@ -56,7 +53,7 @@ export default function Layout({
 				<DuplicateIdWarning plan={duplicateRepairPlan} onRepaired={onRefreshData} />
 				<main className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
 					<Suspense fallback={<LoadingSpinner className="h-full" />}>
-						<Outlet context={{ tasks, docs, decisions, isLoading, onRefreshData }} />
+						<Outlet context={{ tasks, docs, isLoading, onRefreshData }} />
 					</Suspense>
 				</main>
 			</div>

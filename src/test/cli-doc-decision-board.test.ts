@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { $ } from "bun";
 import { Core } from "../index.ts";
 import { parseTask } from "../markdown/parser.ts";
-import type { Decision, Document, Task } from "../types/index.ts";
+import type { Document, Task } from "../types/index.ts";
 import { getTestCliPath } from "./test-cli.ts";
 import { createUniqueTestDir, initializeTestProject, safeCleanup } from "./test-utils.ts";
 
@@ -21,7 +21,7 @@ describe("CLI Integration", () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	describe("doc and decision commands", () => {
+	describe("doc commands", () => {
 		beforeEach(async () => {
 			await $`git init -b main`.cwd(TEST_DIR).quiet();
 
@@ -180,74 +180,6 @@ describe("CLI Integration", () => {
 				.nothrow();
 			expect(unsafePath.exitCode).not.toBe(0);
 			expect(unsafePath.stderr.toString()).toContain("Document path cannot include traversal segments.");
-		});
-
-		it("should create and list decisions", async () => {
-			const core = new Core(TEST_DIR);
-			const decision: Decision = {
-				id: "decision-1",
-				title: "Choose Stack",
-				date: "2025-06-08",
-				status: "accepted",
-				context: "context",
-				decision: "decide",
-				consequences: "conseq",
-				rawContent: "",
-			};
-			await core.createDecision(decision, false);
-			const decisions = await core.filesystem.listDecisions();
-			expect(decisions).toHaveLength(1);
-			expect(decisions[0]?.title).toBe("Choose Stack");
-		});
-
-		it("should accept --plain when creating a decision", async () => {
-			const result = await $`bun ${CLI_PATH} decision create "Choose Stack" --plain`.cwd(TEST_DIR).quiet().nothrow();
-			expect(result.exitCode).toBe(0);
-			expect(result.stderr.toString()).toBe("");
-
-			const stdout = result.stdout.toString();
-			expect(stdout.trim()).toBe("Created decision decision-1");
-			expect(stdout.includes("[")).toBe(false);
-
-			const core = new Core(TEST_DIR);
-			const decisions = await core.filesystem.listDecisions();
-			expect(decisions).toHaveLength(1);
-			expect(decisions[0]?.title).toBe("Choose Stack");
-		});
-
-		it("should list decisions with id, title, and status as plain text", async () => {
-			await $`bun ${CLI_PATH} decision create "Choose Stack" -s accepted`.cwd(TEST_DIR).quiet();
-			await $`bun ${CLI_PATH} decision create "Adopt Free Form Status" -s "Under Review"`.cwd(TEST_DIR).quiet();
-
-			const result = await $`bun ${CLI_PATH} decision list --plain`.cwd(TEST_DIR).quiet();
-			expect(result.exitCode).toBe(0);
-			const lines = result.stdout.toString().trim().split("\n");
-			expect(lines).toEqual([
-				"decision-1 - Choose Stack (accepted)",
-				"decision-2 - Adopt Free Form Status (Under Review)",
-			]);
-		});
-
-		it("should default to text output when stdout is not a TTY", async () => {
-			await $`bun ${CLI_PATH} decision create "Choose Stack"`.cwd(TEST_DIR).quiet();
-
-			const result = await $`bun ${CLI_PATH} decision list`.cwd(TEST_DIR).quiet();
-			expect(result.exitCode).toBe(0);
-			expect(result.stdout.toString().trim()).toBe("decision-1 - Choose Stack (proposed)");
-		});
-
-		it("should report an empty decision log in both output modes", async () => {
-			const plain = await $`bun ${CLI_PATH} decision list --plain`.cwd(TEST_DIR).quiet();
-			expect(plain.exitCode).toBe(0);
-			expect(plain.stdout.toString().trim()).toBe("No decisions found.");
-
-			const json = await $`bun ${CLI_PATH} decision list --json`.cwd(TEST_DIR).quiet();
-			expect(json.exitCode).toBe(0);
-			expect(JSON.parse(json.stdout.toString())).toEqual({
-				schemaVersion: 1,
-				kind: "decision-list",
-				decisions: [],
-			});
 		});
 	});
 

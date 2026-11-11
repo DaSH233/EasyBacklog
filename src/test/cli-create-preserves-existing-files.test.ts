@@ -53,15 +53,7 @@ const DOCUMENT: RecordKind = {
 	printed: (n) => `Created document doc-${n}`,
 	storedId: (n) => `doc-${n}`,
 };
-const DECISION: RecordKind = {
-	label: "decision",
-	folder: "decisions",
-	createCommand: ["decision", "create"],
-	filePrefix: "decision",
-	printed: (n) => `Created decision decision-${n}`,
-	storedId: (n) => `decision-${n}`,
-};
-const ALL_KINDS = [TASK, DRAFT, DOCUMENT, DECISION];
+const ALL_KINDS = [TASK, DRAFT, DOCUMENT];
 
 /** Run `backlog <args>` in the test project and return what a caller of the CLI sees. */
 async function backlog(...args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
@@ -92,7 +84,7 @@ async function readFolder(dir: string): Promise<Record<string, string>> {
 
 /**
  * Creates record 1 titled "First" and rewrites its stored ID in the other letter case, as a hand
- * edit would: lower case for tasks and drafts, upper case for documents and decisions.
+ * edit would: lower case for tasks and drafts, upper case for documents.
  */
 async function createFirstWithIdInOtherLetterCase(kind: RecordKind): Promise<void> {
 	await backlog(...kind.createCommand, "First");
@@ -217,7 +209,7 @@ describe("creating a record never removes or replaces an existing file", () => {
 	}
 
 	// A document file is listed under any name, so its number is counted and skipped instead.
-	for (const kind of [TASK, DRAFT, DECISION]) {
+	for (const kind of [TASK, DRAFT]) {
 		it(`${kind.label}: never overwrites a file whose name differs only in letter case`, async () => {
 			await backlog(...kind.createCommand, "First");
 			const dir = recordsDir(kind);
@@ -337,29 +329,6 @@ describe("a title change moves only the file the record was loaded from", () => 
 		expect(await readFile(guidePath, "utf8")).toBe(guide);
 		expect(await readlink(takenPath)).toBe(missingTarget);
 		expect(await readdir(OUTSIDE_DIR)).toEqual([]);
-	});
-
-	// Decisions have no update command; the web UI saves them through this Core method.
-	it("decision: renames its own file and keeps another record that shares its number", async () => {
-		const other = await createGuideAndRecordSharingItsNumber(DECISION);
-
-		await new Core(TEST_DIR).updateDecisionFromContent("decision-1", "---\ntitle: Renamed\n---\n", false);
-
-		expect(await readFolder(recordsDir(DECISION))).toEqual({
-			[fileName(DECISION, 1, "Other")]: other,
-			[fileName(DECISION, 1, "Renamed")]: expect.stringContaining("title: Renamed\n"),
-		});
-	});
-
-	it("decision: keeps the usual file name when the stored ID is written in upper case", async () => {
-		await createFirstWithIdInOtherLetterCase(DECISION);
-
-		await new Core(TEST_DIR).updateDecisionFromContent("decision-1", "---\ntitle: Retitled\n---\n", false);
-
-		// The one file is still named decision-1 and the stored ID stays as it was written.
-		expect(await readFolder(recordsDir(DECISION))).toEqual({
-			[fileName(DECISION, 1, "Retitled")]: expect.stringContaining("id: DECISION-1\ntitle: Retitled\n"),
-		});
 	});
 });
 

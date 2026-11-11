@@ -5,8 +5,6 @@ import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from 'react-tooltip';
 import {
-	type Decision,
-	type DecisionSearchResult,
 	type Document,
 	type DocumentSearchResult,
 	type SearchResult,
@@ -22,7 +20,7 @@ import { buildDocsTree, type DocsTreeNode } from '../lib/docs-tree';
 
 // Utility functions for ID transformations
 const stripIdPrefix = (id: string): string => {
-	// Remove any prefix pattern: letters followed by dash (task-, doc-, decision-, JIRA-, etc.)
+	// Remove any prefix pattern: letters followed by dash (task-, doc-, JIRA-, etc.)
 	return id.replace(/^[a-zA-Z]+-/, '');
 };
 
@@ -131,36 +129,6 @@ const Icons = {
 			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 		</svg>
 	),
-	Decision: () => (
-		<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-		</svg>
-	),
-	DecisionPage: () => (
-		<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-		</svg>
-	),
-	DecisionArchitecture: () => (
-		<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-		</svg>
-	),
-	DecisionTech: () => (
-		<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-		</svg>
-	),
-	DecisionProcess: () => (
-		<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-		</svg>
-	),
-	DecisionBusiness: () => (
-		<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6" />
-		</svg>
-	),
 	Search: () => (
 		<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -267,7 +235,6 @@ interface SideNavigationProps {
  dataVersion?: number;
 	taskCount: number;
 	docs: Document[];
-	decisions: Decision[];
 	isLoading: boolean;
 	error?: Error | null;
 	onRetry?: () => void;
@@ -279,7 +246,6 @@ const SideNavigation = memo(function SideNavigation({
  tasks,
  dataVersion,
 	docs, 
-	decisions, 
 	isLoading,
 	error,
 	onRetry
@@ -310,14 +276,6 @@ const SideNavigation = memo(function SideNavigation({
 	const [folderExpanded, setFolderExpanded] = useState<Record<string, boolean>>(() => {
 		const saved = localStorage.getItem('docsFolderExpanded');
 		return saved ? JSON.parse(saved) : {};
-	});
-	const [isDecisionsCollapsed, setIsDecisionsCollapsed] = useState(() => {
-		const saved = localStorage.getItem('decisionsCollapsed');
-		if (saved !== null) {
-			return JSON.parse(saved);
-		}
-		// Auto-collapse if more than 6 decisions
-		return decisions.length > 6;
 	});
 	const [version, setVersion] = useState<string>('');
 	const location = useLocation();
@@ -350,10 +308,6 @@ const SideNavigation = memo(function SideNavigation({
 		navigate('/documentation/new');
 	}, [navigate]);
 
-	const handleCreateDecision = useCallback(() => {
-		navigate('/decisions/new');
-	}, [navigate]);
-
 	useEffect(() => {
 		localStorage.setItem('sideNavCollapsed', JSON.stringify(isCollapsed));
 	}, [isCollapsed]);
@@ -368,11 +322,6 @@ const SideNavigation = memo(function SideNavigation({
 		localStorage.setItem('docsCollapsed', JSON.stringify(isDocsCollapsed));
 	}, [isDocsCollapsed]);
 
-	// Save decisions collapse state to localStorage
-	useEffect(() => {
-		localStorage.setItem('decisionsCollapsed', JSON.stringify(isDecisionsCollapsed));
-	}, [isDecisionsCollapsed]);
-
 	useEffect(() => {
 		localStorage.setItem('docsFolderExpanded', JSON.stringify(folderExpanded));
 	}, [folderExpanded]);
@@ -384,13 +333,6 @@ const SideNavigation = memo(function SideNavigation({
 			setIsDocsCollapsed(true);
 		}
 	}, [docs.length]);
-
-	useEffect(() => {
-		const savedDecisionsCollapsed = localStorage.getItem('decisionsCollapsed');
-		if (savedDecisionsCollapsed === null && decisions.length > 6) {
-			setIsDecisionsCollapsed(true);
-		}
-	}, [decisions.length]);
 
 	// Add keyboard shortcut for search
 	useEffect(() => {
@@ -418,8 +360,6 @@ const SideNavigation = memo(function SideNavigation({
 	}, [isCollapsed, searchInputRef]);
 
 	location.pathname.startsWith('/documentation');
-	location.pathname.startsWith('/decisions');
-
 
 	// Perform unified search via centralized API (debounced)
 	useEffect(() => {
@@ -484,7 +424,6 @@ const SideNavigation = memo(function SideNavigation({
 
 	// Always show full lists in their sections, search results are separate
 	const filteredDocs = docs;
-	const filteredDecisions = decisions;
 
 	const { tree, ungroupedDocs } = useMemo(() => buildDocsTree(filteredDocs), [filteredDocs]);
 
@@ -567,15 +506,10 @@ const SideNavigation = memo(function SideNavigation({
 						{unifiedSearchResults.map((result, index) => {
 							const item = result.type === 'task'
 								? (result as TaskSearchResult).task
-								: result.type === 'document'
-									? (result as DocumentSearchResult).document
-									: (result as DecisionSearchResult).decision;
+								: (result as DocumentSearchResult).document;
 							const getResultLink = () => {
 								if (result.type === 'document') {
 									return `/documentation/${stripIdPrefix(item.id)}/${sanitizeUrlTitle(item.title)}`;
-								}
-								if (result.type === 'decision') {
-									return `/decisions/${stripIdPrefix(item.id)}/${sanitizeUrlTitle(item.title)}`;
 								}
 								const taskPath = createUrlPath('/board', item.id, item.title);
 								const isBoardLocation = location.pathname === '/board' || location.pathname.startsWith('/board/');
@@ -584,7 +518,6 @@ const SideNavigation = memo(function SideNavigation({
 
 							const getResultIcon = () => {
 								if (result.type === 'document') return <span className="text-green-500"><Icons.DocumentPage /></span>;
-								if (result.type === 'decision') return <span className="text-stone-500"><Icons.DecisionPage /></span>;
 								return <span className="text-purple-500"><Icons.Tasks /></span>;
 							};
 
@@ -629,7 +562,6 @@ const SideNavigation = memo(function SideNavigation({
 					{t(searchError)}
 				</div>
 			)}
-
 
 			<nav className="flex-1 overflow-y-auto">
 				{/* Error State */}
@@ -835,67 +767,6 @@ const SideNavigation = memo(function SideNavigation({
 							)}
 						</div>
 
-						{/* Divider between Documents and Decisions */}
-						<div className="mx-4 my-2 border-t border-gray-200 dark:border-gray-700"></div>
-
-						{/* Decisions Section */}
-						<div className="px-4 py-4">
-							<div className="flex items-center justify-between mb-4">
-									<div className="flex items-center space-x-3">
-										<button
-											onClick={() => setIsDecisionsCollapsed(!isDecisionsCollapsed)}
-											className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded transition-colors duration-200"
-											title={isDecisionsCollapsed ? t("Expand decisions") : t("Collapse decisions")}
-										>
-											{isDecisionsCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
-									</button>
-									<span className="text-gray-500 dark:text-gray-400"><Icons.Decision /></span>
-									<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">{t("Decisions (")}<NavigationCount count={decisions.length} isLoading={isLoading} error={error} label={t("decision")} />)
-									</span>
-								</div>
-								<button
-									onClick={handleCreateDecision}
-									className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors duration-200"
-									title={t("Create new decision")}
-									aria-label={t("Create new decision")}
-								>
-									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-										<circle cx="12" cy="12" r="10" />
-									</svg>
-								</button>
-							</div>
-							
-							{/* Decision List */}
-							{!isDecisionsCollapsed && (
-								<div className="space-y-1">
-									{isLoading ? (
-										<LoadingPhase className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" />
-									) : error ? (
-										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{t("Decisions unavailable")}</p>
-									) : filteredDecisions.length === 0 ? (
-										<p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{t("No decisions")}</p>
-									) : (
-										filteredDecisions.map((decision) => (
-											<NavLink
-												key={decision.id}
-												to={`/decisions/${stripIdPrefix(decision.id)}/${sanitizeUrlTitle(decision.title)}`}
-												className={({ isActive }) =>
-													`flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors duration-200 ${
-														isActive
-															? 'bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 font-medium'
-															: 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
-													}`
-												}
-											>
-												<span className="text-gray-400 dark:text-gray-500"><Icons.DecisionPage /></span>
-												<span className="truncate">{decision.title}</span>
-											</NavLink>
-										))
-									)}
-								</div>
-							)}
-						</div>
 					</>
 				)}
 
@@ -1018,23 +889,7 @@ const SideNavigation = memo(function SideNavigation({
 								<Icons.Document />
 							</div>
 						</button>
-						<button
-							onClick={() => {
-								setIsCollapsed(false);
-								setIsDecisionsCollapsed(false);
-							}}
-								data-tooltip-id="sidebar-tooltip"
-								data-tooltip-content={t("Decisions")}
-								className={`flex items-center justify-center p-3 rounded-md transition-colors duration-200 w-full ${
-									location.pathname.startsWith('/decisions')
-										? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400'
-										: 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
-								}`}
-						>
-							<div className="w-6 h-6 flex items-center justify-center">
-								<Icons.Decision />
-							</div>
-						</button>
+
 					</div>
 				)}
 			</nav>

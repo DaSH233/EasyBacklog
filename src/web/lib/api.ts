@@ -3,7 +3,6 @@ import type { TaskStatistics } from "../../core/statistics.ts";
 import type { TaskDetail } from "../../core/task-detail.ts";
 import type {
 	BacklogConfig,
-	Decision,
 	Document,
 	Milestone,
 	SearchPriorityFilter,
@@ -127,7 +126,7 @@ async function toApiError(response: Response, fallbackMessage: string): Promise<
 	return new ApiError(message, response.status, response.statusText, data);
 }
 
-/** The document and decision endpoints answer 409 only when an ID matches more than one file. */
+/** The document endpoints answer 409 only when an ID matches more than one file. */
 export function isAmbiguousIdConflict(error: unknown): error is ApiError {
 	return error instanceof ApiError && error.status === 409;
 }
@@ -533,64 +532,6 @@ export class ApiClient {
 	// record the first attempt already archived, and its refusal would replace the real outcome.
 	async archiveDoc(id: string): Promise<void> {
 		await this.fetchWithoutRetry(`${API_BASE}/docs/${encodeURIComponent(id)}/archive`, { method: "POST" });
-	}
-
-	async archiveDecision(id: string): Promise<void> {
-		await this.fetchWithoutRetry(`${API_BASE}/decisions/${encodeURIComponent(id)}/archive`, { method: "POST" });
-	}
-
-	async fetchDecisions(): Promise<Decision[]> {
-		const response = await fetch(`${API_BASE}/decisions`);
-		if (!response.ok) {
-			throw new Error("Failed to fetch decisions");
-		}
-		return response.json();
-	}
-
-	async fetchDecision(id: string): Promise<Decision> {
-		const response = await fetch(`${API_BASE}/decisions/${encodeURIComponent(id)}`);
-		if (!response.ok) {
-			throw await toApiError(response, "Failed to fetch decision");
-		}
-		return response.json();
-	}
-
-	async fetchDecisionData(id: string): Promise<Decision> {
-		const response = await fetch(`${API_BASE}/decision/${encodeURIComponent(id)}`);
-		if (!response.ok) {
-			throw await toApiError(response, "Failed to fetch decision");
-		}
-		return response.json();
-	}
-
-	async updateDecision(id: string, content: string): Promise<void> {
-		const response = await fetch(`${API_BASE}/decisions/${encodeURIComponent(id)}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "text/plain",
-			},
-			body: content,
-		});
-		if (!response.ok) {
-			throw await toApiError(response, "Failed to update decision");
-		}
-	}
-
-	async createDecision(
-		title: string,
-		sections?: Pick<Decision, "context" | "decision" | "consequences">,
-	): Promise<Decision> {
-		const response = await fetch(`${API_BASE}/decisions`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ title, sections }),
-		});
-		if (!response.ok) {
-			throw await toApiError(response, "Failed to create decision");
-		}
-		return response.json();
 	}
 
 	async fetchMilestones(): Promise<Milestone[]> {

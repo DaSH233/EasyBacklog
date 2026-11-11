@@ -46,26 +46,6 @@ describe("core auto-commit scoping", () => {
 		expect(status).toContain("?? backlog/plans/");
 	}
 
-	it("decision creation commits only its decision file", async () => {
-		await seedUnrelatedDirtyState();
-
-		await core.createDecision(
-			{
-				id: "decision-1",
-				title: "Scoped decision",
-				date: "2026-08-02 00:00",
-				status: "proposed",
-				context: "Context",
-				decision: "Decision",
-				consequences: "Consequences",
-				rawContent: "",
-			},
-			true,
-		);
-
-		await expectOwnedCommit("backlog/decisions/");
-	});
-
 	it("bulk task updates commit only the updated task files", async () => {
 		const { task } = await core.createTaskFromInput({ title: "Bulk update", status: "To Do", description: "d" }, true);
 		await seedUnrelatedDirtyState();

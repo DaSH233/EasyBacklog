@@ -58,7 +58,6 @@ describe("CLI Integration", () => {
 				"backlog/archive/milestones",
 				"backlog/milestones",
 				"backlog/docs",
-				"backlog/decisions",
 			];
 
 			for (const dir of expectedDirs) {

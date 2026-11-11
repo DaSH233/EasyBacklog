@@ -1,7 +1,6 @@
 import type { Dirent } from "node:fs";
-import { lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { isDeepStrictEqual } from "node:util";
 import lockfile from "proper-lockfile";
 import {
 	ARCHIVED_TASK_DIRECTORIES,
@@ -10,21 +9,13 @@ import {
 	DEFAULT_STATUSES,
 	FALLBACK_STATUS,
 } from "../constants/index.ts";
-import { parseFrontmatter, stringifyFrontmatter } from "../markdown/frontmatter.ts";
-import {
-	parseDecision,
-	parseDocument,
-	parseMarkdown,
-	parseMilestone,
-	parseTask,
-	TaskDependenciesParseError,
-} from "../markdown/parser.ts";
-import { serializeDecision, serializeDocument, serializeTask } from "../markdown/serializer.ts";
+import { parseFrontmatter } from "../markdown/frontmatter.ts";
+import { parseDocument, parseMilestone, parseTask, TaskDependenciesParseError } from "../markdown/parser.ts";
+import { serializeDocument, serializeTask } from "../markdown/serializer.ts";
 import type {
 	BacklogConfig,
 	ContentRecord,
 	ContentRecordKind,
-	Decision,
 	Document,
 	Milestone,
 	Task,
@@ -36,7 +27,6 @@ import {
 	resolveBacklogDirectory,
 	resolveBacklogDirectoryFromRootConfig,
 } from "../utils/backlog-directory.ts";
-import { decisionIdsEqual, findDecisionById } from "../utils/decision-id.ts";
 import {
 	documentIdsEqual,
 	documentNotFoundMessage,
@@ -50,7 +40,6 @@ import { AmbiguousIdError, isAmbiguousIdError } from "../utils/entity-id.ts";
 import {
 	buildGlobPattern,
 	extractAnyPrefix,
-	extractIdBody,
 	filenameMatchesId,
 	generateNextId,
 	idForFilename,
@@ -292,29 +281,6 @@ function taskLockError(message: string, cause?: unknown): Error {
 	return lockError(TASK_LOCK_ERROR_NAME, TASK_LOCK_ERROR_CODE, message, cause);
 }
 
-/**
- * Records a directory-level listing failure so callers can report it instead of treating an
- * unreadable directory as an empty one. A directory that does not exist yet is normal and is
- * reported as empty; anything else means the contents could not be inspected. The empty string
- * denotes the content directory itself.
- */
-function recordUnreadableDirectory(error: unknown, unreadable?: string[]): void {
-	if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") return;
-	unreadable?.push("");
-}
-
-/**
- * A decision's file name. Decisions are stored flat, so a path with a folder in it, or one that
- * leaves the folder, is refused.
- */
-function decisionFileName(decision: ContentRecord): string {
-	const name = decision.path ?? `${decision.id}.md`;
-	if (name === "" || name === "." || name === ".." || /[\\/]/.test(name)) {
-		throw new Error(`Decision path must be one file name in its folder: ${name}`);
-	}
-	return name;
-}
-
 /** Whether `path` is `directory` itself or lies inside it. Both are real paths, with links resolved. */
 function isWithinDirectory(directory: string, path: string): boolean {
 	return path === directory || path.startsWith(`${directory}${sep}`);
@@ -392,56 +358,6 @@ export class DraftIdentityError extends Error {
 	}
 }
 
-/**
- * Returns a decision file's text with its frontmatter status set to `status`, or null when that
- * cannot be done without changing anything else.
- *
- * The text is edited as text and never parsed and written back out: a full decision save rebuilds
- * owned fields and body sections, while this operation must leave every other byte unchanged.
- * Only the status entry is replaced: the `status:` line and the indented lines that continue its
- * value. Every other line stays as it is, with its own line ending.
- */
-function replaceDecisionStatus(content: string, status: string): string | null {
-	// Split after each line break, so joining the lines again restores every untouched byte.
-	const lines = content.split(/(?<=\n)/);
-	// The frontmatter ends at the first later line that starts with `---`, as it does for the reader,
-	// so nothing below can touch the body. A file without that line needs no return of its own:
-	// closingIndex is then -1, no index is below -1, so no status line is found and the edit is refused.
-	const closingIndex = lines.findIndex((line, index) => index > 0 && line.startsWith("---"));
-	const statusIndex = lines.findIndex((line, index) => index < closingIndex && /^status\s*:/.test(line));
-	const prefix = lines[statusIndex]?.match(/^status\s*:[ \t]*/)?.[0];
-	if (!prefix) return null;
-
-	// A long or multi-line status continues on indented lines, which belong to the entry.
-	let entryEnd = statusIndex + 1;
-	while (entryEnd < closingIndex && /^[ \t]/.test(lines[entryEnd] ?? "")) entryEnd++;
-
-	// The new entry is spelled by the serializer `decision create` uses, so both write a status the
-	// same way. The serializer returns a whole frontmatter block; the entry sits between its two
-	// `---` lines. `trimEnd` is required: the serializer puts a blank line after the closing `---`,
-	// and `slice(1, -1)` drops exactly the two `---` lines only once that blank line is gone. Without
-	// `trimEnd` the closing `---` would be written into the file as part of the entry, and the
-	// read-back check below would not notice when the status is the last frontmatter key.
-	// Keep the original key and separator bytes; only the serialized value replaces the old entry.
-	const entry = stringifyFrontmatter("", { status })
-		.replace(/^status: /m, prefix)
-		.trimEnd()
-		.split("\n")
-		.slice(1, -1);
-	const newline = lines[0]?.endsWith("\r\n") ? "\r\n" : "\n";
-	lines.splice(statusIndex, entryEnd - statusIndex, ...entry.map((line) => line + newline));
-	const updated = lines.join("");
-
-	// Read the result the way decisions are read. The frontmatter must hold the new status and be
-	// otherwise what it was; anything else means it is written in a form this edit does not handle.
-	try {
-		const expected = { ...parseMarkdown(content).frontmatter, status };
-		return isDeepStrictEqual(parseMarkdown(updated).frontmatter, expected) ? updated : null;
-	} catch {
-		return null;
-	}
-}
-
 export class FileSystem {
 	private resolvedBacklogDir: string;
 	private resolvedBacklogDirName: string;
@@ -486,9 +402,6 @@ export class FileSystem {
 	get archiveMilestonesDir(): string {
 		return join(this.resolvedBacklogDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES);
 	}
-	get decisionsDir(): string {
-		return join(this.resolvedBacklogDir, DEFAULT_DIRECTORIES.DECISIONS);
-	}
 
 	get docsDir(): string {
 		return join(this.resolvedBacklogDir, DEFAULT_DIRECTORIES.DOCS);
@@ -496,10 +409,6 @@ export class FileSystem {
 
 	get archiveDocsDir(): string {
 		return join(this.resolvedBacklogDir, DEFAULT_DIRECTORIES.ARCHIVE_DOCS);
-	}
-
-	get archiveDecisionsDir(): string {
-		return join(this.resolvedBacklogDir, DEFAULT_DIRECTORIES.ARCHIVE_DECISIONS);
 	}
 
 	get milestonesDir(): string {
@@ -619,11 +528,6 @@ export class FileSystem {
 		return join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_DRAFTS);
 	}
 
-	private async getDecisionsDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.DECISIONS);
-	}
-
 	private async getDocsDir(): Promise<string> {
 		const backlogDir = await this.getBacklogDir();
 		return join(backlogDir, DEFAULT_DIRECTORIES.DOCS);
@@ -672,7 +576,6 @@ export class FileSystem {
 			join(backlogDir, DEFAULT_DIRECTORIES.MILESTONES),
 			join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES),
 			join(backlogDir, DEFAULT_DIRECTORIES.DOCS),
-			join(backlogDir, DEFAULT_DIRECTORIES.DECISIONS),
 		];
 
 		for (const dir of directories) {
@@ -987,7 +890,7 @@ export class FileSystem {
 	}
 
 	/**
-	 * Writes the file for `saveTask`, `saveDraft`, `saveDocument` and `saveDecision`: every save of
+	 * Writes the file for `saveTask`, `saveDraft`, `saveDocument`: every save of
 	 * a record ends here. The only existing file it may replace is the one the record was loaded
 	 * from. No other file is removed, renamed or overwritten, whatever its name or its frontmatter
 	 * says.
@@ -1571,72 +1474,6 @@ export class FileSystem {
 		return { duplicates, unreadable, drifted };
 	}
 
-	// Decision log operations
-	/**
-	 * Saves a decision in the decisions folder. `movedFrom` is the previous path of its file when the
-	 * save renamed it.
-	 *
-	 * An archived decision is refused here as well as by core, which answers the user. This save
-	 * writes in the decisions folder only, so it would leave the archived file where it is and write a
-	 * second file for the same ID.
-	 */
-	async saveDecision(decision: Decision): Promise<{ filepath: string; movedFrom: string | undefined }> {
-		if (decision.archived) {
-			throw new Error(`Cannot save decision ${decision.id}: it is archived, and archived decisions are read-only.`);
-		}
-		// The file name always starts with a lower-case "decision-", whatever letter case the stored ID uses.
-		const filename = `decision-${extractIdBody(decision.id, "decision")} - ${this.sanitizeFilename(decision.title)}.md`;
-		const decisionsDir = await this.getDecisionsDir();
-		const filepath = join(decisionsDir, filename);
-		const loadedFromPath = decision.path ? this.contentRecordFilePath("decision", decision) : undefined;
-		const originalFile = loadedFromPath ? Bun.file(loadedFromPath) : undefined;
-		const originalContent = (await originalFile?.exists()) ? await originalFile?.text() : undefined;
-
-		const movedFrom = await this.writeRecordFile(
-			filepath,
-			serializeDecision(decision, originalContent),
-			loadedFromPath,
-		);
-
-		return { filepath, movedFrom };
-	}
-
-	/**
-	 * Loads a decision from the decisions folder by ID. The content store uses it to read back a
-	 * decision that changed. It does not look at the archive: to resolve an ID a user gave, call
-	 * `Core.getDecision`, which fails closed when an archived file claims the same ID.
-	 */
-	async loadDecision(decisionId: string): Promise<Decision | null> {
-		return findDecisionById(await this.listDecisions(), decisionId, (candidate) =>
-			this.contentRecordProjectPath("decision", candidate),
-		);
-	}
-
-	/**
-	 * Replaces the status entry of the decision resolved by core and returns its file path. Refuses
-	 * archived decisions and entries that cannot be replaced without changing other content.
-	 */
-	async updateDecisionStatus(decision: Decision, status: string): Promise<string> {
-		if (decision.archived) {
-			throw new Error(`Cannot save decision ${decision.id}: it is archived, and archived decisions are read-only.`);
-		}
-		const filepath = this.contentRecordFilePath("decision", decision);
-
-		// Bun.file().text() drops a leading byte-order mark, and decoding invalid UTF-8 is lossy.
-		// Read the bytes, and only edit text that writes back to exactly the bytes that were read.
-		const bytes = await readFile(filepath);
-		const content = bytes.toString("utf8");
-		const updated = bytes.equals(Buffer.from(content, "utf8")) ? replaceDecisionStatus(content, status) : null;
-		if (updated === null) {
-			throw new Error(
-				`Cannot change the status of ${decision.id} without changing other content in ${filepath}. Make sure the file is UTF-8 text and its frontmatter has one plain "status: value" line, then try again.`,
-			);
-		}
-
-		await Bun.write(filepath, updated);
-		return filepath;
-	}
-
 	// Document operations
 	/**
 	 * Saves a document under the docs folder. `movedFrom` is the previous path of its file when the
@@ -1672,47 +1509,6 @@ export class FileSystem {
 
 		document.path = relativePath;
 		return { relativePath, movedFrom };
-	}
-
-	/**
-	 * Lists the decisions in the decisions folder, skipping files that cannot be read or parsed and
-	 * collecting their file names in `unreadable`. Archived decisions are not part of this list; see
-	 * {@link listArchivedDecisions}.
-	 */
-	async listDecisions(unreadable?: string[]): Promise<Decision[]> {
-		return await this.readDecisionsIn(this.decisionsDir, unreadable);
-	}
-
-	/** Lists the archived decisions, each marked `archived`. Their `path` is a file name in the archive. */
-	async listArchivedDecisions(unreadable?: string[]): Promise<Decision[]> {
-		const decisions = await this.readDecisionsIn(this.archiveDecisionsDir, unreadable);
-		return decisions.map((decision) => ({ ...decision, archived: true }));
-	}
-
-	/**
-	 * Reads the decision files directly inside `directory`. Decisions are stored flat, so no subfolder
-	 * is read. `path` on each decision is its file name.
-	 */
-	private async readDecisionsIn(directory: string, unreadable?: string[]): Promise<Decision[]> {
-		try {
-			const decisionFiles = await Array.fromAsync(
-				new Bun.Glob("decision-*.md").scan({ cwd: directory, followSymlinks: true }),
-			);
-			const decisions: Decision[] = [];
-			for (const file of decisionFiles) {
-				try {
-					const content = await Bun.file(join(directory, file)).text();
-					decisions.push({ ...parseDecision(content), path: file });
-				} catch {
-					// One malformed file must not hide every other decision from lookups.
-					unreadable?.push(file);
-				}
-			}
-			return sortByTaskId(decisions);
-		} catch (error) {
-			recordUnreadableDirectory(error, unreadable);
-			return [];
-		}
 	}
 
 	/**
@@ -1842,46 +1638,34 @@ export class FileSystem {
 	}
 
 	/**
-	 * Where the files of one content record kind are stored and how a file is read back. This is the
-	 * one place that knows the folders of documents and decisions; a new kind is one more case here.
+	 * Where document files are stored and how a file is read back.
 	 * - `folder` and `archiveFolder`: where the record is, depending on `archived`.
 	 * - `relativePath`: the record's path under that folder. A document keeps its subfolders; a
-	 *   decision is stored flat, so its path is one file name.
+	 *   document retains that path when archived.
 	 * - `storedId` and `idsEqual`: the ID a file of this kind claims, to check a file before removal.
 	 */
-	private contentRecordStorage(kind: ContentRecordKind) {
-		switch (kind) {
-			case "document":
-				return {
-					folder: this.docsDir,
-					archiveFolder: this.archiveDocsDir,
-					relativePath: (record: ContentRecord) => normalizeDocumentRelativePath(record.path ?? `${record.id}.md`),
-					storedId: (content: string) => parseDocument(content).id,
-					idsEqual: documentIdsEqual,
-				};
-			case "decision":
-				return {
-					folder: this.decisionsDir,
-					archiveFolder: this.archiveDecisionsDir,
-					relativePath: decisionFileName,
-					storedId: (content: string) => parseDecision(content).id,
-					idsEqual: decisionIdsEqual,
-				};
-		}
+	private contentRecordStorage() {
+		return {
+			folder: this.docsDir,
+			archiveFolder: this.archiveDocsDir,
+			relativePath: (record: ContentRecord) => normalizeDocumentRelativePath(record.path ?? `${record.id}.md`),
+			storedId: (content: string) => parseDocument(content).id,
+			idsEqual: documentIdsEqual,
+		};
 	}
 
 	/**
-	 * The file of a listed document or decision: in the folder of its kind, or in the archive folder
+	 * The file of a listed document: in the folder of its kind, or in the archive folder
 	 * of its kind when it is archived. This is the one place that maps `archived` to a folder.
 	 */
-	contentRecordFilePath(kind: ContentRecordKind, record: ContentRecord): string {
-		const storage = this.contentRecordStorage(kind);
+	contentRecordFilePath(_kind: ContentRecordKind, record: ContentRecord): string {
+		const storage = this.contentRecordStorage();
 		const folder = record.archived ? storage.archiveFolder : storage.folder;
 		return join(folder, ...storage.relativePath(record).split("/"));
 	}
 
 	/**
-	 * The file of a listed document or decision as a path from the project root with forward slashes,
+	 * The file of a listed document as a path from the project root with forward slashes,
 	 * for example `backlog/docs/guides/doc-3 - API-Guidelines.md`. Messages name a record's file this
 	 * way, and a task's `documentation` entry that names the file is written this way.
 	 */
@@ -1890,19 +1674,19 @@ export class FileSystem {
 	}
 
 	/**
-	 * Removes the file of an archived document or decision for `Core.deleteContentRecord`, and returns
+	 * Removes the file of an archived document for `Core.deleteContentRecord`, and returns
 	 * its path. A file that is a symbolic link is removed as a link; the file it points to stays.
 	 *
 	 * Nothing but that file can be removed through this. It refuses, and removes nothing, when the
 	 * record is not archived and when the file at its path does not claim the record's ID, for
 	 * example because another file took its place after the record was listed. A path that leaves the
-	 * archive folder (`..`, an absolute path, or a decision path with a folder in it) is refused by
+	 * archive folder (`..`, an absolute path, or another path outside the archive) is refused by
 	 * `contentRecordFilePath` already.
 	 */
 	async removeArchivedContentRecordFile(kind: ContentRecordKind, record: ContentRecord): Promise<string> {
 		const refuse = (reason: string) => new Error(`The file of ${kind} ${record.id} was not removed: ${reason}`);
 		if (!record.archived) throw refuse(`the ${kind} is not archived.`);
-		const storage = this.contentRecordStorage(kind);
+		const storage = this.contentRecordStorage();
 		const filePath = this.contentRecordFilePath(kind, record);
 		const projectPath = this.contentRecordProjectPath(kind, record);
 		let storedId: string;

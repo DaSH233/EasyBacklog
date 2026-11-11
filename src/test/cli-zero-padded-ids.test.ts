@@ -51,16 +51,6 @@ describe("CLI Zero Padded IDs Feature", () => {
 		expect(files[0]).toStartWith("doc-001");
 	});
 
-	test("should create a decision with a zero-padded ID", async () => {
-		const result = await $`bun ${CLI_PATH} decision create "Padded Decision"`.cwd(TEST_DIR).quiet();
-		expect(result.exitCode).toBe(0);
-
-		const decisionsDir = join(TEST_DIR, "backlog", "decisions");
-		const files = await readdir(decisionsDir);
-		expect(files.length).toBe(1);
-		expect(files[0]).toStartWith("decision-001");
-	});
-
 	test("should correctly increment a padded task ID", async () => {
 		await $`bun ${CLI_PATH} task create "First Padded Task"`.cwd(TEST_DIR).quiet();
 		const result = await $`bun ${CLI_PATH} task create "Second Padded Task"`.cwd(TEST_DIR).quiet();

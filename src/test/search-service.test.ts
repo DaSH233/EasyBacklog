@@ -2,15 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { ContentStore } from "../core/content-store.ts";
 import { SearchService } from "../core/search-service.ts";
 import { FileSystem } from "../file-system/operations.ts";
-import type {
-	Decision,
-	DecisionSearchResult,
-	Document,
-	DocumentSearchResult,
-	SearchResult,
-	Task,
-	TaskSearchResult,
-} from "../types/index.ts";
+import type { Document, DocumentSearchResult, SearchResult, Task, TaskSearchResult } from "../types/index.ts";
 import { createUniqueTestDir, getPlatformTimeout, safeCleanup, sleep } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -43,17 +35,6 @@ describe("SearchService", () => {
 		rawContent: "# Search Architecture\nCentralized description",
 	};
 
-	const baseDecision: Decision = {
-		id: "decision-1",
-		title: "Adopt Fuse.js",
-		date: "2025-09-18",
-		status: "accepted",
-		context: "Need consistent search",
-		decision: "Use Fuse.js with centralized store",
-		consequences: "Shared search path",
-		rawContent: "## Context\nNeed consistent search\n\n## Decision\nUse Fuse.js with centralized store",
-	};
-
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("search-service");
 		filesystem = new FileSystem(TEST_DIR);
@@ -68,15 +49,14 @@ describe("SearchService", () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	it("indexes tasks, documents, and decisions and returns combined results", async () => {
+	it("indexes tasks and documents and returns combined results", async () => {
 		await filesystem.saveTask(baseTask);
 		await filesystem.saveDocument(baseDoc);
-		await filesystem.saveDecision(baseDecision);
 
 		await search.ensureInitialized();
 
 		const results = search.search({ query: "centralized" });
-		expect(results).toHaveLength(3);
+		expect(results).toHaveLength(2);
 
 		const taskResult = results.find(isTaskResult);
 		expect(taskResult).toBeDefined();
@@ -85,8 +65,6 @@ describe("SearchService", () => {
 
 		const docResult = results.find(isDocumentResult);
 		expect(docResult?.document.id).toBe("doc-1");
-		const decisionResult = results.find(isDecisionResult);
-		expect(decisionResult?.decision.id).toBe("decision-1");
 	});
 
 	it("applies status and priority filters without running a text query", async () => {
@@ -288,10 +266,6 @@ function isTaskResult(result: SearchResult): result is TaskSearchResult {
 
 function isDocumentResult(result: SearchResult): result is DocumentSearchResult {
 	return result.type === "document";
-}
-
-function isDecisionResult(result: SearchResult): result is DecisionSearchResult {
-	return result.type === "decision";
 }
 
 async function waitForSearch<T>(

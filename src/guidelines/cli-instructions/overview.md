@@ -18,7 +18,7 @@ Create a task when work requires planning, decisions, or handoff notes. Search f
 
 For long lists, use `--max-count` and `--skip`, follow the printed `Next` command, or use `--count` for the total; command help covers the details.
 
-For scripts, `task list`, `task view`, `task <id>`, `draft list`, `decision list`, and `search` accept versioned `--json` output instead of `--plain`. `task list --json --watch` emits complete replacement responses; read successive JSON values, not individual lines. Filters and local scope are unchanged; intermediate edits may be coalesced. Restart for a fresh snapshot.
+For scripts, `task list`, `task view`, `task <id>`, `draft list`, and `search` accept versioned `--json` output instead of `--plain`. `task list --json --watch` emits complete replacement responses; read successive JSON values, not individual lines. Filters and local scope are unchanged; intermediate edits may be coalesced. Restart for a fresh snapshot.
 
 ### Reuse loaded guides
 
@@ -41,4 +41,4 @@ Leave finished tasks on the board until authorized periodic cleanup; do not auto
 
 ### On-demand reference
 
-For advanced filters, parent/dependency examples, shell quoting, field replacement, legacy-section errors, document links, or archive/restore/delete behavior, read `backlog instructions workflow-reference` only when needed. Consult command help or tool schemas for unfamiliar fields; never guess. Never edit task, draft, document, decision, or milestone markdown files directly; commands preserve metadata, relationships, and history.
+For advanced filters, parent/dependency examples, shell quoting, field replacement, legacy-section errors, document links, or archive/restore/delete behavior, read `backlog instructions workflow-reference` only when needed. Consult command help or tool schemas for unfamiliar fields; never guess. Never edit task, draft, document, or milestone markdown files directly; commands preserve metadata, relationships, and history.

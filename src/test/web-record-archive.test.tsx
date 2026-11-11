@@ -3,8 +3,7 @@ import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, type NavigateFunction, Route, Routes, useNavigate } from "react-router-dom";
-import type { Decision, Document } from "../types/index.ts";
-import DecisionDetail from "../web/components/DecisionDetail.tsx";
+import type { Document } from "../types/index.ts";
 import DocumentationDetail from "../web/components/DocumentationDetail.tsx";
 import { ThemeProvider } from "../web/contexts/ThemeContext.tsx";
 
@@ -54,44 +53,6 @@ const PAGES = [
 		}),
 		render: (onRefreshData: () => Promise<void>, cached = false) => (
 			<DocumentationDetail docs={cached ? [PAGES[0].record(false)] : []} onRefreshData={onRefreshData} />
-		),
-	},
-	{
-		kind: "decision",
-		noun: "decision",
-		detailPath: "/decisions/1/retired-runbook",
-		detailPattern: "/decisions/:id/:title",
-		newPath: "/decisions/new",
-		newPattern: "/decisions/:id",
-		listPath: "/decisions",
-		recordPath: "/api/decisions/decision-1",
-		archivePath: "/api/decisions/decision-1/archive",
-		restoreCommand: "backlog decision restore decision-1",
-		record: (archived: boolean): Decision => ({
-			id: "decision-1",
-			title: "Retired runbook",
-			date: "2026-01-01 00:00",
-			status: "accepted",
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "Runbook steps.",
-			...(archived ? { archived: true } : {}),
-		}),
-		otherDetailPath: "/decisions/2/current-runbook",
-		otherRecordPath: "/api/decisions/decision-2",
-		otherRecord: (): Decision => ({
-			id: "decision-2",
-			title: "Current runbook",
-			date: "2026-01-01 00:00",
-			status: "accepted",
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "Current steps.",
-		}),
-		render: (onRefreshData: () => Promise<void>, cached = false) => (
-			<DecisionDetail decisions={cached ? [PAGES[1].record(false)] : []} onRefreshData={onRefreshData} />
 		),
 	},
 ] as const;
@@ -262,7 +223,7 @@ describe.each([...PAGES])("the $kind page", (page) => {
 		{ name: "fresh deep link", fromLoaded: false },
 		{ name: "navigation from a loaded record", fromLoaded: true },
 	])("finishes a prefix-only invalid route after $name", async ({ fromLoaded }) => {
-		const invalidId = page.kind === "document" ? "doc-" : "decision-";
+		const invalidId = "doc-";
 		const invalidPath = `${page.listPath}/${invalidId}`;
 		const session = await open(page, { path: fromLoaded ? page.detailPath : invalidPath });
 		if (fromLoaded) {
@@ -362,7 +323,7 @@ describe.each([...PAGES])("the $kind page", (page) => {
 	});
 
 	it("accepts normalized route aliases while the current archive is pending", async () => {
-		const prefix = page.kind === "document" ? "DOC" : "DECISION";
+		const prefix = "DOC";
 		const alias = `${page.listPath}/${prefix}-0001/retired-runbook`;
 		const session = await open(page, { path: alias, archive: "pending" });
 		expect(buttonNamed(session.container, "Archive")?.disabled).toBe(false);

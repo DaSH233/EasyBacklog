@@ -11,7 +11,6 @@ const categories = {
 	tasks: "Tasks",
 	drafts: "Drafts",
 	documents: "Documents",
-	decisions: "Decisions",
 	milestones: "Milestones",
 } as const;
 type Category = keyof typeof categories;

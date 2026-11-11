@@ -14,6 +14,8 @@ logic.
 
 Everything routes through existing Core APIs so the MCP layer stays a protocol wrapper.
 
+Standalone decision records are no longer exposed. Use `document_create`, `document_view`, and the other document tools for shared architectural choices; the CLI migration procedure is documented in [Migrating legacy decision records](../../CLI-INSTRUCTIONS.md#migrating-legacy-decision-records). Milestone tools remain available.
+
 Document tool `path` inputs are subdirectories under the configured docs directory, for example `guides/setup`.
 Created and updated document responses include the persisted docs-relative file path. Absolute paths and traversal
 segments such as `..` are rejected by the shared core/filesystem path handling.

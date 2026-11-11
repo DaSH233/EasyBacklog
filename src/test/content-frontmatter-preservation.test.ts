@@ -3,7 +3,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
 import { FileSystem } from "../file-system/operations.ts";
-import { parseDecision, parseDocument, parseMarkdown } from "../markdown/parser.ts";
+import { parseDocument, parseMarkdown } from "../markdown/parser.ts";
 import { serializeDocument } from "../markdown/serializer.ts";
 import { McpServer } from "../mcp/server.ts";
 import { registerDocumentTools } from "../mcp/tools/documents/index.ts";
@@ -58,7 +58,7 @@ async function startServer(): Promise<number> {
 	return port;
 }
 
-describe("document and decision unknown frontmatter", () => {
+describe("document unknown frontmatter", () => {
 	beforeEach(async () => {
 		root = createUniqueTestDir("content-frontmatter");
 		filesystem = new FileSystem(root);
@@ -155,37 +155,6 @@ describe("document and decision unknown frontmatter", () => {
 		}
 	});
 
-	it("keeps decision metadata through HTTP full saves, renames and CLI status edits", async () => {
-		const originalPath = join(filesystem.decisionsDir, "decision-1 - Original.md");
-		await Bun.write(
-			originalPath,
-			`---\nid: decision-1\ntitle: Original\ndate: 2026-01-01\nstatus: proposed\n${METADATA}---\n## Context\n\nOld context\n\n## Decision\n\nOld decision\n\n## Consequences\n\nOld consequences\n`,
-		);
-		const port = await startServer();
-		const movedPath = join(filesystem.decisionsDir, "decision-1 - Renamed.md");
-		for (const context of ["First context", "Second context"]) {
-			const response = await fetch(`http://127.0.0.1:${port}/api/decisions/decision-1`, {
-				method: "PUT",
-				body: `---\ntitle: Renamed\ndate: '2026-02-03'\nstatus: accepted\n---\n## Context\n\n${context}\n\n## Decision\n\nNew decision\n\n## Consequences\n\nNew consequences`,
-			});
-			expect(response.status).toBe(200);
-			const stored = await Bun.file(movedPath).text();
-			expect(stored).toContain(METADATA);
-			expect(parseDecision(stored)).toMatchObject({
-				title: "Renamed",
-				date: "2026-02-03",
-				status: "accepted",
-				context,
-				decision: "New decision",
-				consequences: "New consequences",
-			});
-		}
-		expect(await Bun.file(originalPath).exists()).toBe(false);
-		const beforeStatus = await Bun.file(movedPath).text();
-		await $`bun ${CLI_PATH} decision edit decision-1 -s superseded`.cwd(root).quiet();
-		expect(await Bun.file(movedPath).text()).toBe(beforeStatus.replace("status: accepted", "status: superseded"));
-	});
-
 	it("keeps explicit null entries before an owned title and at the end across repeated saves", async () => {
 		const filename = "doc-1 - Original.md";
 		const source = "---\nid: doc-1\n? external\ntitle: Original\n? trailing\n---\nBody\n";
@@ -246,26 +215,6 @@ describe("document and decision unknown frontmatter", () => {
 		expect(result.isError).toBe(true);
 		expect(JSON.stringify(result.content)).toContain(refusal);
 		await unchanged();
-	});
-
-	it("refuses a reference-breaking decision full save while status-only edits preserve the reference", async () => {
-		const filename = "decision-1 - Original.md";
-		const originalPath = join(filesystem.decisionsDir, filename);
-		const source =
-			"---\nid: decision-1\ntitle: &title Original\ndate: 2026-01-01\nstatus: proposed\nowner: *title\n---\n## Context\n\nBody\n";
-		await Bun.write(originalPath, source);
-		const originalBytes = await Bun.file(originalPath).bytes();
-		const port = await startServer();
-		const response = await fetch(`http://127.0.0.1:${port}/api/decisions/decision-1`, {
-			method: "PUT",
-			body: "---\ntitle: Changed\n---\n## Context\n\nChanged\n",
-		});
-		expect(response.status).toBe(400);
-		expect((await response.json()).error).toContain("Cannot save decision-1: the update would break a YAML reference");
-		expect(await Bun.file(originalPath).bytes()).toEqual(originalBytes);
-		expect(await readdir(filesystem.decisionsDir)).toEqual([filename]);
-		await $`bun ${CLI_PATH} decision edit decision-1 -s accepted`.cwd(root).quiet();
-		expect(await Bun.file(originalPath).text()).toBe(source.replace("status: proposed", "status: accepted"));
 	});
 
 	it("refuses a preserved merge that would restore cleared document tags", async () => {

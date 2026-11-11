@@ -22,7 +22,6 @@ const renderNavigation = (isLoading: boolean, taskCount: number, error?: Error):
 			<SideNavigation
 				taskCount={taskCount}
 				docs={[]}
-				decisions={[]}
 				isLoading={isLoading}
 				error={error}
 				onRetry={async () => {}}
@@ -57,19 +56,15 @@ describe("SideNavigation task loading", () => {
 		expect(loading).toContain("All Tasks");
 		expect(loading).toContain('aria-label="Loading task count"');
 		expect(loading).toContain('aria-label="Loading document count"');
-		expect(loading).toContain('aria-label="Loading decision count"');
 		expect(loading).toContain('aria-label="Loading content"');
 		expect(loading).not.toContain("No documents");
-		expect(loading).not.toContain("No decisions");
 
 		const loaded = renderNavigation(false, 3).replaceAll("<!-- -->", "");
 		expect(loaded).toContain("Kanban Board");
 		expect(loaded).toContain("All Tasks");
 		expect(loaded).toContain("Tasks (3)");
 		expect(loaded).toContain("Documents (0)");
-		expect(loaded).toContain("Decisions (0)");
 		expect(loaded).toContain("No documents");
-		expect(loaded).toContain("No decisions");
 		expect(loaded).not.toContain('aria-label="Loading task count"');
 	});
 
@@ -80,7 +75,6 @@ describe("SideNavigation task loading", () => {
 		expect(failed).toContain('aria-label="task count unavailable"');
 		expect(failed).not.toContain('aria-label="Loading task count"');
 		expect(failed).not.toContain("No documents");
-		expect(failed).not.toContain("No decisions");
 	});
 
 	it("keeps a retryable load failure visible when the sidebar is collapsed", () => {
@@ -116,7 +110,7 @@ describe("SideNavigation task loading", () => {
  it("shows board state counts in To Do, In Progress, Done order", () => {
   storage.set("sideNavCollapsed", "false");
   const tasks = ["Done","To Do","Done","In Progress","Done"].map((status,index) => ({id:`TASK-${index}`,title:"Task",status,assignee:[],labels:[],dependencies:[],createdDate:"2026-10-29"}));
-  const html = renderToString(<MemoryRouter><SideNavigation tasks={tasks} taskCount={5} docs={[]} decisions={[]} isLoading={false} onRefreshData={async()=>{}} /></MemoryRouter>);
+  const html = renderToString(<MemoryRouter><SideNavigation tasks={tasks} taskCount={5} docs={[]} isLoading={false} onRefreshData={async()=>{}} /></MemoryRouter>);
   expect(html).toContain('aria-label="To Do: 1 / In Progress: 1 / Done: 3"');
   expect(html).toContain('aria-label="All Tasks: 5"');
  });

@@ -131,7 +131,7 @@ Before task lifecycle actions, read the matching detailed guide:
 
 Use `backlog <command> --help` before running unfamiliar commands. Help shows options, fields, and examples.
 
-Do not edit Backlog task, draft, document, decision, or milestone markdown files directly. Use the `backlog` CLI so metadata, relationships, and history stay consistent.
+Do not edit Backlog task, draft, document, or milestone markdown files directly. Use the `backlog` CLI so metadata, relationships, and history stay consistent.
 
 </CRITICAL_INSTRUCTION>
 <!-- BACKLOG.MD GUIDELINES END -->

@@ -3,7 +3,7 @@ import { chmod, mkdir, readdir, realpath, symlink, unlink } from "node:fs/promis
 import { join } from "node:path";
 import { $ } from "bun";
 import { Core } from "../core/backlog.ts";
-import { serializeDecision, serializeDocument, serializeTask } from "../markdown/serializer.ts";
+import { serializeDocument, serializeTask } from "../markdown/serializer.ts";
 import type { Task } from "../types/index.ts";
 import { getTestCliPath } from "./test-cli.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
@@ -36,23 +36,6 @@ async function writeDocument(relativePath: string, id: string, title: string): P
 	await Bun.write(
 		filePath,
 		serializeDocument({ id, title, type: "other", createdDate: "2026-01-01 00:00", rawContent: title }),
-	);
-}
-
-async function writeDecision(filename: string, id: string, title: string): Promise<void> {
-	await mkdir(core.filesystem.decisionsDir, { recursive: true });
-	await Bun.write(
-		join(core.filesystem.decisionsDir, filename),
-		serializeDecision({
-			id,
-			title,
-			date: "2026-01-01 00:00",
-			status: "proposed",
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "",
-		}),
 	);
 }
 
@@ -627,14 +610,13 @@ describe("dependency defects", () => {
 	});
 });
 
-describe("document and decision identity", () => {
+describe("document identity", () => {
 	beforeEach(async () => {
 		await removeDuplicateTasks();
 	});
 
 	it("reports a project with no colliding IDs as healthy", async () => {
 		await writeDocument("doc-1 - Alpha.md", "doc-1", "Alpha");
-		await writeDecision("decision-1 - Alpha.md", "decision-1", "Alpha");
 
 		const result = await $`bun ${cliPath} doctor`.cwd(testDir).quiet().nothrow();
 		const output = `${result.stdout}${result.stderr}`;
@@ -644,7 +626,6 @@ describe("document and decision identity", () => {
 
 	it("reports duplicate and drifted draft identities and contributes to the exit code", async () => {
 		await writeDocument("doc-1 - Alpha.md", "doc-1", "Alpha");
-		await writeDecision("decision-1 - Alpha.md", "decision-1", "Alpha");
 
 		const draftsDir = await core.filesystem.getDraftsDir();
 		await Bun.write(
@@ -668,11 +649,9 @@ describe("document and decision identity", () => {
 		expect(output).toContain("Fix the frontmatter id or rename each file so they agree.");
 	});
 
-	it("detects duplicate document and decision IDs", async () => {
+	it("detects duplicate document IDs", async () => {
 		await writeDocument("doc-1 - Alpha.md", "doc-1", "Alpha");
 		await writeDocument("nested/doc-01 - Beta.md", "doc-01", "Beta");
-		await writeDecision("decision-2 - Gamma.md", "decision-2", "Gamma");
-		await writeDecision("decision-002 - Delta.md", "decision-002", "Delta");
 
 		const result = await $`bun ${cliPath} doctor`.cwd(testDir).quiet().nothrow();
 		const output = `${result.stdout}${result.stderr}`;
@@ -680,34 +659,24 @@ describe("document and decision identity", () => {
 		expect(output).toContain("Duplicate document IDs (diagnostic only)");
 		expect(output).toContain("backlog/docs/doc-1 - Alpha.md");
 		expect(output).toContain("backlog/docs/nested/doc-01 - Beta.md");
-		expect(output).toContain("Duplicate decision IDs (diagnostic only)");
-		expect(output).toContain("backlog/decisions/decision-2 - Gamma.md");
-		expect(output).toContain("backlog/decisions/decision-002 - Delta.md");
 	});
 
-	it("surfaces documents and decisions without an id as malformed", async () => {
+	it("surfaces documents without an id as malformed", async () => {
 		await writeDocument("orphan.md", "", "Orphan doc");
-		await writeDecision("decision-orphan.md", "", "Orphan decision");
 
 		const result = await $`bun ${cliPath} doctor`.cwd(testDir).quiet().nothrow();
 		const output = `${result.stdout}${result.stderr}`;
 		expect(result.exitCode).toBe(1);
 		expect(output).toContain("Malformed document files without an id in frontmatter");
 		expect(output).toContain("backlog/docs/orphan.md");
-		expect(output).toContain("Malformed decision files without an id in frontmatter");
-		expect(output).toContain("backlog/decisions/decision-orphan.md");
 	});
 
-	it("never reports healthy when a document or decision file cannot be parsed", async () => {
+	it("never reports healthy when a document file cannot be parsed", async () => {
 		await writeDocument("doc-1 - Alpha.md", "doc-1", "Alpha");
 		// gray-matter rejects an unterminated flow collection, so these files cannot be parsed at all.
 		await Bun.write(
 			join(core.filesystem.docsDir, "doc-2 - Broken.md"),
 			"---\nid: doc-2\ntitle: [unterminated\n---\n\ndoc body\n",
-		);
-		await Bun.write(
-			join(core.filesystem.decisionsDir, "decision-2 - Broken.md"),
-			"---\nid: decision-2\ntitle: [unterminated\n---\n\ndecision body\n",
 		);
 
 		const result = await $`bun ${cliPath} doctor`.cwd(testDir).quiet().nothrow();
@@ -716,8 +685,6 @@ describe("document and decision identity", () => {
 		expect(output).not.toContain("No duplicate IDs, self-referential dependencies, or dependency cycles found.");
 		expect(output).toContain("Unreadable document files");
 		expect(output).toContain("backlog/docs/doc-2 - Broken.md");
-		expect(output).toContain("Unreadable decision files");
-		expect(output).toContain("backlog/decisions/decision-2 - Broken.md");
 	});
 
 	it.skipIf(process.platform === "win32")("reports a document directory it cannot scan", async () => {

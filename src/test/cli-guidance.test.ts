@@ -103,7 +103,7 @@ describe("CLI Integration", () => {
 			expect(overview).not.toContain("backlog task edit BACK-123 --check-ac 1");
 			expect(overview).not.toContain("backlog task edit BACK-123 -s Done");
 			expect(overview).toContain(
-				"Never edit task, draft, document, decision, or milestone markdown files directly; commands preserve metadata, relationships, and history.",
+				"Never edit task, draft, document, or milestone markdown files directly; commands preserve metadata, relationships, and history.",
 			);
 			expect(overview).not.toContain("MCP Tools Quick Reference");
 			expect(overview).not.toContain("backlog://workflow/");
@@ -113,10 +113,10 @@ describe("CLI Integration", () => {
 				"- A description that captures why the task exists: the problem, trigger, or user need behind it, plus any context a future agent cannot recover from the code. The acceptance criteria already state what will be true when the work is done — do not restate them here.",
 			);
 			expect(taskCreation).toContain(
-				'-d "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks, docs, and decisions."',
+				'-d "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks and docs."',
 			);
 			expect(taskCreation).toContain(
-				'Too thin: `-d "Users can search tasks, docs, and decisions from one CLI command."` states the change but not the need,\nso a future agent cannot weigh scope or alternatives.',
+				'Too thin: `-d "Users can search tasks and docs from one CLI command."` states the change but not the need,\nso a future agent cannot weigh scope or alternatives.',
 			);
 			expect(taskCreation).toContain('backlog search "desktop app" --limit 10 --plain');
 			expect(taskCreation).toContain(
@@ -508,7 +508,7 @@ describe("CLI Integration", () => {
 			expect(docHelp).toContain("type: one of: readme, guide, specification, other");
 			expect(configHelp).toContain("key: one of: defaultEditor, projectName, defaultAssignee, defaultStatus");
 			expect(configHelp).toContain("value: String");
-			expect(searchHelp).toContain("type: one or more of: task, document, decision");
+			expect(searchHelp).toContain("type: one or more of: task, document");
 			expect(searchHelp).toContain("status: one or more of configured statuses: To Do, In Progress, Done");
 			expect(searchHelp).not.toContain("status: one of configured statuses: Draft, To Do, In Progress, Done");
 			expect(searchHelp).toContain("priority: one of configured priorities: High, Medium, Low");

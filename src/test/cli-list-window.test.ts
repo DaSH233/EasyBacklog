@@ -117,17 +117,6 @@ describe("CLI list windows", () => {
 		}
 		for (const index of [1, 2, 3]) {
 			await core.filesystem.saveDraft(buildTask({ id: `DRAFT-${index}`, title: `Draft ${index}`, status: "Draft" }));
-			await core.filesystem.saveDecision({
-				id: `decision-${index}`,
-				// A decision titled exactly like the search query outranks the tasks, so relevance order mixes types.
-				title: index === 1 ? "Window" : `Decision ${index}`,
-				date: "2026-09-01",
-				status: "accepted",
-				context: "",
-				decision: "",
-				consequences: "",
-				rawContent: "",
-			});
 		}
 		// Two documents share a title, so only their path keeps their order stable.
 		await core.createDocument({
@@ -175,7 +164,7 @@ describe("CLI list windows", () => {
 
 	it("pages plain search output in the order it groups results", async () => {
 		const relevance = await runJson(["search", "window"]);
-		expect(relevance.results[0].type).toBe("decision");
+		expect(relevance.results[0].type).toBe("task");
 		const complete = await runCli(["search", "window", "--plain"]);
 
 		const windows = await followWindows(["search", "window", "--max-count", "2", "--plain"]);
@@ -256,25 +245,20 @@ describe("CLI list windows", () => {
 	});
 
 	it("prints only the footer for a skip past the end", async () => {
-		const result = await runCli(["decision", "list", "--skip", "5"]);
+		const result = await runCli(["doc", "list", "--skip", "5"]);
 		expect(result.stdout).toBe("Showing 0 of 3 items.\n");
 	});
 
-	it("pages search, document search, and decision results", async () => {
-		const search = await runCli(["search", "--type", "decision", "--max-count", "2", "--plain"]);
-		expect(idsIn(search.stdout, /decision-\d+/g)).toEqual(["decision-1", "decision-2"]);
-		expect(search.stdout).toContain("Showing 1-2 of 3 items. Next: backlog search --type decision --max-count 2");
-		expect(await runJson(["search", "--type", "decision", "--max-count", "1", "--skip", "1"])).toMatchObject({
-			results: [{ type: "decision", data: { id: "decision-2" } }],
+	it("pages search and document search results", async () => {
+		const search = await runCli(["search", "--type", "document", "--max-count", "2", "--plain"]);
+		expect(idsIn(search.stdout, /doc-\d+/g)).toEqual(["doc-2", "doc-1"]);
+		expect(search.stdout).toContain("Showing 1-2 of 3 items. Next: backlog search --type document --max-count 2");
+		expect(await runJson(["search", "--type", "document", "--max-count", "1", "--skip", "1"])).toMatchObject({
+			results: [{ type: "document", data: { id: "doc-1" } }],
 			total: 3,
 			nextSkip: 2,
 		});
-		expect((await runCli(["search", "--type", "decision", "--count"])).stdout).toBe("3\n");
-
-		const decisions = await runCli(["decision", "list", "--max-count", "2", "--skip", "2"]);
-		expect(idsIn(decisions.stdout, /decision-\d+/g)).toEqual(["decision-3"]);
-		expect(decisions.stdout).toContain("Showing 3-3 of 3 items.");
-		expect(await runJson(["decision", "list", "--max-count", "1"])).toMatchObject({ total: 3, nextSkip: 1 });
+		expect((await runCli(["search", "--type", "document", "--count"])).stdout).toBe("3\n");
 
 		const documentViews = idsIn((await runCli(["doc", "search", "Guide"])).stdout, /View: backlog doc view doc-\d+/g);
 		const firstDocument = await runCli(["doc", "search", "Guide", "--max-count", "1"]);

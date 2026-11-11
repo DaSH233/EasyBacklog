@@ -157,7 +157,7 @@ describe("Web language preference", () => {
 		await render(
 			<MemoryRouter>
 				<Settings />
-				<SideNavigation taskCount={1} docs={[]} decisions={[]} isLoading={false} onRefreshData={async () => {}} />
+				<SideNavigation taskCount={1} docs={[]} isLoading={false} onRefreshData={async () => {}} />
 			</MemoryRouter>,
 		);
 		const projectName = container.querySelector<HTMLInputElement>("#projectName")!;

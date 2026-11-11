@@ -41,21 +41,6 @@ const KINDS = [
 		create: (core: Core, title: string) =>
 			core.createDocumentFromInput({ title, content: "Runbook steps." }).then((document) => document.id),
 	},
-	{
-		kind: "decision",
-		route: (id: string) => `/api/decisions/${id}/archive`,
-		list: "/api/decisions",
-		searchType: "decision",
-		folder: "decisions",
-		archiveFolder: "archive/decisions",
-		id: "decision-1",
-		otherId: "decision-9",
-		missingId: "decision-42",
-		cliCommand: "backlog decision",
-		file: "decision-1 - Retired-runbook.md",
-		noun: "Decision",
-		create: (core: Core, title: string) => core.createDecisionWithTitle(title).then((decision) => decision.id),
-	},
 ] as const;
 
 /**
@@ -189,13 +174,8 @@ describe.each([...KINDS])("POST archive route for a $kind", (kind) => {
 	});
 });
 
-describe("the web has no delete or restore route for documents and decisions", () => {
-	it.each([
-		"/api/docs/doc-1/delete",
-		"/api/docs/doc-1/restore",
-		"/api/decisions/decision-1/delete",
-		"/api/decisions/decision-1/restore",
-	])("POST %s changes nothing", async (path) => {
+describe("the web has no delete or restore route for documents", () => {
+	it.each(["/api/docs/doc-1/delete", "/api/docs/doc-1/restore"])("POST %s changes nothing", async (path) => {
 		await startServer(false);
 		expect((await postArchive(path.replace(/\/(delete|restore)$/, "/archive"))).status).toBe(200);
 		const archivedFiles = await git("status", "--porcelain");

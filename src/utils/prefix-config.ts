@@ -18,13 +18,13 @@ export const DRAFT_PREFIX = "draft";
 const DOC_PREFIX = "doc";
 
 /**
- * Hardcoded decision prefix. Not configurable - always "decision".
+ * Retired record prefix: keep reserved so old IDs are never reused for tasks.
  */
 const DECISION_PREFIX = "decision";
 
 /**
  * Prefixes owned by system entity types. A configurable task prefix matching one
- * of these collides with drafts, documents, or decisions and misroutes their IDs.
+ * of these collides with current or historical record identities.
  */
 const RESERVED_TASK_PREFIXES = [DRAFT_PREFIX, DOC_PREFIX, DECISION_PREFIX];
 
@@ -468,7 +468,6 @@ export function escapeRegex(str: string): string {
  * getPrefixForType(EntityType.Task, { prefixes: { task: "JIRA" } }) // => "JIRA"
  * getPrefixForType(EntityType.Draft) // => "draft"
  * getPrefixForType(EntityType.Document) // => "doc"
- * getPrefixForType(EntityType.Decision) // => "decision"
  */
 export function getPrefixForType(type: EntityType, config?: BacklogConfig): string {
 	switch (type) {
@@ -478,8 +477,6 @@ export function getPrefixForType(type: EntityType, config?: BacklogConfig): stri
 			return DRAFT_PREFIX;
 		case EntityType.Document:
 			return DOC_PREFIX;
-		case EntityType.Decision:
-			return DECISION_PREFIX;
 		default:
 			return type;
 	}

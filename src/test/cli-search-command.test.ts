@@ -57,24 +57,13 @@ describe("CLI search command", () => {
 			createdDate: "2025-09-18",
 			rawContent: "# Search Architecture Notes\nCentral search design",
 		});
-
-		await core.filesystem.saveDecision({
-			id: "decision-1",
-			title: "Adopt centralized search",
-			date: "2025-09-18",
-			status: "accepted",
-			context: "Discussed search consolidation",
-			decision: "Adopt shared Fuse index",
-			consequences: "Unified search paths",
-			rawContent: "## Context\nDiscussed search consolidation\n\n## Decision\nAdopt shared Fuse index",
-		});
 	});
 
 	afterEach(async () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	it("returns matching tasks, documents, and decisions in plain output", async () => {
+	it("returns matching tasks and documents in plain output", async () => {
 		const result = await $`bun ${cliPath} search central --plain`.cwd(TEST_DIR).quiet();
 
 		expect(result.exitCode).toBe(0);
@@ -83,8 +72,7 @@ describe("CLI search command", () => {
 		expect(stdout).toContain("TASK-1 - Central search integration");
 		expect(stdout).toContain("Documents:");
 		expect(stdout).toContain("doc-1 - Search Architecture Notes");
-		expect(stdout).toContain("Decisions:");
-		expect(stdout).toContain("decision-1 - Adopt centralized search");
+		expect(stdout).not.toContain("Decisions:");
 	});
 
 	it("honors status and priority filters for task results", async () => {

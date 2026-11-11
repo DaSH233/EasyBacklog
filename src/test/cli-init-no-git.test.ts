@@ -83,7 +83,7 @@ describe("CLI init without Git", () => {
 		expect(await pathExists(join(TEST_DIR, ".git"))).toBe(false);
 	});
 
-	test("local task, draft, document, decision, milestone, and list flows work without Git", async () => {
+	test("local task, draft, document, milestone, and list flows work without Git", async () => {
 		const core = await initFilesystemOnlyProject();
 
 		expect(await core.gitOps.listAllBranches()).toEqual([]);
@@ -102,10 +102,6 @@ describe("CLI init without Git", () => {
 		expect(docResult.exitCode).toBe(0);
 		expect(docResult.stdout.toString()).toContain("Created document doc-1");
 
-		const decisionResult = await $`bun ${CLI_PATH} decision create "No Git Decision"`.cwd(TEST_DIR).quiet();
-		expect(decisionResult.exitCode).toBe(0);
-		expect(decisionResult.stdout.toString()).toContain("Created decision decision-1");
-
 		const promotedResult = await $`bun ${CLI_PATH} draft promote draft-1`.cwd(TEST_DIR).quiet();
 		expect(promotedResult.exitCode).toBe(0);
 		expect(promotedResult.stdout.toString()).toContain("Promoted draft DRAFT-1");
@@ -116,13 +112,11 @@ describe("CLI init without Git", () => {
 
 		const tasks = await core.loadTasks();
 		const documents = await core.filesystem.listDocuments();
-		const decisions = await core.filesystem.listDecisions();
 		const archivedMilestones = await core.filesystem.listArchivedMilestones();
 
 		expect(tasks.map((task) => task.title)).toContain("No Git Task");
 		expect(tasks.map((task) => task.title)).toContain("No Git Draft");
 		expect(documents.map((doc) => doc.title)).toContain("No Git Doc");
-		expect(decisions.map((decision) => decision.title)).toContain("No Git Decision");
 		expect(archivedMilestones.map((item) => item.title)).toContain("No Git Milestone");
 		expect(await core.gitOps.getStatus()).toBe("");
 	});
@@ -135,9 +129,7 @@ describe("CLI init without Git", () => {
 
 		await $`git checkout -b stale-backlog`.cwd(TEST_DIR).quiet();
 		await mkdir(join(TEST_DIR, "backlog", "docs"), { recursive: true });
-		await mkdir(join(TEST_DIR, "backlog", "decisions"), { recursive: true });
 		await Bun.write(join(TEST_DIR, "backlog", "docs", "doc-8 - stale.md"), "# stale\n");
-		await Bun.write(join(TEST_DIR, "backlog", "decisions", "decision-8 - stale.md"), "# stale\n");
 		await $`git add backlog`.cwd(TEST_DIR).quiet();
 		await $`git commit -m "add stale backlog ids"`.cwd(TEST_DIR).quiet();
 		await $`git checkout main`.cwd(TEST_DIR).quiet();
@@ -150,9 +142,5 @@ describe("CLI init without Git", () => {
 		const docResult = await $`bun ${CLI_PATH} doc create "Fresh Doc"`.cwd(TEST_DIR).quiet();
 		expect(docResult.exitCode).toBe(0);
 		expect(docResult.stdout.toString()).toContain("Created document doc-1");
-
-		const decisionResult = await $`bun ${CLI_PATH} decision create "Fresh Decision"`.cwd(TEST_DIR).quiet();
-		expect(decisionResult.exitCode).toBe(0);
-		expect(decisionResult.stdout.toString()).toContain("Created decision decision-1");
 	});
 });

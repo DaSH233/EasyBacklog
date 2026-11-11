@@ -207,16 +207,9 @@ describe.skipIf(isWindows())("auto-commit of record files reached through a symb
 		},
 	);
 
-	/** Documents and decisions go through the same archive, restore and delete; each kind is checked. */
+	/** Documents go through the same archive, restore and delete; each kind is checked. */
 	const CONTENT_KINDS = [
 		{ noun: "document", command: "doc", folder: "docs", id: "doc-1", name: "doc-1 - Linked-record.md" },
-		{
-			noun: "decision",
-			command: "decision",
-			folder: "decisions",
-			id: "decision-1",
-			name: "decision-1 - Linked-record.md",
-		},
 	] as const;
 
 	it.each(

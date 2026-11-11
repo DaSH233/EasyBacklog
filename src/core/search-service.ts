@@ -1,13 +1,5 @@
 import Fuse, { type FuseResult, type FuseResultMatch } from "fuse.js";
-import type {
-	Decision,
-	Document,
-	SearchMatch,
-	SearchOptions,
-	SearchResult,
-	SearchResultType,
-	Task,
-} from "../types/index.ts";
+import type { Document, SearchMatch, SearchOptions, SearchResult, SearchResultType, Task } from "../types/index.ts";
 import {
 	buildTaskSearchFields,
 	createTaskFilterMatcher,
@@ -17,7 +9,7 @@ import {
 import type { ContentStore, ContentStoreEvent } from "./content-store.ts";
 
 /**
- * Documents and decisions are indexed with the same Fuse keys as tasks, so they expose the task
+ * Documents are indexed with the same Fuse keys as tasks, so they expose the task
  * search fields with empty values for the task-only ones.
  */
 const EMPTY_TASK_SEARCH_FIELDS: Omit<TaskSearchFields, "title" | "bodyText" | "id"> = {
@@ -40,12 +32,7 @@ interface DocumentSearchEntity extends BaseSearchEntity {
 	readonly document: Document;
 }
 
-interface DecisionSearchEntity extends BaseSearchEntity {
-	readonly type: "decision";
-	readonly decision: Decision;
-}
-
-type SearchEntity = TaskSearchEntity | DocumentSearchEntity | DecisionSearchEntity;
+type SearchEntity = TaskSearchEntity | DocumentSearchEntity;
 
 export class SearchService {
 	private initialized = false;
@@ -54,7 +41,6 @@ export class SearchService {
 	private fuse: Fuse<SearchEntity> | null = null;
 	private tasks: TaskSearchEntity[] = [];
 	private documents: DocumentSearchEntity[] = [];
-	private decisions: DecisionSearchEntity[] = [];
 	private collection: SearchEntity[] = [];
 	private version = 0;
 
@@ -84,7 +70,6 @@ export class SearchService {
 		this.collection = [];
 		this.tasks = [];
 		this.documents = [];
-		this.decisions = [];
 		this.initialized = false;
 		this.initializing = null;
 	}
@@ -97,9 +82,7 @@ export class SearchService {
 		const { query = "", limit, types, filters } = options;
 
 		const trimmedQuery = query.trim();
-		const allowedTypes = new Set<SearchResultType>(
-			types && types.length > 0 ? types : ["task", "document", "decision"],
-		);
+		const allowedTypes = new Set<SearchResultType>(types && types.length > 0 ? types : ["task", "document"]);
 		const matchesTaskFilters = createTaskFilterMatcher(filters ?? {});
 
 		if (trimmedQuery === "") {
@@ -135,7 +118,7 @@ export class SearchService {
 
 	private async initialize(): Promise<void> {
 		const snapshot = await this.store.ensureInitialized();
-		this.applySnapshot(snapshot.tasks, snapshot.documents, snapshot.decisions);
+		this.applySnapshot(snapshot.tasks, snapshot.documents);
 
 		if (!this.unsubscribe) {
 			this.unsubscribe = this.store.subscribe((event) => {
@@ -152,10 +135,10 @@ export class SearchService {
 			return;
 		}
 		this.version = event.version;
-		this.applySnapshot(event.snapshot.tasks, event.snapshot.documents, event.snapshot.decisions);
+		this.applySnapshot(event.snapshot.tasks, event.snapshot.documents);
 	}
 
-	private applySnapshot(tasks: Task[], documents: Document[], decisions: Decision[]): void {
+	private applySnapshot(tasks: Task[], documents: Document[]): void {
 		this.tasks = tasks.map((task) => ({
 			...buildTaskSearchFields(task),
 			type: "task",
@@ -171,16 +154,7 @@ export class SearchService {
 			document,
 		}));
 
-		this.decisions = decisions.map((decision) => ({
-			...EMPTY_TASK_SEARCH_FIELDS,
-			id: decision.id,
-			type: "decision",
-			title: decision.title,
-			bodyText: decision.rawContent ?? "",
-			decision,
-		}));
-
-		this.collection = [...this.tasks, ...this.documents, ...this.decisions];
+		this.collection = [...this.tasks, ...this.documents];
 		this.rebuildFuse();
 	}
 
@@ -221,15 +195,6 @@ export class SearchService {
 			}
 		}
 
-		if (allowedTypes.has("decision")) {
-			for (const entity of this.decisions) {
-				results.push(this.mapEntityToResult(entity));
-				if (limit && results.length >= limit) {
-					return results;
-				}
-			}
-		}
-
 		return results;
 	}
 
@@ -246,19 +211,10 @@ export class SearchService {
 			};
 		}
 
-		if (entity.type === "document") {
-			return {
-				type: "document",
-				score,
-				document: entity.document,
-				matches,
-			};
-		}
-
 		return {
-			type: "decision",
+			type: "document",
 			score,
-			decision: entity.decision,
+			document: entity.document,
 			matches,
 		};
 	}

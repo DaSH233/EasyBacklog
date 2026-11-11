@@ -280,10 +280,10 @@ describe("McpServer bootstrap", () => {
 			"Keeping the description focused means leaving out implementation detail, not leaving out the why.",
 		);
 		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
-			'- Example `description`: "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks, docs, and decisions."',
+			'- Example `description`: "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks and docs."',
 		);
 		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
-			'- Too thin: "Users can search tasks, docs, and decisions from one CLI command." states the change but not the need, so a future agent cannot weigh scope or alternatives',
+			'- Too thin: "Users can search tasks and docs from one CLI command." states the change but not the need, so a future agent cannot weigh scope or alternatives',
 		);
 		expect(MCP_TASK_CREATION_GUIDE + MCP_WORKFLOW_REFERENCE).toContain(
 			"this limits code detail, not the reason the work is needed",
@@ -406,7 +406,7 @@ describe("McpServer bootstrap", () => {
 			"document_delete",
 			"document_search",
 		]);
-		// Decisions are archived, restored and deleted from the CLI only; MCP has no decision tool.
+		// Decisions are no longer a separate record type.
 		expect(tools.tools.filter((tool) => tool.name.startsWith("decision_"))).toEqual([]);
 
 		const resources = await server.testInterface.listResources();

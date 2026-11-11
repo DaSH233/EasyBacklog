@@ -17,7 +17,7 @@ interface Token {
 	malformed: boolean;
 }
 
-const RESULT_TYPES: SearchResultType[] = ["task", "document", "decision"];
+const RESULT_TYPES: SearchResultType[] = ["task", "document"];
 
 export function parseSearchCommandQuery(input: string): ParsedSearchCommandQuery {
 	const result: ParsedSearchCommandQuery = { query: "" };

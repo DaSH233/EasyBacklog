@@ -1,13 +1,6 @@
 import { isAbsolute, join, relative } from "node:path";
 import type { TaskDetail, TaskListItem } from "../core/task-detail.ts";
-import type {
-	Decision,
-	DecisionSearchResult,
-	Document,
-	DocumentSearchResult,
-	Task,
-	TaskSearchResult,
-} from "../types/index.ts";
+import type { Document, DocumentSearchResult, Task, TaskSearchResult } from "../types/index.ts";
 import type { DependencyGraph } from "../utils/dependency-graph.ts";
 import type { ListPage } from "../utils/list-window.ts";
 import type { TaskReadiness } from "../utils/readiness.ts";
@@ -97,17 +90,7 @@ type DocumentSummaryJson = {
 	updatedAt: string | null;
 };
 
-type DecisionSummaryJson = {
-	id: string;
-	title: string;
-	status: Decision["status"];
-	date: string | null;
-};
-
-type SearchResultJson =
-	| { type: "task"; data: TaskSummaryJson }
-	| { type: "document"; data: DocumentSummaryJson }
-	| { type: "decision"; data: DecisionSummaryJson };
+type SearchResultJson = { type: "task"; data: TaskSummaryJson } | { type: "document"; data: DocumentSummaryJson };
 
 function nullable(value: string | undefined): string | null {
 	return value ?? null;
@@ -217,15 +200,6 @@ function toDocumentSummaryJson(document: Document, projectRoot: string, docsDir:
 	};
 }
 
-function toDecisionSummaryJson(decision: Decision): DecisionSummaryJson {
-	return {
-		id: decision.id,
-		title: decision.title,
-		status: decision.status,
-		date: normalizePublicDate(decision.date),
-	};
-}
-
 /** A list cut by `--skip` or `--max-count` reports how many items matched and where the next window starts. */
 function cutListJson(page: ListPage<unknown> | undefined): { total?: number; nextSkip?: number | null } {
 	return page?.cut ? { total: page.total, nextSkip: page.nextSkip } : {};
@@ -252,15 +226,6 @@ export function taskViewJson(task: TaskDetail, projectRoot: string) {
 	};
 }
 
-export function decisionListJson(decisions: Decision[], page?: ListPage<unknown>) {
-	return {
-		schemaVersion: 1,
-		kind: "decision-list" as const,
-		decisions: decisions.map(toDecisionSummaryJson),
-		...cutListJson(page),
-	};
-}
-
 /**
  * A search result set whose task records already carry readiness.
  *
@@ -269,7 +234,6 @@ export function decisionListJson(decisions: Decision[], page?: ListPage<unknown>
  */
 export type SearchResultInput =
 	| DocumentSearchResult
-	| DecisionSearchResult
 	| (Omit<TaskSearchResult, "task"> & {
 			task: TaskListItem;
 	  });
@@ -289,9 +253,7 @@ export function searchJson(
 		}
 		if (result.type === "document") {
 			publicResults.push({ type: "document", data: toDocumentSummaryJson(result.document, projectRoot, docsDir) });
-			continue;
 		}
-		publicResults.push({ type: "decision", data: toDecisionSummaryJson(result.decision) });
 	}
 	return { schemaVersion: 1, kind: "search" as const, results: publicResults, ...cutListJson(page) };
 }

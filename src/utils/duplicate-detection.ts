@@ -6,7 +6,7 @@ export type DuplicateGroup = {
 	tasks: Task[];
 };
 
-/** Duplicate, missing-ID, and unreadable-file findings for documents or decisions. */
+/** Duplicate, missing-ID, and unreadable-file findings for documents. */
 export type ContentIdentityIssues = {
 	duplicates: Array<{ id: string; paths: string[] }>;
 	missingIds: string[];
@@ -43,7 +43,6 @@ export function detectContentIdentityIssues(
 
 export type ContentIdentityReport = {
 	documents: ContentIdentityIssues;
-	decisions: ContentIdentityIssues;
 };
 
 /** Duplicate, drifted, and unreadable findings for draft files. */
@@ -58,7 +57,7 @@ export function hasDraftIdentityFindings(findings: DraftIdentityFindings): boole
 }
 
 export function hasContentIdentityIssues(report: ContentIdentityReport): boolean {
-	return [report.documents, report.decisions].some(
+	return [report.documents].some(
 		(issues) => issues.duplicates.length > 0 || issues.missingIds.length > 0 || issues.unreadable.length > 0,
 	);
 }

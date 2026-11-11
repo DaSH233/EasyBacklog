@@ -12,7 +12,7 @@ Restore (`backlog task restore {{TASK_ID:123}}`) moves an archived task back to 
 
 Deleting a task takes two steps: archive it, then run `backlog task delete {{TASK_ID:123}}`. Delete permanently removes the archived task and releases its ID once no other branch or worktree still holds the task. It removes the dependencies and references other tasks and drafts hold to it and names the tasks and drafts it changed. A task whose subtasks still exist, as tasks or as drafts, is not deleted.
 
-Use the CLI for Backlog changes. Never edit task, draft, document, decision, or milestone markdown files directly; commands preserve metadata, relationships, and history.
+Use the CLI for Backlog changes. Never edit task, draft, document, or milestone markdown files directly; commands preserve metadata, relationships, and history.
 
 Recommended CLI commands:
 
@@ -58,13 +58,13 @@ Examples:
 
 ```bash
 backlog task create "Add project search" \
-  -d "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks, docs, and decisions." \
+  -d "Finding anything means running separate commands, and matches in the ones you skip are missed silently. One search command covers tasks and docs." \
   --ac "Search returns matching tasks by title and description" \
   --ac "Search supports --plain output" \
-  --ac "Tests cover task, document, and decision results"
+  --ac "Tests cover task and document results"
 ```
 
-Too thin: `-d "Users can search tasks, docs, and decisions from one CLI command."` states the change but not the need,
+Too thin: `-d "Users can search tasks and docs from one CLI command."` states the change but not the need,
 so a future agent cannot weigh scope or alternatives.
 
 ```bash
@@ -105,13 +105,12 @@ Use CLI commands for Backlog changes:
 - Archive docs: `backlog doc archive doc-1` moves the file to `backlog/archive/docs/`. The ID stays reserved. The document stays viewable with `backlog doc view` and is read-only. Tasks and drafts whose documentation names the file are printed, not changed.
 - Restore docs: `backlog doc restore doc-1` moves an archived document back to `backlog/docs/` with the same ID.
 - Delete docs: archive first, then `backlog doc delete doc-1`. Delete asks no question, removes the file and releases the ID. Tasks and drafts whose documentation names the file are printed, not changed.
-- Decisions follow the same steps: `backlog decision archive decision-1` moves the file to `backlog/archive/decisions/`, keeps the ID reserved and makes the decision read-only; `backlog decision restore decision-1` brings it back; `backlog decision delete decision-1` removes an archived decision without a question and releases the ID. Tasks and drafts whose documentation names the file are printed, not changed.
 
 For documentation links on tasks or drafts, `task edit` and `draft edit` use `--doc` to replace the full list. Use
 `--add-doc` or `--remove-doc` to change individual entries; both accept repeated flags or comma-separated values.
 Use `--clear-docs` to remove all entries. Do not combine replacement or clear flags with add/remove flags.
 
-For programmatic reads, `task list`, `task view`, `task <id>`, `draft list`, `decision list`, and `search` accept `--json`. JSON mode is noninteractive, versioned, and cannot be combined with `--plain`.
+For programmatic reads, `task list`, `task view`, `task <id>`, `draft list`, and `search` accept `--json`. JSON mode is noninteractive, versioned, and cannot be combined with `--plain`.
 
 Do not edit Backlog markdown files directly. The CLI preserves metadata, IDs, filenames, relationships, and structured sections.
 

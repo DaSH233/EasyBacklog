@@ -2,8 +2,8 @@ import { type FSWatcher, watch } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { FileSystem } from "../file-system/operations.ts";
-import { parseDecision, parseDocument, parseTask } from "../markdown/parser.ts";
-import type { BacklogConfig, Decision, Document, Task, TaskListFilter } from "../types/index.ts";
+import { parseDocument, parseTask } from "../markdown/parser.ts";
+import type { BacklogConfig, Document, Task, TaskListFilter } from "../types/index.ts";
 import { watchConfigFile } from "../utils/config-watcher.ts";
 import { documentIdKey, documentIdsEqual } from "../utils/document-id.ts";
 import { normalizeDocumentRelativePath } from "../utils/document-path.ts";
@@ -39,18 +39,16 @@ type TaskLoaderOptions = { publish?: boolean };
 interface ContentSnapshot {
 	tasks: Task[];
 	documents: Document[];
-	decisions: Decision[];
 	taskCorpus?: TaskCorpusSnapshot;
 }
 
-type ContentStoreEventType = "ready" | "tasks" | "documents" | "decisions";
-type ContentCollection = "tasks" | "documents" | "decisions";
+type ContentStoreEventType = "ready" | "tasks" | "documents";
+type ContentCollection = "tasks" | "documents";
 
 export type ContentStoreEvent =
 	| { type: "ready"; snapshot: ContentSnapshot; version: number }
 	| { type: "tasks"; tasks: Task[]; snapshot: ContentSnapshot; version: number }
 	| { type: "documents"; documents: Document[]; snapshot: ContentSnapshot; version: number }
-	| { type: "decisions"; decisions: Decision[]; snapshot: ContentSnapshot; version: number }
 	| { type: "config"; config: BacklogConfig; snapshot: ContentSnapshot; version: number };
 
 export type ContentStoreListener = (event: ContentStoreEvent) => void;
@@ -113,7 +111,6 @@ export class ContentStore {
 
 	private readonly tasks = new Map<string, Task>();
 	private readonly documents = new Map<string, Document>();
-	private readonly decisions = new Map<string, Decision>();
 
 	private cachedTasks: Task[] = [];
 	private activeTasks: Task[] = [];
@@ -122,7 +119,6 @@ export class ContentStore {
 	private branchTaskStateEntries: BranchTaskStateEntry[] = [];
 	private taskCorpusConfig: BacklogConfig | null | undefined;
 	private cachedDocuments: Document[] = [];
-	private cachedDecisions: Decision[] = [];
 
 	private readonly listeners = new Set<ContentStoreListener>();
 	private readonly rootWatchers: WatchHandle[] = [];
@@ -136,22 +132,18 @@ export class ContentStore {
 	private readonly contentRefreshGenerations: Record<ContentCollection, number> = {
 		tasks: 0,
 		documents: 0,
-		decisions: 0,
 	};
 	private readonly contentItemGenerations: Record<ContentCollection, Map<string, number>> = {
 		tasks: new Map(),
 		documents: new Map(),
-		decisions: new Map(),
 	};
 	private readonly contentItemVersions: Record<ContentCollection, Map<string, number>> = {
 		tasks: new Map(),
 		documents: new Map(),
-		decisions: new Map(),
 	};
 	private readonly contentItemPublicationRoots: Record<ContentCollection, Map<string, string>> = {
 		tasks: new Map(),
 		documents: new Map(),
-		decisions: new Map(),
 	};
 	private readonly pendingTaskPublications = new Map<string, { root: string; task: Task }>();
 	private publishedRoot: string;
@@ -507,18 +499,10 @@ export class ContentStore {
 		return this.cachedDocuments.slice();
 	}
 
-	getDecisions(): Decision[] {
-		if (!this.initialized) {
-			throw new Error("ContentStore not initialized. Call ensureInitialized() first.");
-		}
-		return this.cachedDecisions.slice();
-	}
-
 	getSnapshot(): ContentSnapshot {
 		return {
 			tasks: this.cachedTasks.slice(),
 			documents: this.cachedDocuments.slice(),
-			decisions: this.cachedDecisions.slice(),
 		};
 	}
 
@@ -561,11 +545,6 @@ export class ContentStore {
 
 		if (type === "documents") {
 			this.emit({ type, documents: snapshot.documents, snapshot, version: this.version });
-			return;
-		}
-
-		if (type === "decisions") {
-			this.emit({ type, decisions: snapshot.decisions, snapshot, version: this.version });
 			return;
 		}
 
@@ -628,7 +607,6 @@ export class ContentStore {
 				(snapshot) => {
 					this.installTaskCorpus(snapshot.taskCorpus ?? this.asTaskCorpus(snapshot.tasks));
 					this.replaceDocuments(snapshot.documents);
-					this.replaceDecisions(snapshot.decisions);
 				},
 				progressCallback,
 			);
@@ -773,7 +751,6 @@ export class ContentStore {
 			const loaded = await this.loadCurrentContent(transitionEpoch, (snapshot) => {
 				this.installTaskCorpus(snapshot.taskCorpus ?? this.asTaskCorpus(snapshot.tasks));
 				this.replaceDocuments(snapshot.documents);
-				this.replaceDecisions(snapshot.decisions);
 			});
 			if (!loaded) return;
 			this.notifyConfig(config);
@@ -785,7 +762,6 @@ export class ContentStore {
 		const created: WatchHandle[] = [];
 		try {
 			created.push(await this.createTaskWatcher(epoch));
-			created.push(this.createDecisionWatcher(epoch));
 			created.push(await this.createDocumentWatcher(epoch));
 			if (!this.isRootWatcherCurrent(epoch)) {
 				for (const watcher of created) watcher.stop();
@@ -889,25 +865,21 @@ export class ContentStore {
 		const generations: Record<ContentCollection, number> = {
 			tasks: this.nextContentRefreshGeneration("tasks"),
 			documents: this.nextContentRefreshGeneration("documents"),
-			decisions: this.nextContentRefreshGeneration("decisions"),
 		};
 		const before = this.getSnapshot();
 		const itemVersions: Record<ContentCollection, Map<string, number>> = {
 			tasks: new Map(this.contentItemVersions.tasks),
 			documents: new Map(this.contentItemVersions.documents),
-			decisions: new Map(this.contentItemVersions.decisions),
 		};
-		const [taskCorpus, documents, decisions] = await Promise.all([
+		const [taskCorpus, documents] = await Promise.all([
 			this.loadTasksWithLoader(progressCallback),
 			this.filesystem.listDocuments(),
-			this.filesystem.listDecisions(),
 		]);
 		if (
 			!this.isRootWatcherCurrent(epoch) ||
 			targetRoot !== this.currentRoot() ||
 			!this.isContentRefreshCurrent("tasks", generations.tasks) ||
-			!this.isContentRefreshCurrent("documents", generations.documents) ||
-			!this.isContentRefreshCurrent("decisions", generations.decisions)
+			!this.isContentRefreshCurrent("documents", generations.documents)
 		) {
 			return false;
 		}
@@ -938,16 +910,6 @@ export class ContentStore {
 				itemVersions.documents,
 				this.contentItemVersions.documents,
 				this.contentItemPublicationRoots.documents,
-				targetRoot,
-			),
-			decisions: this.mergeConcurrentChanges(
-				decisions,
-				before.decisions,
-				this.cachedDecisions,
-				(decision) => decision.id,
-				itemVersions.decisions,
-				this.contentItemVersions.decisions,
-				this.contentItemPublicationRoots.decisions,
 				targetRoot,
 			),
 		});
@@ -1053,36 +1015,6 @@ export class ContentStore {
 		this.notify("documents");
 	}
 
-	private publishWatchedDecision(decision: Decision): void {
-		this.nextContentItemGeneration("decisions", decision.id);
-		this.nextContentItemVersion("decisions", decision.id, this.currentRoot());
-		this.decisions.set(decision.id, decision);
-		this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
-		this.notify("decisions");
-	}
-
-	/**
-	 * Puts a decision whose file just arrived in the decisions folder into the store, so lists and
-	 * search show it at once. Core calls it when it restores a decision, so that change does not wait
-	 * for a watcher event. When the event arrives, the watcher publishes the same file again.
-	 */
-	addDecision(decision: Decision): void {
-		this.publishWatchedDecision(decision);
-	}
-
-	/**
-	 * Takes the decision with this ID out of the store, so lists and search stop showing it. Called
-	 * when its file left the decisions folder: by the file watcher for a removed file, and by core
-	 * when it archives a decision, so that change does not wait for a watcher event.
-	 */
-	removeDecision(id: string): void {
-		if (!this.decisions.delete(id)) return;
-		this.nextContentItemGeneration("decisions", id);
-		this.nextContentItemVersion("decisions", id, this.currentRoot());
-		this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
-		this.notify("decisions");
-	}
-
 	private async createTaskWatcher(epoch: number): Promise<WatchHandle> {
 		const tasksDir = this.filesystem.tasksDir;
 		// Listed before the first watcher opens, so a failure here leaves nothing to close.
@@ -1183,73 +1115,6 @@ export class ContentStore {
 				for (const opened of watchers) opened.close();
 			},
 		};
-	}
-
-	private createDecisionWatcher(epoch: number): WatchHandle {
-		const decisionsDir = this.filesystem.decisionsDir;
-		const watcher: FSWatcher = watch(decisionsDir, { recursive: false }, (eventType, filename) => {
-			const file = this.normalizeFilename(filename);
-			if (!file?.startsWith("decision-") || !file.endsWith(".md")) {
-				void this.enqueueRoot(epoch, async () => this.refreshDecisionsFromDisk(undefined, epoch));
-				return;
-			}
-
-			void this.enqueueRoot(epoch, async () => {
-				const [id] = file.split(" - ");
-				if (!id) return;
-				const fullPath = join(decisionsDir, file);
-				if (eventType === "rename") {
-					await this.reconcileRenamedItem({
-						key: `decision:${id}`,
-						epoch,
-						readEventPath: async () => {
-							if (!(await Bun.file(fullPath).exists())) return null;
-							const decision = { ...parseDecision(await Bun.file(fullPath).text()), path: file };
-							if (decision.id !== id) throw new Error("Decision identity mismatch");
-							return decision;
-						},
-						findIdentity: () =>
-							this.findIdentityCandidate(
-								decisionsDir,
-								"decision-*.md",
-								(path) => basename(path).split(" - ")[0] === id,
-								async (candidatePath, candidateRelativePath) => {
-									const decision = {
-										...parseDecision(await Bun.file(candidatePath).text()),
-										path: candidateRelativePath,
-									};
-									if (decision.id !== id) throw new Error("Decision identity mismatch");
-									return decision;
-								},
-							),
-						current: () => this.decisions.get(id),
-						hasChanged: (previous, next) => this.hasDecisionChanged(previous, next),
-						publish: (decision) => this.publishWatchedDecision(decision),
-						remove: () => this.removeDecision(id),
-					});
-					return;
-				}
-
-				await this.reconcileOrSchedule(`decision:${id}`, epoch, async () => {
-					if (!(await Bun.file(fullPath).exists())) {
-						this.removeDecision(id);
-						return false;
-					}
-					try {
-						const decision = { ...parseDecision(await Bun.file(fullPath).text()), path: file };
-						if (decision.id !== id) return true;
-						const previous = this.decisions.get(id);
-						if (previous && !this.hasDecisionChanged(previous, decision)) return true;
-						this.publishWatchedDecision(decision);
-						return false;
-					} catch {
-						return true;
-					}
-				});
-			});
-		});
-		this.attachWatcherErrorHandler(watcher, "decisions");
-		return { stop: () => watcher.close() };
 	}
 
 	private async createDocumentWatcher(epoch: number): Promise<WatchHandle> {
@@ -1410,15 +1275,6 @@ export class ContentStore {
 		this.cachedDocuments = [...this.documents.values()].sort((a, b) => a.title.localeCompare(b.title));
 	}
 
-	private replaceDecisions(decisions: Decision[]): void {
-		this.invalidateContentItemGenerations("decisions");
-		this.decisions.clear();
-		for (const decision of decisions) {
-			this.decisions.set(decision.id, decision);
-		}
-		this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
-	}
-
 	private patchFilesystem(): void {
 		if (this.restoreFilesystemPatch) {
 			return;
@@ -1426,7 +1282,6 @@ export class ContentStore {
 
 		const originalSaveTask = this.filesystem.saveTask;
 		const originalSaveDocument = this.filesystem.saveDocument;
-		const originalSaveDecision = this.filesystem.saveDecision;
 
 		this.filesystem.saveTask = (async (task: Task, originalContent?: string): Promise<string> => {
 			const owner: PublicationOwner = { root: this.currentRoot() };
@@ -1443,17 +1298,9 @@ export class ContentStore {
 			return result;
 		}) as FileSystem["saveDocument"];
 
-		this.filesystem.saveDecision = (async (decision: Decision) => {
-			const owner: PublicationOwner = { root: this.currentRoot() };
-			const result = await originalSaveDecision.call(this.filesystem, decision);
-			await this.handleDecisionWrite(decision.id, owner);
-			return result;
-		}) as FileSystem["saveDecision"];
-
 		this.restoreFilesystemPatch = () => {
 			this.filesystem.saveTask = originalSaveTask;
 			this.filesystem.saveDocument = originalSaveDocument;
-			this.filesystem.saveDecision = originalSaveDecision;
 		};
 	}
 
@@ -1473,10 +1320,6 @@ export class ContentStore {
 	}
 
 	private hasDocumentChanged(previous: Document, next: Document): boolean {
-		return JSON.stringify(previous) !== JSON.stringify(next);
-	}
-
-	private hasDecisionChanged(previous: Decision, next: Decision): boolean {
 		return JSON.stringify(previous) !== JSON.stringify(next);
 	}
 
@@ -1720,43 +1563,6 @@ export class ContentStore {
 		});
 	}
 
-	private async refreshDecisionsFromDisk(expectedId?: string, epoch = this.rootWatcherEpoch): Promise<void> {
-		await this.reconcileOrSchedule(`decision:${expectedId ?? "*"}`, epoch, async () => {
-			const targetRoot = this.currentRoot();
-			const generation = this.nextContentRefreshGeneration("decisions");
-			const before = { items: this.cachedDecisions.slice(), versions: new Map(this.contentItemVersions.decisions) };
-			let decisions: Decision[];
-			try {
-				decisions = await this.filesystem.listDecisions();
-			} catch {
-				return true;
-			}
-			if (expectedId && !decisions.some((decision) => decision.id === expectedId)) return true;
-			if (
-				!this.isRootWatcherCurrent(epoch) ||
-				targetRoot !== this.currentRoot() ||
-				!this.isContentRefreshCurrent("decisions", generation)
-			)
-				return false;
-			const merged = this.mergeConcurrentChanges(
-				decisions,
-				before.items,
-				this.cachedDecisions,
-				(decision) => decision.id,
-				before.versions,
-				this.contentItemVersions.decisions,
-				this.contentItemPublicationRoots.decisions,
-				targetRoot,
-			);
-			const sorted = sortByTaskId(merged);
-			if (!this.hasCollectionChanged(this.cachedDecisions, sorted, (a, b) => this.hasDecisionChanged(a, b)))
-				return false;
-			this.replaceDecisions(merged);
-			this.notify("decisions");
-			return false;
-		});
-	}
-
 	private mergeConcurrentTaskCorpus(
 		loaded: Task[],
 		current: Task[],
@@ -1911,15 +1717,6 @@ export class ContentStore {
 		return JSON.stringify(serialize(this.branchTaskStateEntries)) !== JSON.stringify(serialize(nextEntries));
 	}
 
-	private async handleDecisionWrite(decisionId: string, owner: PublicationOwner): Promise<void> {
-		if (!this.canPublishContent() || !this.isPublicationOwnerCurrent(owner)) {
-			return;
-		}
-		await this.enqueuePublication(owner, async () => {
-			await this.updateDecisionFromDisk(decisionId, owner);
-		});
-	}
-
 	private async updateTaskFromDisk(
 		taskId: string,
 		owner: PublicationOwner = { root: this.currentRoot() },
@@ -1972,40 +1769,6 @@ export class ContentStore {
 			this.documents.set(document.id, document);
 			this.cachedDocuments = [...this.documents.values()].sort((a, b) => a.title.localeCompare(b.title));
 			if (this.initialized) this.notify("documents");
-			return false;
-		});
-	}
-
-	private async updateDecisionFromDisk(
-		decisionId: string,
-		owner: PublicationOwner = { root: this.currentRoot() },
-	): Promise<void> {
-		const generation = this.nextContentItemGeneration("decisions", decisionId);
-		const epoch = this.rootWatcherEpoch;
-		await this.reconcileOrSchedule(`decision:${decisionId}`, epoch, async () => {
-			if (
-				!this.isPublicationOwnerCurrent(owner) ||
-				!this.isContentItemGenerationCurrent("decisions", decisionId, generation)
-			)
-				return false;
-			let decision: Decision | null;
-			try {
-				decision = await this.filesystem.loadDecision(decisionId);
-			} catch {
-				return true;
-			}
-			if (!decision || decision.id !== decisionId) return true;
-			const previous = this.decisions.get(decisionId);
-			if (previous && !this.hasDecisionChanged(previous, decision)) return false;
-			if (
-				!this.isPublicationOwnerCurrent(owner) ||
-				!this.isContentItemGenerationCurrent("decisions", decisionId, generation)
-			)
-				return false;
-			this.nextContentItemVersion("decisions", decisionId, owner.root);
-			this.decisions.set(decision.id, decision);
-			this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
-			if (this.initialized) this.notify("decisions");
 			return false;
 		});
 	}

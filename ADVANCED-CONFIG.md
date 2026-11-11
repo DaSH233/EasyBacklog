@@ -43,7 +43,7 @@ Running `backlog config` with no arguments launches the interactive advanced wiz
 
 ## Detailed Notes
 
-> Editor setup guide: See [Configuring VIM and Neovim as Default Editor](backlog/docs/doc-002%20-%20Configuring-VIM-and-Neovim-as-Default-Editor.md) for configuration tips and troubleshooting interactive editors.
+> Interactive editors must wait until editing finishes before returning control to the CLI. For example, configure `backlog config set defaultEditor "vim"` or `backlog config set defaultEditor "nvim"`; use your editor's wait option when it launches a separate window.
 
 > **Note**: Set `remoteOperations: false` to work offline. This disables git fetch operations and loads tasks from local branches only, useful when working without network connectivity.
 
@@ -67,7 +67,7 @@ Running `backlog config` with no arguments launches the interactive advanced wiz
 >
 > Once configured, CLI, MCP, and Web inputs accept the values case-insensitively and store the configured spelling in task frontmatter. Filter with `backlog task list --project web`, `backlog search --project web`, or repeat/comma-separate values for OR semantics. Clear a task's project with `backlog task edit <id> --project ""`. Read current values with `backlog config get projects`.
 
-> **Date/Time Support**: Newly generated creation and update timestamps carry explicit UTC, for example `2026-10-19T11:48:00Z`. Decision and comment timestamps use the same format. Precision remains one minute. Existing timezone-less timestamps such as `2026-10-19 11:48` continue to mean UTC; hand-authored timestamps should include `Z` or an explicit offset. Reading or editing a record does not migrate its unchanged historical creation value. Existing date-only entries and due dates remain `YYYY-MM-DD`, without a timezone.
+> **Date/Time Support**: Newly generated creation and update timestamps carry explicit UTC, for example `2026-10-19T11:48:00Z`. Comment timestamps use the same format. Precision remains one minute. Existing timezone-less timestamps such as `2026-10-19 11:48` continue to mean UTC; hand-authored timestamps should include `Z` or an explicit offset. Reading or editing a record does not migrate its unchanged historical creation value. Existing date-only entries and due dates remain `YYYY-MM-DD`, without a timezone.
 
 > **Date Display Format**: `dateFormat` only changes how dates are *displayed* in the web UI and TUI; it does not change stored timestamps or date-only values. The format string is split at the first whitespace into a date part and an optional time part. Date part tokens (case-insensitive, each exactly once): `yyyy`, `mm` (month), `dd`; any other characters are kept literally. Time part tokens: `hh` and `mm` (minutes) — `mm` means month in the date part and minutes in the time part. If a stored value includes a time it is always shown: through the format's time part when present, otherwise appended as ` hh:mm`. Date-only values never invent a time. Invalid formats fall back to the canonical display. Agent-facing output (`--plain` CLI output and MCP responses) always stays canonical regardless of this setting. Example: `dateFormat: dd/mm/yyyy` renders `2026-07-04 21:54` as `04/07/2026 21:54`.
 

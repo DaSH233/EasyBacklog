@@ -37,7 +37,7 @@ export function formatRootEntry({ version, initialized, color = false }: RootEnt
 		lines.push("");
 	} else {
 		lines.push(sectionTitle("Common workflow:", color));
-		lines.push(commandLine('backlog search "query" --plain', "Search tasks, docs, and decisions"));
+		lines.push(commandLine('backlog search "query" --plain', "Search tasks and docs"));
 		lines.push(commandLine("backlog task list --plain", "List tasks"));
 		lines.push(commandLine(renderConfiguredTaskIds("backlog task view {{TASK_ID:123}} --plain"), "Read task context"));
 		lines.push(commandLine('backlog task create "Title" -d "Description"', "Create a task"));

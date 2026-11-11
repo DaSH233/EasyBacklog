@@ -14,8 +14,6 @@ import { SuccessToast } from './components/SuccessToast';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { TaskIdIndexProvider } from './contexts/TaskIdIndexContext';
 import {
-	type Decision,
-	type DecisionSearchResult,
 	type Document,
 	type DocumentSearchResult,
 	type BacklogConfig,
@@ -42,7 +40,6 @@ import { parseBrowserLoadingState } from '../utils/browser-loading-state';
 // Keep Markdown rendering and editing out of the initial board bundle.
 const ArchivePage = lazy(() => import('./components/ArchivePage'));
 const DocumentationDetail = lazy(() => import('./components/DocumentationDetail'));
-const DecisionDetail = lazy(() => import('./components/DecisionDetail'));
 const TaskDetailsModal = lazy(() => import('./components/TaskDetailsModal'));
 
 type TaskRouteNavigationState = {
@@ -263,12 +260,10 @@ function AppContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const kanbanTasks = React.useMemo(() => filterKanbanTasks(tasks), [tasks]);
   const [docs, setDocs] = useState<Document[]>([]);
-  const [decisions, setDecisions] = useState<Decision[]>([]);
   // Mirrors of the store lists, so refreshes can reconcile in place without
   // resubscribing the WebSocket effect to every state change.
   const tasksRef = useRef<Task[]>([]);
   const docsRef = useRef<Document[]>([]);
-  const decisionsRef = useRef<Decision[]>([]);
   const milestoneEntitiesRef = useRef<Milestone[]>([]);
   const archivedMilestonesRef = useRef<Milestone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -341,7 +336,6 @@ function AppContent() {
   ) => {
     const taskResults = results.filter((result): result is TaskSearchResult => result.type === 'task');
     const documentResults = results.filter((result): result is DocumentSearchResult => result.type === 'document');
-    const decisionResults = results.filter((result): result is DecisionSearchResult => result.type === 'decision');
 
     const tasksList = taskResults.map((result) => result.task);
     const normalizedTasks =
@@ -365,7 +359,6 @@ function AppContent() {
             return { ...task, milestone: canonicalMilestone || undefined };
           });
     const docsList = documentResults.map((result) => result.document);
-    const decisionsList = decisionResults.map((result) => result.decision);
 
     // Reconcile instead of replacing: unchanged records keep their identity, so
     // views re-render only for real changes and a refresh that merely echoes an
@@ -376,9 +369,6 @@ function AppContent() {
     const nextDocs = reconcileById(docsRef.current, docsList);
     docsRef.current = nextDocs;
     setDocs(nextDocs);
-    const nextDecisions = reconcileById(decisionsRef.current, decisionsList);
-    decisionsRef.current = nextDecisions;
-    setDecisions(nextDecisions);
     // Reconciling can be a no-op for every visible record and still follow a change the browser
     // never receives, so the refresh itself is what an open task detail reacts to.
     setDataVersion(version => version + 1);
@@ -979,7 +969,7 @@ function AppContent() {
 
   return (
     <ThemeProvider>
-      <TaskIdIndexProvider tasks={tasks} docs={docs} decisions={decisions}>
+      <TaskIdIndexProvider tasks={tasks} docs={docs}>
       <Routes>
             <Route
             path="/"
@@ -990,7 +980,6 @@ function AppContent() {
                 onDismissToast={() => setShowSuccessToast(false)}
                 tasks={tasks}
                 docs={docs}
-                decisions={decisions}
                 isLoading={isLoading}
                 loadingMessage={loadingMessage}
                 error={loadError}
@@ -1047,9 +1036,6 @@ function AppContent() {
             <Route path="documentation" element={<DocumentationDetail docs={docs} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
             <Route path="documentation/:id" element={<DocumentationDetail docs={docs} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
             <Route path="documentation/:id/:title" element={<DocumentationDetail docs={docs} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
-            <Route path="decisions" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
-            <Route path="decisions/:id" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
-            <Route path="decisions/:id/:title" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} dateFormat={config?.dateFormat} />} />
             <Route path="archive" element={<ArchivePage dateFormat={config?.dateFormat} availablePriorities={config?.priorities} onRefreshData={refreshData} onOpenTask={handleEditTask} />} />
             <Route path="statistics" element={<Statistics tasks={tasks} isLoading={isLoading} onEditTask={handleEditTask} projectName={projectName} dateFormat={config?.dateFormat} />} />
             <Route path="settings" element={<Settings />} />

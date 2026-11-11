@@ -325,7 +325,7 @@ export class BacklogServer {
 					return;
 				}
 
-				// Broadcast for tasks/documents/decisions so clients refresh caches/search
+				// Broadcast for tasks/documents so clients refresh caches/search
 				this.storeReadyBroadcasted = true;
 				this.broadcastDataUpdated();
 			});
@@ -427,8 +427,6 @@ export class BacklogServer {
 					"/drafts": spaIndexHtml,
 					"/documentation": spaIndexHtml,
 					"/documentation/*": spaIndexHtml,
-					"/decisions": spaIndexHtml,
-					"/decisions/*": spaIndexHtml,
 					"/archive": spaIndexHtml,
 					"/statistics": spaIndexHtml,
 					"/settings": spaIndexHtml,
@@ -450,32 +448,19 @@ export class BacklogServer {
 					},
 					"/api/navigation/counts": {
 						GET: async () => {
-							const [
-								drafts,
-								milestones,
-								archived,
-								archivedDrafts,
-								archivedDocs,
-								archivedDecisions,
-								archivedMilestones,
-							] = await Promise.all([
-								this.core.filesystem.listDrafts(),
-								this.core.filesystem.listMilestones(),
-								this.core.filesystem.listArchivedTasks(),
-								this.core.filesystem.listArchivedDrafts(),
-								this.core.filesystem.listArchivedDocuments(),
-								this.core.filesystem.listArchivedDecisions(),
-								this.core.filesystem.listArchivedMilestones(),
-							]);
+							const [drafts, milestones, archived, archivedDrafts, archivedDocs, archivedMilestones] =
+								await Promise.all([
+									this.core.filesystem.listDrafts(),
+									this.core.filesystem.listMilestones(),
+									this.core.filesystem.listArchivedTasks(),
+									this.core.filesystem.listArchivedDrafts(),
+									this.core.filesystem.listArchivedDocuments(),
+									this.core.filesystem.listArchivedMilestones(),
+								]);
 							return Response.json({
 								drafts: drafts.length,
 								milestones: milestones.length,
-								archived:
-									archived.length +
-									archivedDrafts.length +
-									archivedDocs.length +
-									archivedDecisions.length +
-									archivedMilestones.length,
+								archived: archived.length + archivedDrafts.length + archivedDocs.length + archivedMilestones.length,
 							});
 						},
 					},
@@ -523,22 +508,6 @@ export class BacklogServer {
 					"/api/docs/:id/archive": {
 						POST: async (req: Request & { params: { id: string } }) =>
 							await this.handleArchiveContentRecord("document", req.params.id),
-					},
-					"/api/decisions": {
-						GET: async () => await this.handleListDecisions(),
-						POST: async (req: Request) => await this.handleCreateDecision(req),
-					},
-					"/api/decision/:id": {
-						GET: async (req: Request & { params: { id: string } }) => await this.handleGetDecision(req.params.id),
-					},
-					"/api/decisions/:id": {
-						GET: async (req: Request & { params: { id: string } }) => await this.handleGetDecision(req.params.id),
-						PUT: async (req: Request & { params: { id: string } }) =>
-							await this.handleUpdateDecision(req, req.params.id),
-					},
-					"/api/decisions/:id/archive": {
-						POST: async (req: Request & { params: { id: string } }) =>
-							await this.handleArchiveContentRecord("decision", req.params.id),
 					},
 					"/api/drafts": {
 						GET: async () => await this.handleListDrafts(),
@@ -927,14 +896,14 @@ export class BacklogServer {
 
 			let types: SearchResultType[] | undefined;
 			if (typeParams.length > 0) {
-				const allowed: SearchResultType[] = ["task", "document", "decision"];
+				const allowed: SearchResultType[] = ["task", "document"];
 				const normalizedTypes = typeParams
 					.map((value) => value.toLowerCase())
 					.filter((value): value is SearchResultType => {
 						return allowed.includes(value as SearchResultType);
 					});
 				if (normalizedTypes.length === 0) {
-					return Response.json({ error: "type must be task, document, or decision" }, { status: 400 });
+					return Response.json({ error: "type must be task or document" }, { status: 400 });
 				}
 				types = normalizedTypes;
 			}
@@ -1330,8 +1299,8 @@ export class BacklogServer {
 	}
 
 	/**
-	 * POST /api/docs/<id>/archive and POST /api/decisions/<id>/archive: the archive the CLI runs, for
-	 * the Archive button of the document and decision pages. Core decides everything; this maps its
+	 * POST /api/docs/<id>/archive: the archive the CLI runs, for
+	 * the Archive button of the document pages. Core decides everything; this maps its
 	 * answer to HTTP the way the task archive route does: 404 when no record claims the ID, 409 for an
 	 * ambiguous ID, 400 with core's message for a refusal, and 500 with `archiveState` when the record
 	 * moved and only the commit failed, so the page treats it as archived.
@@ -1366,8 +1335,6 @@ export class BacklogServer {
 				return Response.json(await this.core.filesystem.listArchivedDrafts());
 			case "documents":
 				return Response.json(await this.core.filesystem.listArchivedDocuments());
-			case "decisions":
-				return Response.json(await this.core.filesystem.listArchivedDecisions());
 			case "milestones":
 				return Response.json(await this.core.filesystem.listArchivedMilestones());
 			default:
@@ -1388,8 +1355,7 @@ export class BacklogServer {
 			if (kind === "tasks") {
 				const deleted = await this.core.deleteTask(id);
 				result = deleted.success;
-			} else if (kind === "documents" || kind === "decisions")
-				result = await this.core.deleteContentRecord(kind === "documents" ? "document" : "decision", id);
+			} else if (kind === "documents") result = await this.core.deleteContentRecord("document", id);
 			else if (kind === "drafts" || kind === "milestones")
 				result = await this.core.deleteAuxiliaryRecord(kind === "drafts" ? "draft" : "milestone", id);
 			else return Response.json({ error: "Unknown archive category" }, { status: 404 });
@@ -1417,8 +1383,7 @@ export class BacklogServer {
 	private async handleRestoreArchiveCategory(kind: string, id: string): Promise<Response> {
 		try {
 			let restored: unknown;
-			if (kind === "documents" || kind === "decisions")
-				restored = await this.core.restoreContentRecord(kind === "documents" ? "document" : "decision", id);
+			if (kind === "documents") restored = await this.core.restoreContentRecord("document", id);
 			else if (kind === "drafts" || kind === "milestones")
 				restored = await this.core.restoreAuxiliaryRecord(kind === "drafts" ? "draft" : "milestone", id);
 			else return Response.json({ error: "Unknown archive category" }, { status: 404 });
@@ -1657,93 +1622,6 @@ export class BacklogServer {
 			}
 			console.error("Error updating document:", error);
 			return Response.json({ error: "Failed to update document" }, { status: 500 });
-		}
-	}
-
-	// Decision handlers
-	private async handleListDecisions(): Promise<Response> {
-		try {
-			const store = await this.getContentStoreInstance();
-			const decisions = store.getDecisions();
-			const decisionFiles = decisions.map((decision) => ({
-				id: decision.id,
-				title: decision.title,
-				status: decision.status,
-				date: decision.date,
-				context: decision.context,
-				decision: decision.decision,
-				consequences: decision.consequences,
-				alternatives: decision.alternatives,
-			}));
-			return Response.json(decisionFiles);
-		} catch (error) {
-			console.error("Error listing decisions:", error);
-			return Response.json([]);
-		}
-	}
-
-	private async handleGetDecision(decisionId: string): Promise<Response> {
-		try {
-			// Resolve from disk through core, not the content store: the store keys decisions by raw ID
-			// and would silently drop one of two files that share an ID before the ambiguity check
-			// could run. Core searches the decisions folder and the archive together.
-			const decision = await this.core.getDecision(decisionId);
-
-			if (!decision) {
-				return Response.json({ error: "Decision not found" }, { status: 404 });
-			}
-
-			return Response.json(decision);
-		} catch (error) {
-			if (isAmbiguousIdError(error)) {
-				return Response.json({ error: error.message }, { status: 409 });
-			}
-			console.error("Error loading decision:", error);
-			return Response.json({ error: "Decision not found" }, { status: 404 });
-		}
-	}
-
-	private async handleCreateDecision(req: Request): Promise<Response> {
-		const input = await req.json().catch(() => null);
-		if (!input || typeof input.title !== "string" || !input.title.trim()) {
-			return Response.json({ error: "Decision title is required" }, { status: 400 });
-		}
-		const { title, sections } = input;
-		if (
-			sections !== undefined &&
-			(!sections || ["context", "decision", "consequences"].some((key) => typeof sections[key] !== "string"))
-		) {
-			return Response.json({ error: "Invalid decision sections" }, { status: 400 });
-		}
-
-		try {
-			const decision = await this.core.createDecisionWithTitle(title.trim(), undefined, sections);
-			return Response.json(decision, { status: 201 });
-		} catch (error) {
-			console.error("Error creating decision:", error);
-			return Response.json({ error: "Failed to create decision" }, { status: 500 });
-		}
-	}
-
-	private async handleUpdateDecision(req: Request, decisionId: string): Promise<Response> {
-		const content = await req.text();
-
-		try {
-			await this.core.updateDecisionFromContent(decisionId, content);
-			return Response.json({ success: true });
-		} catch (error) {
-			if (isAmbiguousIdError(error)) {
-				return Response.json({ error: error.message }, { status: 409 });
-			}
-			// Core refused the save, for example because the decision is archived. Its message is the answer.
-			if (error instanceof RecordRefusedError) {
-				return Response.json({ error: error.message }, { status: 400 });
-			}
-			if (error instanceof Error && error.message.includes("not found")) {
-				return Response.json({ error: "Decision not found" }, { status: 404 });
-			}
-			console.error("Error updating decision:", error);
-			return Response.json({ error: "Failed to update decision" }, { status: 500 });
 		}
 	}
 

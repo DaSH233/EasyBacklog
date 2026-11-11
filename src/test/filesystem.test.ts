@@ -4,7 +4,7 @@ import { mkdir, readdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { FileSystem } from "../file-system/operations.ts";
 import { serializeTask } from "../markdown/serializer.ts";
-import type { BacklogConfig, Decision, Document, Task } from "../types/index.ts";
+import type { BacklogConfig, Document, Task } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -31,7 +31,6 @@ describe("FileSystem", () => {
 				join(TEST_DIR, "backlog", "archive", "tasks"),
 				join(TEST_DIR, "backlog", "archive", "drafts"),
 				join(TEST_DIR, "backlog", "docs"),
-				join(TEST_DIR, "backlog", "decisions"),
 			];
 
 			for (const dir of expectedDirs) {
@@ -51,7 +50,6 @@ describe("FileSystem", () => {
 				join(projectDir, "backlog", "milestones"),
 				join(projectDir, "backlog", "archive", "milestones"),
 				join(projectDir, "backlog", "docs"),
-				join(projectDir, "backlog", "decisions"),
 			];
 
 			for (const dir of expectedDirs) {
@@ -532,93 +530,6 @@ Invalid content`,
 		});
 	});
 
-	describe("decision log operations", () => {
-		const sampleDecision: Decision = {
-			id: "decision-1",
-			title: "Use TypeScript",
-			date: "2025-06-07",
-			status: "accepted",
-			context: "Need type safety",
-			decision: "Use TypeScript",
-			consequences: "Better DX",
-			rawContent: "",
-		};
-
-		it("should save and load a decision log", async () => {
-			await filesystem.saveDecision(sampleDecision);
-
-			const loadedDecision = await filesystem.loadDecision("decision-1");
-			expect(loadedDecision?.id).toBe(sampleDecision.id);
-			expect(loadedDecision?.title).toBe(sampleDecision.title);
-			expect(loadedDecision?.status).toBe(sampleDecision.status);
-			expect(loadedDecision?.context).toBe(sampleDecision.context);
-		});
-
-		it("should return null for non-existent decision log", async () => {
-			const decision = await filesystem.loadDecision("non-existent");
-			expect(decision).toBeNull();
-		});
-
-		it("should sanitize decision filenames", async () => {
-			await filesystem.saveDecision({
-				...sampleDecision,
-				id: "decision-3",
-				title: "Use OAuth (v2)!",
-			});
-
-			const decisionFiles = await readdir(filesystem.decisionsDir);
-			expect(decisionFiles).toContain("decision-3 - Use-OAuth-v2.md");
-		});
-
-		it("should save decision log with alternatives", async () => {
-			const decisionWithAlternatives: Decision = {
-				...sampleDecision,
-				id: "decision-2",
-				alternatives: "Considered JavaScript",
-			};
-
-			await filesystem.saveDecision(decisionWithAlternatives);
-			const loaded = await filesystem.loadDecision("decision-2");
-
-			expect(loaded?.alternatives).toBe("Considered JavaScript");
-		});
-
-		it("should rename a legacy decision filename when the loaded decision is resaved", async () => {
-			const legacyDecision: Decision = {
-				...sampleDecision,
-				id: "decision-legacy",
-				title: "Legacy Decision (OAuth)!",
-				decision: "First draft",
-			};
-
-			await filesystem.saveDecision(legacyDecision);
-
-			const files = await readdir(filesystem.decisionsDir);
-			const sanitized = files.find((f) => f.startsWith("decision-legacy -"));
-			expect(sanitized).toBe("decision-legacy - Legacy-Decision-OAuth.md");
-
-			const legacyFilename = "decision-legacy - Legacy-Decision-(OAuth)!.md";
-			await rename(join(filesystem.decisionsDir, sanitized as string), join(filesystem.decisionsDir, legacyFilename));
-
-			const stored = await filesystem.loadDecision("decision-legacy");
-			expect(stored?.path).toBe(legacyFilename);
-			await filesystem.saveDecision({ ...(stored as Decision), decision: "Updated decision" });
-
-			const finalFiles = await readdir(filesystem.decisionsDir);
-			expect(finalFiles).toEqual(["decision-legacy - Legacy-Decision-OAuth.md"]);
-
-			const loaded = await filesystem.loadDecision("decision-legacy");
-			expect(loaded?.decision).toBe("Updated decision");
-		});
-
-		it("should list decision logs", async () => {
-			await filesystem.saveDecision(sampleDecision);
-			const list = await filesystem.listDecisions();
-			expect(list).toHaveLength(1);
-			expect(list[0]?.id).toBe(sampleDecision.id);
-		});
-	});
-
 	describe("document operations", () => {
 		const sampleDocument: Document = {
 			id: "doc-1",
@@ -1012,22 +923,6 @@ Invalid content`,
 
 			const draftFiles = await readdir(await filesystem.getDraftsDir());
 			expect(draftFiles).toContain("draft-punct - untitled.md");
-		});
-
-		it("names a decision file with a placeholder title", async () => {
-			await filesystem.saveDecision({
-				id: "decision-punct",
-				title: punctuationOnlyTitle,
-				date: "2025-06-07",
-				status: "accepted",
-				context: "Punctuation-only title",
-				decision: "Use a placeholder",
-				consequences: "Filenames stay parseable",
-				rawContent: "",
-			});
-
-			const decisionFiles = await readdir(filesystem.decisionsDir);
-			expect(decisionFiles).toContain("decision-punct - untitled.md");
 		});
 
 		it("names a document file with a placeholder title and still dedupes it on resave", async () => {

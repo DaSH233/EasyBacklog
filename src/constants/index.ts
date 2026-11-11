@@ -22,10 +22,6 @@ export const DEFAULT_DIRECTORIES = {
 	ARCHIVE_DOCS: "archive/docs",
 	/** Documentation directory */
 	DOCS: "docs",
-	/** Decision logs directory */
-	DECISIONS: "decisions",
-	/** Archived decisions directory. Decisions are stored flat, so a decision keeps its file name. */
-	ARCHIVE_DECISIONS: "archive/decisions",
 	/** Milestones directory */
 	MILESTONES: "milestones",
 } as const;

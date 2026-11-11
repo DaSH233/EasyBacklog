@@ -338,10 +338,6 @@ describe("prefix-config", () => {
 		test("returns doc prefix for Document type", () => {
 			expect(getPrefixForType(EntityType.Document)).toBe("doc");
 		});
-
-		test("returns decision prefix for Decision type", () => {
-			expect(getPrefixForType(EntityType.Decision)).toBe("decision");
-		});
 	});
 
 	describe("isReservedTaskPrefix", () => {

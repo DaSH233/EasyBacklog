@@ -1,4 +1,4 @@
-import type { AcceptanceCriterion, Decision, Document, Task } from "../types/index.ts";
+import type { AcceptanceCriterion, Document, Task } from "../types/index.ts";
 import { normalizeAssignee } from "../utils/assignee.ts";
 import { stringifyFrontmatter } from "./frontmatter.ts";
 import {
@@ -122,25 +122,6 @@ export function serializeTask(task: Task, originalContent = ""): string {
 	const serialized = stringifyFrontmatter(contentBody, frontmatter, originalContent);
 	// Ensure there's a blank line between frontmatter and content
 	return serialized.replace(/^(---\n(?:.*\n)*?---)\n(?!$)/, "$1\n\n");
-}
-
-export function serializeDecision(decision: Decision, originalContent = ""): string {
-	const frontmatter = {
-		id: decision.id,
-		title: decision.title,
-		date: decision.date,
-		status: decision.status,
-	};
-
-	let content = `## Context\n\n${decision.context}\n\n`;
-	content += `## Decision\n\n${decision.decision}\n\n`;
-	content += `## Consequences\n\n${decision.consequences}`;
-
-	if (decision.alternatives) {
-		content += `\n\n## Alternatives\n\n${decision.alternatives}`;
-	}
-
-	return stringifyFrontmatter(content, frontmatter, originalContent);
 }
 
 export function serializeDocument(document: Document, originalContent = ""): string {

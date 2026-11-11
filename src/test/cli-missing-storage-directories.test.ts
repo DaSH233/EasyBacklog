@@ -19,7 +19,7 @@ describe("CLI mutations with missing storage directories", () => {
 		await initializeFilesystemTestProject(core, "Missing Storage Project");
 
 		// Git does not retain empty directories, including the archive parent directory.
-		for (const directory of ["drafts", "decisions", "archive"]) {
+		for (const directory of ["drafts", "archive"]) {
 			const path = join(testDir, "backlog", directory);
 			await rm(path, { recursive: true });
 			expect(existsSync(path)).toBe(false);
@@ -40,18 +40,6 @@ describe("CLI mutations with missing storage directories", () => {
 		const draft = await core.filesystem.loadDraft("DRAFT-1");
 		expect(draft?.title).toBe("First draft");
 		expect(draft?.description).toBe("Keep this description");
-	});
-
-	it("creates a decision when its storage directory is absent", async () => {
-		const result = await $`bun ${cliPath} decision create "First decision" -s accepted --plain`
-			.cwd(testDir)
-			.nothrow()
-			.quiet();
-		expect(result.exitCode).toBe(0);
-		expect(result.stdout.toString()).toContain("Created decision decision-1");
-		const decision = await core.filesystem.loadDecision("decision-1");
-		expect(decision?.title).toBe("First decision");
-		expect(decision?.status).toBe("accepted");
 	});
 
 	it.each(["To Do", "Done"])(

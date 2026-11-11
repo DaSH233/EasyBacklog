@@ -119,7 +119,7 @@ export interface MoveFileOperations {
  * Demotion is not a move: it rewrites the task into a new draft file.
  *
  * A title change does not come here either. A task file keeps its name, and the file of a draft,
- * document or decision is renamed by `writeRecordFile` in `src/file-system/operations.ts`: a new
+ * document is renamed by `writeRecordFile` in `src/file-system/operations.ts`: a new
  * name that differs only in letter case is the same file where the file system ignores letter case,
  * and this function would refuse it as taken.
  *

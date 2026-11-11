@@ -15,7 +15,6 @@ export enum EntityType {
 	Task = "task",
 	Draft = "draft",
 	Document = "document",
-	Decision = "decision",
 }
 
 // Structured Acceptance Criterion (domain-level)
@@ -210,26 +209,6 @@ export interface TaskListFilter {
 	labelMatch?: LabelMatchMode;
 }
 
-export interface Decision {
-	id: string;
-	title: string;
-	date: string;
-	status: "proposed" | "accepted" | "rejected" | "superseded";
-	context: string;
-	decision: string;
-	consequences: string;
-	alternatives?: string;
-	readonly rawContent: string; // Raw markdown content without frontmatter
-	/**
-	 * The file name, set when listed from disk. Decisions are stored flat, so this is a file name
-	 * directly inside the decisions folder, or inside the archive folder for decisions when
-	 * `archived` is set.
-	 */
-	path?: string;
-	/** True when the decision's file is in the archive folder for decisions. An archived decision is read-only. */
-	archived?: boolean;
-}
-
 export interface Milestone {
 	id: string;
 	title: string;
@@ -239,18 +218,14 @@ export interface Milestone {
 }
 
 /**
- * The record kinds that are files of their own folder, with an archive folder beside it: documents
- * and decisions. Archive, restore and delete are written once for them, keyed by this kind; tasks
- * and drafts have their own operations. A new kind needs an entry in `CONTENT_RECORD_WORDS` and a
- * case in `Core.contentRecords` (both in src/core/backlog.ts) and in
- * `FileSystem.contentRecordStorage`.
+ * Documents use the content-record archive operations; tasks and drafts have their own lifecycle.
  */
-export type ContentRecordKind = "document" | "decision";
+export type ContentRecordKind = "document";
 
-/** The fields of a document or a decision that its archive, restore and delete read. */
+/** The fields of a document that its archive, restore and delete read. */
 export interface ContentRecord {
 	id: string;
-	/** Where the file is under its folder: a relative path for a document, a file name for a decision. */
+	/** Relative path under the document's active or archive folder. */
 	path?: string;
 	/** True when the file is in the archive folder of its kind. */
 	archived?: boolean;
@@ -295,7 +270,7 @@ export interface DocumentUpdateInput {
 	tags?: string[];
 }
 
-export type SearchResultType = "task" | "document" | "decision";
+export type SearchResultType = "task" | "document";
 
 export type SearchPriorityFilter = string;
 
@@ -339,14 +314,7 @@ export interface DocumentSearchResult {
 	matches?: SearchMatch[];
 }
 
-export interface DecisionSearchResult {
-	type: "decision";
-	score: number | null;
-	decision: Decision;
-	matches?: SearchMatch[];
-}
-
-export type SearchResult = TaskSearchResult | DocumentSearchResult | DecisionSearchResult;
+export type SearchResult = TaskSearchResult | DocumentSearchResult;
 
 /**
  * Configuration for ID prefixes used in task files.

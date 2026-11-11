@@ -31,7 +31,6 @@ import { buildMilestoneBuckets, collectArchivedMilestoneKeys, milestoneKey } fro
 import { loadTaskDetail, loadTaskListItems } from "./core/task-detail.ts";
 import { isConfigValueError } from "./file-system/operations.ts";
 import {
-	decisionListJson,
 	draftListJson,
 	formatJson,
 	printJson,
@@ -58,7 +57,6 @@ import type { CallToolResult } from "./mcp/types.ts";
 import {
 	type BacklogConfig,
 	type ContentRecordKind,
-	type Decision,
 	DOCUMENT_TYPE_VALUES,
 	type Document as DocType,
 	type DocumentSearchResult,
@@ -92,7 +90,6 @@ import {
 } from "./utils/duplicate-detection.ts";
 import { AmbiguousIdError, isAmbiguousIdError } from "./utils/entity-id.ts";
 import { findBacklogRoot } from "./utils/find-backlog-root.ts";
-import { generateNextDecisionId } from "./utils/id-generators.ts";
 import {
 	addListWindowOptions,
 	LIST_WINDOW_HELP_FIELDS,
@@ -152,7 +149,6 @@ import { sectionTasks, sortTasks, TASK_SORT_FIELDS } from "./utils/task-sorting.
 import { formatValidTaskTypeValues, getTaskTypeValues, resolveTaskTypeValues } from "./utils/task-type-config.ts";
 import { getTerminalStatus } from "./utils/terminal-status.ts";
 import { formatUtcDateForDisplay } from "./utils/utc-date-display.ts";
-import { formatUtcTimestamp } from "./utils/utc-timestamp.ts";
 import { getVersion } from "./utils/version.ts";
 
 type IntegrationMode = "mcp" | "cli" | "none";
@@ -490,10 +486,7 @@ function printArchivedTaskMovePlan(plan: ArchivedTaskMovePlan, duplicateIdsPendi
 }
 
 function printContentIdentityReport(report: ContentIdentityReport): void {
-	const sections = [
-		["document", report.documents],
-		["decision", report.decisions],
-	] as const;
+	const sections = [["document", report.documents]] as const;
 	for (const [label, issues] of sections) {
 		if (issues.duplicates.length > 0) {
 			console.log(`\nDuplicate ${label} IDs (diagnostic only):`);
@@ -931,7 +924,7 @@ function getReadOutputMode(options: { json?: boolean; plain?: boolean }): ReadOu
 
 /**
  * Resolves how a listing command prints and which window of its list it prints. Every command that
- * lists tasks, drafts, milestones, documents, decisions, or search results starts here. Window and
+ * lists tasks, drafts, milestones, documents, or search results starts here. Window and
  * count options print text, so they never open an interactive view. Returns null after reporting
  * invalid options.
  */
@@ -2211,13 +2204,13 @@ addHelpSchema(taskCmd.command("create [title]"), {
 	});
 
 const searchCommand = addHelpSchema(program.command("search [query]"), {
-	reads: "Tasks, documents, and decisions from the configured backlog directory",
+	reads: "Tasks and documents from the configured backlog directory",
 	required: [],
 	optional: [
 		{ name: "query", type: "String", description: "Fuzzy search text" },
 		{
 			name: "type",
-			type: choiceType(["task", "document", "decision"], { multiple: true }),
+			type: choiceType(["task", "document"], { multiple: true }),
 			description: "Result types",
 		},
 		{
@@ -2260,8 +2253,8 @@ const searchCommand = addHelpSchema(program.command("search [query]"), {
 		'backlog search "auth" --max-count 20 --skip 20 --plain',
 	],
 })
-	.description("search tasks, documents, and decisions using the shared index")
-	.option("--type <type>", "limit results to type (task, document, decision)", createMultiValueAccumulator())
+	.description("search tasks and documents using the shared index")
+	.option("--type <type>", "limit results to type (task, document)", createMultiValueAccumulator())
 	.option(
 		"--task-type <type>",
 		"filter task results by configured task type (repeatable or comma-separated)",
@@ -2314,13 +2307,13 @@ addListWindowOptions(searchCommand)
 		const rawTaskTypes = parseDelimitedStringList(options.taskType) ?? [];
 		const rawSearchProjects = parseDelimitedStringList(options.project) ?? [];
 		const rawTypes = options.type ? (Array.isArray(options.type) ? options.type : [options.type]) : undefined;
-		const allowedTypes: SearchResultType[] = ["task", "document", "decision"];
+		const allowedTypes: SearchResultType[] = ["task", "document"];
 		const types = rawTypes
 			? rawTypes
 					.map((value: string) => value.toLowerCase())
 					.filter((value: string): value is SearchResultType => {
 						if (!allowedTypes.includes(value as SearchResultType)) {
-							console.warn(`Ignoring unsupported type '${value}'. Supported: task, document, decision`);
+							console.warn(`Ignoring unsupported type '${value}'. Supported: task, document`);
 							return false;
 						}
 						return true;
@@ -2540,11 +2533,10 @@ function buildSearchFilterDescription(filters: {
 }
 
 /** Plain search output groups results by type, in this order and under these headings. */
-const SEARCH_RESULT_TYPES = ["task", "document", "decision"] as const;
+const SEARCH_RESULT_TYPES = ["task", "document"] as const;
 const SEARCH_RESULT_HEADINGS: Record<SearchResultType, string> = {
 	task: "Tasks:",
 	document: "Documents:",
-	decision: "Decisions:",
 };
 
 /**
@@ -2565,7 +2557,7 @@ function formatSearchResultRow(result: SearchResult): string {
 		const priorityText = task.priority ? ` [${task.priority.toUpperCase()}]` : "";
 		return `  ${task.id} - ${task.title}${statusText}${priorityText}${scoreText}`;
 	}
-	const { id, title } = result.type === "document" ? result.document : result.decision;
+	const { id, title } = result.document;
 	return `  ${id} - ${title}${scoreText}`;
 }
 
@@ -4910,7 +4902,7 @@ addHelpSchema(docCmd.command("update <docId>"), {
 	});
 
 /**
- * The action of `doc archive|restore|delete` and `decision archive|restore|delete`: runs the core
+ * The action of `doc archive|restore|delete`: runs the core
  * operation for the kind and prints the lines core describes for the change. An ID that no record
  * of the kind claims is answered with the kind's not-found message.
  */
@@ -5110,142 +5102,6 @@ addHelpSchema(docCmd.command("view <docId>"), {
 			}
 			console.error(`Document ${docId} not found.`);
 		}
-	});
-
-const decisionCmd = program.command("decision");
-
-addHelpSchema(decisionCmd.command("create <title>"), {
-	required: [{ name: "title", type: "String", description: "Decision title" }],
-	optional: [
-		{ name: "status", type: "String", description: "Decision status; free-form, defaults to proposed" },
-		{ name: "plain", type: "Boolean", description: "Use plain text output" },
-	],
-	writes: "Creates a decision markdown file under the configured decisions directory",
-	output: "Created decision ID",
-	examples: ['backlog decision create "Adopt Bun test runner" -s accepted --plain'],
-})
-	.description("create a decision")
-	.option("-s, --status <status>", "set decision status (free-form, defaults to proposed)")
-	// Accepted so agent guidance that always passes --plain works; create output is already plain text.
-	.option("--plain", "use plain text output")
-	.action(async (title: string, options) => {
-		const cwd = await requireProjectRoot();
-		const core = new Core(cwd);
-		const id = await generateNextDecisionId(core);
-		const decision: Decision = {
-			id,
-			title: title as string,
-			date: formatUtcTimestamp(),
-			status: (options.status || "proposed") as Decision["status"],
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "",
-		};
-		await core.createDecision(decision);
-		console.log(`Created decision ${id}`);
-	});
-
-addHelpSchema(decisionCmd.command("edit <decisionId>"), {
-	required: [
-		{ name: "decisionId", type: "Decision ID", description: "Decision to update" },
-		{ name: "status", type: "String", description: "New decision status; free-form" },
-	],
-	optional: [{ name: "plain", type: "Boolean", description: "Use plain text output" }],
-	writes: "Replaces the status line in the decision's frontmatter; the rest of the file stays as it is",
-	output: "Updated decision ID",
-	examples: ["backlog decision edit decision-1 -s superseded"],
-})
-	.description("change the status of a decision")
-	.option("-s, --status <status>", "set decision status (free-form)")
-	// Accepted so agent guidance that always passes --plain works; edit output is already plain text.
-	.option("--plain", "use plain text output")
-	.action(async (decisionId: string, options) => {
-		if (!options.status) {
-			console.error(
-				"Status is required. Provide non-empty text, for example: backlog decision edit decision-1 -s superseded",
-			);
-			process.exitCode = 1;
-			return;
-		}
-		const cwd = await requireProjectRoot();
-		const core = new Core(cwd);
-		const id = await core.updateDecisionStatus(decisionId, options.status);
-		console.log(`Updated decision ${id}`);
-	});
-
-addHelpSchema(decisionCmd.command("archive <decisionId>"), {
-	required: [{ name: "decisionId", type: "Decision ID", description: "Decision to archive" }],
-	optional: [],
-	writes:
-		"Moves the decision's file, unchanged and under the same name, to backlog/archive/decisions. Its ID stays reserved. The decision becomes read-only and leaves decision list and search. No task or draft is changed.",
-	output: "Archive confirmation text, followed by the tasks and drafts whose documentation list names the moved file",
-	examples: ["backlog decision archive decision-1"],
-})
-	.description("move a decision into the archive, keeping its ID reserved")
-	.action((decisionId: string) => changeContentRecord("decision", "archive", decisionId));
-
-addHelpSchema(decisionCmd.command("restore <decisionId>"), {
-	required: [{ name: "decisionId", type: "Decision ID", description: "Archived decision to restore" }],
-	optional: [],
-	writes:
-		"Moves an archived decision's file, unchanged and under the same name, from backlog/archive/decisions back to backlog/decisions. It keeps its ID and is listed again. A file of that name already in backlog/decisions is never replaced. No task or draft is changed.",
-	output:
-		"Restore confirmation text, followed by the tasks and drafts whose documentation list names the archive path the file left",
-	examples: ["backlog decision restore decision-1"],
-})
-	.description("move an archived decision back to the decisions folder")
-	.action((decisionId: string) => changeContentRecord("decision", "restore", decisionId));
-
-addHelpSchema(decisionCmd.command("delete <decisionId>"), {
-	required: [{ name: "decisionId", type: "Decision ID", description: "Archived decision to delete" }],
-	optional: [],
-	writes:
-		"Permanently removes an archived decision's file from backlog/archive/decisions; a file that is a symbolic link is removed as a link. A decision must be archived first (backlog decision archive). There is no prompt. Its ID is released once no other file and no committed file on any branch still uses the number. No task or draft is changed.",
-	output:
-		"Delete confirmation text, followed by the tasks and drafts whose documentation list names the removed file, by its archive path or by the path it had before it was archived",
-	examples: ["backlog decision archive decision-1", "backlog decision delete decision-1"],
-})
-	.description("permanently delete an archived decision, releasing its ID")
-	.action((decisionId: string) => changeContentRecord("decision", "delete", decisionId));
-
-const decisionListCommand = addHelpSchema(decisionCmd.command("list"), {
-	reads: "Decisions under the configured decisions directory",
-	writes: "None; this is a read-only command",
-	required: [],
-	optional: [
-		...LIST_WINDOW_HELP_FIELDS,
-		{ name: "plain", type: "Boolean", description: "Use plain text output, which is the default for this command" },
-		{ name: "json", type: "Boolean", description: "Use versioned machine-readable JSON output" },
-	],
-	output: `Decision list with IDs, titles, and statuses, ordered by ID; versioned JSON with --json. ${LIST_WINDOW_OUTPUT_HELP}; JSON adds total and nextSkip`,
-	examples: ["backlog decision list --plain", "backlog decision list --json", "backlog decision list --max-count 20"],
-}).description("list decisions");
-addListWindowOptions(decisionListCommand)
-	.option("--plain", "use plain text output")
-	.option("--json", "print versioned machine-readable JSON output")
-	.action(async (options) => {
-		const listOutput = resolveListOutput(options, decisionListCommand);
-		if (!listOutput) return;
-		const { outputMode, listWindow } = listOutput;
-		const cwd = await requireProjectRoot();
-		const core = new Core(cwd);
-		const decisions = await core.filesystem.listDecisions();
-
-		if (outputMode === "json") {
-			const page = selectListWindow(decisions, listWindow);
-			printJson(decisionListJson(page.items, page));
-			return;
-		}
-
-		// Decisions have no interactive detail view, so text output covers plain and TTY runs.
-		printListWindow(decisions, listWindow, (windowDecisions) => {
-			if (windowDecisions.length === 0) console.log("No decisions found.");
-			for (const decision of windowDecisions) {
-				const status = decision.status ? ` (${decision.status})` : "";
-				console.log(`${decision.id} - ${decision.title}${status}`);
-			}
-		});
 	});
 
 // Agents command group
@@ -5821,7 +5677,7 @@ addHelpSchema(configCmd.command("list"), {
 		}
 	});
 addHelpSchema(program.command("doctor"), {
-	reads: "Active and archived task files, document, decision, and draft files, plus Backlog Markdown references",
+	reads: "Active and archived task files, document and draft files, plus Backlog Markdown references",
 	required: [],
 	optional: [
 		{
@@ -5834,11 +5690,11 @@ addHelpSchema(program.command("doctor"), {
 	writes:
 		"With --fix, atomically renames duplicate task files and updates only their frontmatter IDs; ambiguous references are reported for human review. Archived task files stored outside the archive folder are then moved into it without changing IDs or replacing files",
 	output:
-		"Duplicate-ID diagnosis for tasks, documents, decisions, and drafts, a deterministic task repair preview, a reference-review report, a report of self-referential and cyclic task dependencies, and the archived task files stored outside the archive folder",
+		"Duplicate-ID diagnosis for tasks, documents, and drafts, a deterministic task repair preview, a reference-review report, a report of self-referential and cyclic task dependencies, and the archived task files stored outside the archive folder",
 	examples: ["backlog doctor", "backlog doctor --fix", "backlog doctor --fix --yes"],
 })
 	.description(
-		"diagnose duplicate task, document, and decision IDs, report self-referential and cyclic dependencies, safely repair duplicate task IDs, and move archived tasks into the archive folder",
+		"diagnose duplicate task and document IDs, report self-referential and cyclic dependencies, safely repair duplicate task IDs, and move archived tasks into the archive folder",
 	)
 	.option("--fix", "apply the displayed duplicate task ID repair and archived task move")
 	.option("--yes", "confirm --fix without prompting")
@@ -5857,7 +5713,7 @@ addHelpSchema(program.command("doctor"), {
 			const reservedTaskPrefix = taskPrefix && isReservedTaskPrefix(taskPrefix) ? taskPrefix : null;
 			if (reservedTaskPrefix) {
 				console.error(
-					`Task prefix "${reservedTaskPrefix}" collides with a reserved prefix (draft, doc, decision); tasks are misrouted as that entity type.`,
+					`Task prefix "${reservedTaskPrefix}" collides with a reserved prefix (draft, doc, decision); choose a different task prefix.`,
 				);
 				console.error(
 					"There is no automated migration. Rename the affected task files and IDs to a non-reserved prefix, then set task_prefix in the project config file to match.",
@@ -5973,7 +5829,7 @@ addHelpSchema(program.command("doctor"), {
 				process.exitCode = 1;
 			}
 			if (contentIdentityBroken) {
-				console.log("Document and decision findings remain diagnostic-only and still require manual review.");
+				console.log("Document findings remain diagnostic-only and still require manual review.");
 				process.exitCode = 1;
 			}
 			if (draftIdentityBroken) {

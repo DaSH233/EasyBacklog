@@ -1,4 +1,4 @@
-import type { AcceptanceCriterion, Decision, Document, Milestone, ParsedMarkdown, Task } from "../types/index.ts";
+import type { AcceptanceCriterion, Document, Milestone, ParsedMarkdown, Task } from "../types/index.ts";
 import { normalizeDueDate } from "../utils/due-date.ts";
 import { normalizePriorityValue } from "../utils/priority-config.ts";
 import { parseFrontmatter, preprocessFrontmatter } from "./frontmatter.ts";
@@ -136,22 +136,6 @@ export function parseTask(content: string): Task {
 		project: frontmatter.project ? String(frontmatter.project) : undefined,
 		ordinal: frontmatter.ordinal !== undefined ? Number(frontmatter.ordinal) : undefined,
 		onStatusChange: frontmatter.onStatusChange ? String(frontmatter.onStatusChange) : undefined,
-	};
-}
-
-export function parseDecision(content: string): Decision {
-	const { frontmatter, content: rawContent } = parseMarkdown(content, ["date"]);
-
-	return {
-		id: String(frontmatter.id || ""),
-		title: String(frontmatter.title || ""),
-		date: normalizeDate(frontmatter.date),
-		status: String(frontmatter.status || "proposed") as Decision["status"],
-		context: extractSection(rawContent, "Context") || "",
-		decision: extractSection(rawContent, "Decision") || "",
-		consequences: extractSection(rawContent, "Consequences") || "",
-		alternatives: extractSection(rawContent, "Alternatives"),
-		rawContent, // Raw markdown content without frontmatter
 	};
 }
 

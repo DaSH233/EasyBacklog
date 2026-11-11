@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir } from "node:fs/promises";
 import { $ } from "bun";
 import { Core } from "../core/backlog.ts";
-import type { Decision, Document, Task } from "../types";
+import type { Document, Task } from "../types";
 import { getTestCliPath } from "./test-cli.ts";
 import { createUniqueTestDir, initializeFilesystemTestProject, safeCleanup } from "./test-utils.ts";
 
@@ -68,28 +68,5 @@ describe("CLI ID Incrementing Behavior", () => {
 		const doc2 = docs.find((d) => d.id === "doc-2");
 		expect(doc2).toBeDefined();
 		expect(doc2?.title).toBe("Second Doc");
-	});
-
-	test("should increment decision IDs correctly", async () => {
-		const decision1: Decision = {
-			id: "decision-1",
-			title: "First Decision",
-			date: "",
-			status: "proposed",
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "",
-		};
-		await core.createDecision(decision1);
-
-		const result = await $`bun ${CLI_PATH} decision create "Second Decision"`.cwd(TEST_DIR).quiet();
-
-		expect(result.exitCode).toBe(0);
-		expect(result.stdout.toString()).toContain("Created decision decision-2");
-
-		const decision2 = await core.filesystem.loadDecision("decision-2");
-		expect(decision2).not.toBeNull();
-		expect(decision2?.title).toBe("Second Decision");
 	});
 });

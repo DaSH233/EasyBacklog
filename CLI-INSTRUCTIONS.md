@@ -113,7 +113,7 @@ Without `--sort`, `task list` orders tasks by ordinal, then priority, then ID: t
 
 ### Paging long lists
 
-`task list`, `search`, `draft list`, `milestone list`, `doc list`, `doc search`, and `decision list` print every match by default. `--max-count <n>` prints at most `n` items and `--skip <n>` leaves out the first `n`, as in `git log`. Both apply after filtering, sorting, and `--limit`. `task list` takes the window from the sorted list, so `--plain` and `--json` select the same tasks; plain output then groups only those tasks by status, as it does for `--limit`, unless `--sort priority` prints one flat list. The other lists take the window in the order their output prints: plain `search` prints tasks, then documents, then decisions, and `milestone list` prints active milestones before completed ones. Each list has a stable order: tasks, drafts, and decisions break ties by ID, documents sort by title and then path, search results by score and then corpus order, and milestones follow their files and then the tasks that name them. So consecutive windows of an unchanged backlog neither overlap nor leave items out. With `--json`, `search` windows its results in relevance order, so read all windows of a search in one output mode. The options print text instead of opening an interactive view.
+`task list`, `search`, `draft list`, `milestone list`, `doc list`, and `doc search` print every match by default. `--max-count <n>` prints at most `n` items and `--skip <n>` leaves out the first `n`, as in `git log`. Both apply after filtering, sorting, and `--limit`. `task list` takes the window from the sorted list, so `--plain` and `--json` select the same tasks; plain output then groups only those tasks by status, as it does for `--limit`, unless `--sort priority` prints one flat list. The other lists take the window in the order their output prints: plain `search` prints tasks, then documents, and `milestone list` prints active milestones before completed ones. Each list has a stable order: tasks and drafts break ties by ID, documents sort by title and then path, search results by score and then corpus order, and milestones follow their files and then the tasks that name them. So consecutive windows of an unchanged backlog neither overlap nor leave items out. With `--json`, `search` windows its results in relevance order, so read all windows of a search in one output mode. The options print text instead of opening an interactive view.
 
 Output cut by a window ends with the shown range, the total, and the command that prints the following items:
 
@@ -155,7 +155,6 @@ Each successful response is one pretty-printed JSON document followed by a newli
 | `task list --json` | `{ "schemaVersion": 1, "kind": "task-list", "tasks": [...] }` |
 | `task view <id> --json` and `task <id> --json` | `{ "schemaVersion": 1, "kind": "task-view", "task": {...} }` |
 | `draft list --json` | `{ "schemaVersion": 1, "kind": "draft-list", "drafts": [...] }` |
-| `decision list --json` | `{ "schemaVersion": 1, "kind": "decision-list", "decisions": [...] }` |
 | `search [query] --json` | `{ "schemaVersion": 1, "kind": "search", "results": [...] }` |
 
 Task list and task search results use these compact fields: `id`, `title`, `status`, `archived`, `type`, `priority`, `project`, `assignees`, `reporter`, `labels`, `milestone`, `parentTaskId`, `acceptanceCriteriaCompleted`, `acceptanceCriteriaCount`, `references`, `modifiedFiles`, `ordinal`, `createdAt`, `updatedAt`, `dueDate`, and `isReady`. `archived` is `true` for a task in the archive, which is read-only, and `false` for a task on the board. `acceptanceCriteriaCompleted` is the number of checked acceptance criteria and `acceptanceCriteriaCount` is the total; both are `0` when the task has no acceptance criteria. `project` reports the task's `project:` frontmatter and is `null` when the task has none. Setting or filtering by it requires a `projects:` list in the project config. `isReady` is derived from the whole visible corpus at read time and never stored: it is `true` when the task is unfinished and every dependency it names resolved to a completed task, and `false` for a finished task or one whose dependencies are unfinished, unknown, or ambiguous. It is the same verdict `task list --ready` filters on. Draft list entries carry the same fields without `isReady`, because readiness is computed against tasks only.
@@ -166,9 +165,9 @@ Task view also carries `dependencyGraph`, a property of the task detail that is 
 
 `readiness` explains the `isReady` field above it and comes from the same derivation. It contains `isReady`, `isBlocked`, `blockingDependencies` (dependencies that resolved to unfinished tasks), and `missingDependencies` (dependency IDs no single visible task claims). Both lists fail closed: an unknown or ambiguous dependency blocks instead of being treated as satisfied.
 
-Search keeps relevance order and discriminates every result with `type` and `data`. Task data uses the compact task fields. Document data contains `id`, `title`, `type`, `path`, `tags`, `createdAt`, and `updatedAt`. Decision data contains `id`, `title`, `status`, and `date`. Search scores are not part of the version 1 public contract.
+Search keeps relevance order and discriminates every result with `type` and `data`. Task data uses the compact task fields. Document data contains `id`, `title`, `type`, `path`, `tags`, `createdAt`, and `updatedAt`. Search scores are not part of the version 1 public contract.
 
-When `--max-count` or `--skip` cuts a `task list`, `draft list`, `search`, or `decision list` result, the envelope also contains `total`, the number of items before the window, and `nextSkip`, the `--skip` value for the following items or `null` when none follow. Output that is not cut has neither field.
+When `--max-count` or `--skip` cuts a `task list`, `draft list`, or `search` result, the envelope also contains `total`, the number of items before the window, and `nextSkip`, the `--skip` value for the following items or `null` when none follow. Output that is not cut has neither field.
 
 Absent scalar fields are `null`, and absent collections are `[]`. Date-only values remain `YYYY-MM-DD`; UTC date-times use RFC 3339. Internal fields, absolute paths, raw Markdown source objects, branch metadata, and search implementation details are not exposed.
 
@@ -281,7 +280,7 @@ Milestones are managed through milestone files. Use CLI commands instead of edit
 
 ## Search
 
-Find tasks, documents, and decisions across your entire backlog with fuzzy search:
+Find tasks and documents across your entire backlog with fuzzy search:
 
 | Action             | Example                                              |
 |--------------------|------------------------------------------------------|
@@ -373,7 +372,7 @@ Dependents (2 direct, 2 total):
 
 The Web UI listens only on `127.0.0.1`; it is not reachable from other devices on the LAN or VPN.
 
-To keep the Web UI running in the background with auto-start on boot, see [Running EasyBacklog as a Service](backlog/docs/doc-003%20-%20Running-Backlog-Browser-as-a-Service.md).
+Use `backlog browser --help` for browser startup options. For a background process, run `backlog browser --no-open --non-interactive` under your operating system's process manager.
 
 ## Documentation
 
@@ -391,22 +390,17 @@ To keep the Web UI running in the background with auto-start on boot, see [Runni
 | Restore doc | `backlog doc restore doc-1` (move an archived document back to `backlog/docs/` with the same ID) |
 | Delete doc | `backlog doc delete doc-1` (archived documents only; no prompt; removes the file and releases the ID) |
 
-Document and decision updates automatically keep unknown top-level YAML frontmatter keys, including their written values and comments. No configuration is needed. If preserving a YAML reference would break it or prevent applying a change to a Backlog-owned field, the save fails with a clear error and leaves the file and path unchanged. For example, `owner: *name` refers to the value marked with `&name`; edit that reference or its anchor in the file before trying again.
+Document updates automatically keep unknown top-level YAML frontmatter keys, including their written values and comments. No configuration is needed. If preserving a YAML reference would break it or prevent applying a change to a Backlog-owned field, the save fails with a clear error and leaves the file and path unchanged. For example, `owner: *name` refers to the value marked with `&name`; edit that reference or its anchor in the file before trying again.
 
-## Decisions
+### Migrating legacy decision records
 
-| Action      | Example                                              |
-|-------------|------------------------------------------------------|
-| Create decision | `backlog decision create "Use PostgreSQL for primary database"` |
-| Create with status | `backlog decision create "Migrate to TypeScript" -s proposed` |
-| Change status | `backlog decision edit decision-1 -s superseded` (the status is free-form; the rest of the decision file stays as it is) |
-| Archive decision | `backlog decision archive decision-1` (move the decision to `backlog/archive/decisions/`; its ID stays reserved and it becomes read-only) |
-| Restore decision | `backlog decision restore decision-1` (move an archived decision back to `backlog/decisions/` with the same ID) |
-| Delete decision | `backlog decision delete decision-1` (archived decisions only; no prompt; removes the file and releases the ID) |
+Standalone `decision` commands, decision search results, and decision browser routes are no longer available. Record task-specific choices in implementation notes, and use ordinary documents for long-lived agreements shared by several tasks:
 
-- Use `backlog decision archive decision-1` to archive a decision that is no longer wanted. Its file moves unchanged, under the same name, to `backlog/archive/decisions/`, and its ID stays reserved, so no new decision receives it. An archived decision leaves `backlog decision list` and search and is read-only until it is restored. No command prints a single decision yet, so an archived decision is read by restoring it. Archiving changes no task: the command prints the tasks and drafts whose documentation list names the moved file.
-- Use `backlog decision restore decision-1` to bring an archived decision back to `backlog/decisions/` with the same ID. A file of that name already there is never replaced.
-- Removing a decision takes two steps: `backlog decision archive decision-1`, then `backlog decision delete decision-1`. Delete works only on an archived decision and asks no question. It removes the file from `backlog/archive/decisions/` (a file that is a symbolic link is removed as a link) and releases the ID once no other file and no committed file on any branch uses the number. Delete changes no task: it prints the tasks and drafts whose documentation list names the removed file, by its archive path or by the path it had before it was archived.
+```bash
+backlog doc create "Database choice" --path decisions --type other --content "Background, choice, and consequences"
+```
+
+Upgrading does not migrate or delete legacy files under `backlog/decisions/` or `backlog/archive/decisions/`. To migrate a record, copy its full body into a document and include its original ID, date, and status in that body. Use the document ID returned by `doc create`; update task documentation entries, body references, and old `/decisions/...` links to the replacement. Archive the replacement with `backlog doc archive <document-id>` if the original was archived. Verify the content and references before removing any legacy files. The `decision` task prefix remains reserved to prevent old IDs from being reused as task IDs.
 
 ## Agent Instructions
 

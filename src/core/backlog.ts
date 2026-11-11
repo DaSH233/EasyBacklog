@@ -15,15 +15,14 @@ import {
 	newTaskLockError,
 } from "../file-system/operations.ts";
 import { type GitBranchTip, type GitIndexEntry, GitOperations } from "../git/operations.ts";
-import { FrontmatterReferenceError, parseFrontmatter } from "../markdown/frontmatter.ts";
-import { extractSection, parseTask } from "../markdown/parser.ts";
+import { FrontmatterReferenceError } from "../markdown/frontmatter.ts";
+import { parseTask } from "../markdown/parser.ts";
 import { assertSectionInputHasNoMarkerLines, assertValidChecklistMarks } from "../markdown/structured-sections.ts";
 import {
 	type AcceptanceCriterion,
 	type BacklogConfig,
 	type ContentRecord,
 	type ContentRecordKind,
-	type Decision,
 	DOCUMENT_TYPE_VALUES,
 	type Document,
 	type DocumentCreateInput,
@@ -41,7 +40,6 @@ import {
 	type TaskUpdateInput,
 } from "../types/index.ts";
 import { normalizeAssignee } from "../utils/assignee.ts";
-import { decisionIdKey, decisionNotFoundMessage, findDecisionById } from "../utils/decision-id.ts";
 import { documentIdKey, documentNotFoundMessage, findDocumentById, normalizeDocumentId } from "../utils/document-id.ts";
 import { getDocumentSubPathFromRelativePath, normalizeDocumentSubPath } from "../utils/document-path.ts";
 import { normalizeDueDate } from "../utils/due-date.ts";
@@ -53,7 +51,7 @@ import {
 import { openInEditor } from "../utils/editor.ts";
 import { entityIdKey, isAmbiguousIdError } from "../utils/entity-id.ts";
 import { findBacklogRoot } from "../utils/find-backlog-root.ts";
-import { generateNextDecisionId, generateNextDocId } from "../utils/id-generators.ts";
+import { generateNextDocId } from "../utils/id-generators.ts";
 import { createMilestoneFilterValueResolver } from "../utils/milestone-filter.ts";
 import {
 	buildGlobPattern,
@@ -415,8 +413,8 @@ function assertSectionInputsSafe(input: {
 }
 
 /**
- * Core refused an operation because of the state the record is in: a task, a document or a
- * decision. The message is the answer for the caller, so every interface reports it as it is.
+ * Core refused an operation because of the state a task or document is in.
+ * Every interface reports the message as it is.
  */
 export class RecordRefusedError extends Error {}
 
@@ -474,9 +472,7 @@ export class TaskNotArchivedError extends RecordRefusedError {
 }
 
 /**
- * The words of each content record kind. Every message, commit subject and report of archive,
- * restore and delete is built from these, so documents and decisions say the same things in their
- * own nouns. A new kind is one more entry here.
+ * Shared wording for document archive, restore and delete messages and commit subjects.
  * - `singular`, `plural`, `sentenceStart`: the noun, as in "Archived document doc-1", "Archived
  *   documents are read-only" and "Document doc-1 was archived".
  * - `cliCommand`: the command group that changes the kind, named in the read-only message.
@@ -492,14 +488,6 @@ export const CONTENT_RECORD_WORDS = {
 		folderName: "docs folder",
 		notFound: documentNotFoundMessage,
 	},
-	decision: {
-		singular: "decision",
-		plural: "decisions",
-		sentenceStart: "Decision",
-		cliCommand: "backlog decision",
-		folderName: "decisions folder",
-		notFound: decisionNotFoundMessage,
-	},
 } as const satisfies Record<ContentRecordKind, unknown>;
 
 /** The words of each operation: the start of its commit subject, what was done, and how it is reported. */
@@ -512,7 +500,7 @@ const CONTENT_RECORD_OPERATION_WORDS = {
 type ContentRecordOperation = keyof typeof CONTENT_RECORD_OPERATION_WORDS;
 
 /**
- * A change targeted a document or decision that is in the archive, where it is read-only: an
+ * A change targeted a document that is in the archive, where it is read-only: an
  * update, or archiving it a second time. Restoring it is the way to change it, so the message names
  * the command.
  */
@@ -526,7 +514,7 @@ export class ContentRecordArchivedError extends RecordRefusedError {
 	}
 }
 
-/** Restore or delete targeted a document or decision that is not archived; both act on archived ones only. */
+/** Restore or delete targeted a document that is not archived; both act on archived ones only. */
 export class ContentRecordNotArchivedError extends RecordRefusedError {
 	constructor(kind: ContentRecordKind, id: string, operation: "restore" | "delete") {
 		const words = CONTENT_RECORD_WORDS[kind];
@@ -559,7 +547,7 @@ export class ContentRecordFileExistsError extends RecordRefusedError {
 export const ARCHIVED_DOCUMENT_NOTICE = "This document is archived and read-only.";
 
 /**
- * Outcome of archiving, restoring or deleting a document or decision. `listedAsDocumentationBy`
+ * Outcome of archiving, restoring or deleting a document. `listedAsDocumentationBy`
  * holds the IDs of the tasks and drafts whose `documentation` list names a path the file is no
  * longer at: the path it left when it was archived or restored, and for a delete also the path it
  * had before it was archived. Core changes none of them, so every interface reports them and a
@@ -571,7 +559,7 @@ export interface ContentRecordChangeResult {
 }
 
 /**
- * What every interface reports after archive, restore or delete of a document or decision, one
+ * What every interface reports after archive, restore or delete of a document, one
  * line each: the confirmation, then the tasks and drafts that still name a path the file is no
  * longer at, when there are any.
  */
@@ -610,7 +598,7 @@ function withoutArchivedFlag<R extends ContentRecord>(record: R): R {
 /**
  * A change is on disk and only its commit failed. The message says both, so nobody runs the change
  * again: "Task TASK-1 was archived, but committing the change failed: <reason>". The archive,
- * restore and delete operations of tasks, documents and decisions throw this one error for that
+ * restore and delete operations of tasks and documents throw this one error for that
  * case, and every interface reports the message as it is.
  *
  * `change` is the part before the comma, for example `Task TASK-1 was archived`. Where the browser
@@ -625,12 +613,12 @@ export class ChangeNotCommittedError extends Error {
 	}
 }
 
-/** The subject of the commit an operation makes, for example `backlog: Archive decision decision-2`. */
+/** The subject of the commit an operation makes, for example `backlog: Archive document doc-2`. */
 function contentRecordCommitSubject(kind: ContentRecordKind, operation: ContentRecordOperation, id: string): string {
 	return `backlog: ${CONTENT_RECORD_OPERATION_WORDS[operation].commitVerb} ${CONTENT_RECORD_WORDS[kind].singular} ${id}`;
 }
 
-/** The error for an operation whose change is on disk while its commit failed: "Decision decision-2 was archived, but ...". */
+/** The error for an operation whose change is on disk while its commit failed: "Document doc-2 was archived, but ...". */
 function contentRecordNotCommittedError(
 	kind: ContentRecordKind,
 	operation: ContentRecordOperation,
@@ -762,21 +750,17 @@ export class Core {
 	}
 
 	/**
-	 * Reports document and decision files whose IDs collide or are missing, so lookups can fail
-	 * closed. Archived documents and decisions are checked together with the ones in their folder,
+	 * Reports document files whose IDs collide or are missing, so lookups can fail
+	 * closed. Archived documents are checked together with the ones in their folder,
 	 * because an archived record keeps its ID: one file in each folder with the same ID is a
 	 * duplicate.
 	 */
 	async diagnoseContentIdentity(): Promise<ContentIdentityReport> {
 		const unreadableDocuments: string[] = [];
 		const unreadableArchivedDocuments: string[] = [];
-		const unreadableDecisions: string[] = [];
-		const unreadableArchivedDecisions: string[] = [];
-		const [documents, archivedDocuments, decisions, archivedDecisions] = await Promise.all([
+		const [documents, archivedDocuments] = await Promise.all([
 			this.fs.listDocuments(unreadableDocuments),
 			this.fs.listArchivedDocuments(unreadableArchivedDocuments),
-			this.fs.listDecisions(unreadableDecisions),
-			this.fs.listArchivedDecisions(unreadableArchivedDecisions),
 		]);
 		// An empty collected path denotes the content directory itself, which the filesystem reports
 		// when it could not be scanned at all.
@@ -797,23 +781,6 @@ export class Core {
 				[
 					...unreadableDocuments.map((path) => locate(DEFAULT_DIRECTORIES.DOCS, path)),
 					...unreadableArchivedDocuments.map((path) => locate(DEFAULT_DIRECTORIES.ARCHIVE_DOCS, path)),
-				],
-			),
-			decisions: detectContentIdentityIssues(
-				[
-					...decisions.map((decision) => ({
-						id: decision.id,
-						path: describe(DEFAULT_DIRECTORIES.DECISIONS, decision),
-					})),
-					...archivedDecisions.map((decision) => ({
-						id: decision.id,
-						path: describe(DEFAULT_DIRECTORIES.ARCHIVE_DECISIONS, decision),
-					})),
-				],
-				decisionIdKey,
-				[
-					...unreadableDecisions.map((path) => locate(DEFAULT_DIRECTORIES.DECISIONS, path)),
-					...unreadableArchivedDecisions.map((path) => locate(DEFAULT_DIRECTORIES.ARCHIVE_DECISIONS, path)),
 				],
 			),
 		};
@@ -1612,22 +1579,6 @@ export class Core {
 	}
 
 	/**
-	 * The decision an ID names, from the decisions folder or from the archive (`archived` is then
-	 * set). Every interface resolves a decision ID here. The two folders are searched together, so an
-	 * ID that more than one file claims fails closed with `AmbiguousIdError` wherever the files are,
-	 * and the message names each file by its path from the project root.
-	 */
-	async getDecision(decisionId: string): Promise<Decision | null> {
-		const [decisions, archivedDecisions] = await Promise.all([
-			this.fs.listDecisions(),
-			this.fs.listArchivedDecisions(),
-		]);
-		return findDecisionById([...decisions, ...archivedDecisions], decisionId, (decision) =>
-			this.fs.contentRecordProjectPath("decision", decision),
-		);
-	}
-
-	/**
 	 * What `backlog doc view` prints and the interactive viewer shows for a document: its file as it
 	 * is stored and, for an archived document, {@link ARCHIVED_DOCUMENT_NOTICE} on a line above it.
 	 * Null when no document claims the ID or its file cannot be read.
@@ -1930,7 +1881,7 @@ export class Core {
 	/**
 	 * Generates the next ID for a given entity type.
 	 *
-	 * @param type - The entity type (Task, Draft, Document, Decision). Defaults to Task.
+	 * @param type - The entity type (Task, Draft, Document). Defaults to Task.
 	 * @param parent - Optional parent ID for subtask generation (only applicable for tasks).
 	 * @returns The next available ID (e.g., "task-42", "draft-5", "doc-3")
 	 *
@@ -1938,7 +1889,6 @@ export class Core {
 	 * - Task: /tasks and the archived task directories, cross-branch (if enabled), remote (if enabled)
 	 * - Draft: /drafts only
 	 * - Document: /docs and the archived documents
-	 * - Decision: /decisions and the archived decisions
 	 */
 	async generateNextId(type: EntityType = EntityType.Task, parent?: string): Promise<string> {
 		const config = await this.fs.loadConfig();
@@ -2073,14 +2023,6 @@ export class Core {
 					this.fs.listArchivedDocuments(),
 				]);
 				return [...documents, ...archivedDocuments].map((d) => d.id);
-			}
-			case EntityType.Decision: {
-				// An archived decision keeps its ID, so that ID is taken too.
-				const [decisions, archivedDecisions] = await Promise.all([
-					this.fs.listDecisions(),
-					this.fs.listArchivedDecisions(),
-				]);
-				return [...decisions, ...archivedDecisions].map((d) => d.id);
 			}
 			default:
 				return [];
@@ -4420,90 +4362,6 @@ export class Core {
 		}
 	}
 
-	async createDecision(decision: Decision, autoCommit?: boolean): Promise<void> {
-		const { filepath, movedFrom } = await this.fs.saveDecision(decision).catch(refuseBrokenFrontmatterReference);
-
-		if (await this.shouldAutoCommit(autoCommit)) {
-			await this.commitWrittenFile(`backlog: Add decision ${decision.id}`, movedFrom ? [movedFrom] : [], filepath);
-		}
-	}
-
-	/**
-	 * Change a decision in the decisions folder from its Markdown. An archived decision is read-only:
-	 * the update is refused with `ContentRecordArchivedError` and no file is written. The web save
-	 * updates through this method.
-	 */
-	async updateDecisionFromContent(decisionId: string, content: string, autoCommit?: boolean): Promise<void> {
-		const existingDecision = await this.getDecision(decisionId);
-		if (!existingDecision) {
-			throw new Error(decisionNotFoundMessage(decisionId));
-		}
-		if (existingDecision.archived) {
-			throw new ContentRecordArchivedError("decision", existingDecision.id);
-		}
-
-		// Parse the markdown content to extract the decision data
-		const frontmatter = parseFrontmatter(content, ["date"]).data as Partial<
-			Pick<Decision, "title" | "status" | "date">
-		>;
-
-		const updatedDecision = {
-			...existingDecision,
-			title: frontmatter.title || existingDecision.title,
-			status: frontmatter.status || existingDecision.status,
-			date: frontmatter.date || existingDecision.date,
-			context: extractSection(content, "Context") ?? existingDecision.context,
-			decision: extractSection(content, "Decision") ?? existingDecision.decision,
-			consequences: extractSection(content, "Consequences") ?? existingDecision.consequences,
-			alternatives: extractSection(content, "Alternatives") ?? existingDecision.alternatives,
-		};
-
-		await this.createDecision(updatedDecision, autoCommit);
-	}
-
-	async createDecisionWithTitle(
-		title: string,
-		autoCommit?: boolean,
-		sections?: Pick<Decision, "context" | "decision" | "consequences">,
-	): Promise<Decision> {
-		const id = await generateNextDecisionId(this);
-
-		const decision: Decision = {
-			id,
-			title,
-			date: formatUtcTimestamp(),
-			status: "proposed",
-			context: sections?.context ?? "[Describe the context and problem that needs to be addressed]",
-			decision: sections?.decision ?? "[Describe the decision that was made]",
-			consequences: sections?.consequences ?? "[Describe the consequences of this decision]",
-			rawContent: "",
-		};
-
-		await this.createDecision(decision, autoCommit);
-		return decision;
-	}
-
-	/**
-	 * Changes the status of an existing decision and leaves the rest of its file as it is. Returns the
-	 * decision's ID. Resolves active and archived IDs together; archived decisions are read-only.
-	 * Storage refuses a status that cannot be replaced without changing other content.
-	 */
-	async updateDecisionStatus(decisionId: string, status: string, autoCommit?: boolean): Promise<string> {
-		const decision = await this.getDecision(decisionId);
-		if (!decision) {
-			throw new Error(`Decision ${decisionId} not found`);
-		}
-		if (decision.archived) {
-			throw new ContentRecordArchivedError("decision", decision.id);
-		}
-		const filepath = await this.fs.updateDecisionStatus(decision, status);
-
-		if (await this.shouldAutoCommit(autoCommit)) {
-			await this.commitWrittenFile(`backlog: Update decision ${decision.id}`, [], filepath);
-		}
-		return decision.id;
-	}
-
 	async createDocument(doc: Document, autoCommit?: boolean, subPath = ""): Promise<void> {
 		const { relativePath, movedFrom } = await this.fs
 			.saveDocument(doc, normalizeDocumentSubPath(subPath))
@@ -4602,7 +4460,7 @@ export class Core {
 	}
 
 	/**
-	 * Move a document or decision out of its folder into the archive of its kind, under the same
+	 * Move a document out of its folder into the archive of its kind, under the same
 	 * path. From then on it cannot be changed, and lists and search leave it out. See
 	 * {@link moveContentRecord} for what the move keeps and when it is refused.
 	 */
@@ -4615,7 +4473,7 @@ export class Core {
 	}
 
 	/**
-	 * Move an archived document or decision back to its folder, under the path it has in the archive.
+	 * Move an archived document back to its folder, under the path it has in the archive.
 	 * It is then a record like any other. See {@link moveContentRecord}.
 	 */
 	async restoreContentRecord(
@@ -4638,7 +4496,7 @@ export class Core {
 	 * `AmbiguousIdError`. Every refusal is a `RecordRefusedError` with nothing moved: the record is
 	 * already where the move would take it, or a file is already at the destination path.
 	 *
-	 * Documents and decisions have no update lock yet, so this takes none.
+	 * Documents have no update lock yet, so this takes none.
 	 */
 	private async moveContentRecord(
 		kind: ContentRecordKind,
@@ -4669,7 +4527,7 @@ export class Core {
 		);
 		// Lists and search read the content store, which holds the records of each folder. Without
 		// this, a long-running server would show the old state until its file watcher noticed.
-		const records = this.contentRecords(kind);
+		const records = this.contentRecords();
 		if (direction === "archive") records.leftFolder(record);
 		else records.reachedFolder(movedRecord);
 
@@ -4685,7 +4543,7 @@ export class Core {
 				);
 			} catch (error) {
 				const failure = contentRecordNotCommittedError(kind, direction, record.id, error);
-				// The browser archives documents and decisions, as it archives tasks. The tag tells it the
+				// The browser archives documents, as it archives tasks. The tag tells it the
 				// record moved, so the page treats it as archived instead of offering the archive again.
 				throw direction === "archive" ? markRecordAlreadyMoved(failure, "archiveState") : failure;
 			}
@@ -4694,7 +4552,7 @@ export class Core {
 	}
 
 	/**
-	 * Permanently remove an archived document or decision. Its file is removed, and a file that is a
+	 * Permanently remove an archived document. Its file is removed, and a file that is a
 	 * symbolic link is removed as a link; the file it points to stays. The ID is then free again,
 	 * unless another file of this checkout or a committed file on a branch still claims it. No task
 	 * or draft is changed: the result names the ones whose `documentation` list names the removed
@@ -4704,7 +4562,7 @@ export class Core {
 	 * `AmbiguousIdError`. A record that is not archived is refused with
 	 * `ContentRecordNotArchivedError` and nothing is removed.
 	 *
-	 * Documents and decisions have no update lock yet, so this takes none.
+	 * Documents have no update lock yet, so this takes none.
 	 */
 	async deleteContentRecord(
 		kind: ContentRecordKind,
@@ -4738,7 +4596,7 @@ export class Core {
 	}
 
 	/**
-	 * The document or decision an ID names, for archive, restore or delete. Null when no record of
+	 * The document an ID names, for archive, restore or delete. Null when no record of
 	 * the kind claims the ID. A record in the wrong place for `operation` is refused here, so the
 	 * three operations answer with the same words for every kind: archive needs a record that is not
 	 * archived, restore and delete need an archived one.
@@ -4747,8 +4605,8 @@ export class Core {
 		kind: ContentRecordKind,
 		id: string,
 		operation: ContentRecordOperation,
-	): Promise<ContentRecord | null> {
-		const record = await this.contentRecords(kind).find(id);
+	): Promise<Document | null> {
+		const record = await this.contentRecords().find(id);
 		if (!record) return null;
 		if (operation === "archive" && record.archived) throw new ContentRecordArchivedError(kind, record.id);
 		if (operation !== "archive" && !record.archived) {
@@ -4757,37 +4615,15 @@ export class Core {
 		return record;
 	}
 
-	/**
-	 * How the shared archive, restore and delete resolve an ID of one kind and keep a running
-	 * server's lists and search in step. This is the one place in core that knows the kinds apart; a
-	 * new kind is one more case here, one in `CONTENT_RECORD_WORDS` and one in
-	 * `FileSystem.contentRecordStorage`.
-	 *
-	 * The functions are typed for their own kind and returned as operations on any content record.
-	 * That is sound here because every record the shared operations hand back is one this `find`
-	 * returned, or a copy of it.
-	 */
-	private contentRecords(kind: ContentRecordKind): ContentRecordOperations<ContentRecord> {
-		switch (kind) {
-			case "document": {
-				const documents: ContentRecordOperations<Document> = {
-					find: (id) => this.getDocument(id),
-					leftFolder: (document) => {
-						if (document.path) this.contentStore?.removeDocument(document.path);
-					},
-					reachedFolder: (document) => this.contentStore?.addDocument(document),
-				};
-				return documents;
-			}
-			case "decision": {
-				const decisions: ContentRecordOperations<Decision> = {
-					find: (id) => this.getDecision(id),
-					leftFolder: (decision) => this.contentStore?.removeDecision(decision.id),
-					reachedFolder: (decision) => this.contentStore?.addDecision(decision),
-				};
-				return decisions;
-			}
-		}
+	/** Keep document archive changes synchronized with the running server. */
+	private contentRecords(): ContentRecordOperations<Document> {
+		return {
+			find: (id) => this.getDocument(id),
+			leftFolder: (document) => {
+				if (document.path) this.contentStore?.removeDocument(document.path);
+			},
+			reachedFolder: (document) => this.contentStore?.addDocument(document),
+		};
 	}
 
 	/**

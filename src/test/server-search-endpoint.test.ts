@@ -4,7 +4,7 @@ import { DEFAULT_STATUSES } from "../constants/index.ts";
 import type { Core } from "../core/backlog.ts";
 import { FileSystem } from "../file-system/operations.ts";
 import { BacklogServer } from "../server/index.ts";
-import type { Decision, Document, Milestone, Task } from "../types/index.ts";
+import type { Document, Milestone, Task } from "../types/index.ts";
 import { createUniqueTestDir, retry, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -34,17 +34,6 @@ const baseDoc: Document = {
 	createdDate: "2025-09-20",
 	updatedDate: "2025-09-20",
 	rawContent: "# Guide\nAlpha document guidance",
-};
-
-const baseDecision: Decision = {
-	id: "decision-9001",
-	title: "Centralize search",
-	date: "2025-09-19",
-	status: "accepted",
-	context: "Need consistent Alpha search coverage",
-	decision: "Adopt shared Fuse service",
-	consequences: "Shared index",
-	rawContent: "## Context\nAlpha adoption",
 };
 
 const dependentTask: Task = {
@@ -97,7 +86,6 @@ describe("BacklogServer search endpoint", () => {
 		await filesystem.saveTask(dependentTask);
 		await filesystem.saveTask(customPriorityTask);
 		await filesystem.saveDocument(baseDoc);
-		await filesystem.saveDecision(baseDecision);
 
 		server = new BacklogServer(TEST_DIR);
 		await server.start(0, false);
@@ -125,12 +113,12 @@ describe("BacklogServer search endpoint", () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	it("returns tasks, documents, and decisions from the shared search service", async () => {
+	it("returns tasks and documents from the shared search service", async () => {
 		const results = await retry(
 			async () => {
 				const data = await fetchJson<Array<{ type?: string }>>("/api/search?query=alpha");
 				const typeSet = new Set(data.map((item) => item.type));
-				if (!typeSet.has("task") || !typeSet.has("document") || !typeSet.has("decision")) {
+				if (!typeSet.has("task") || !typeSet.has("document")) {
 					throw new Error("Search results not yet indexed for all types");
 				}
 				return data;
@@ -141,7 +129,6 @@ describe("BacklogServer search endpoint", () => {
 		const finalTypes = new Set(results.map((item) => item.type));
 		expect(finalTypes.has("task")).toBe(true);
 		expect(finalTypes.has("document")).toBe(true);
-		expect(finalTypes.has("decision")).toBe(true);
 	});
 
 	it("refreshes task refs only when the requested result types include tasks", async () => {
@@ -161,10 +148,8 @@ describe("BacklogServer search endpoint", () => {
 		};
 
 		try {
-			const nonTaskResults = await fetchJson<Array<{ type?: string }>>(
-				"/api/search?type=document&type=decision&query=alpha",
-			);
-			expect(new Set(nonTaskResults.map((item) => item.type))).toEqual(new Set(["document", "decision"]));
+			const nonTaskResults = await fetchJson<Array<{ type?: string }>>("/api/search?type=document&query=alpha");
+			expect(new Set(nonTaskResults.map((item) => item.type))).toEqual(new Set(["document"]));
 			expect(taskRefreshes).toBe(0);
 
 			const invalidResponse = await fetch(`http://127.0.0.1:${serverPort}/api/search?type=milestone&query=alpha`);

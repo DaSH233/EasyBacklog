@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { FileSystem } from "../file-system/operations.ts";
-import { serializeDecision, serializeDocument } from "../markdown/serializer.ts";
+import { serializeDocument } from "../markdown/serializer.ts";
 import { BacklogServer } from "../server/index.ts";
 import type { Document } from "../types/index.ts";
 import { createUniqueTestDir, retry, safeCleanup } from "./test-utils.ts";
@@ -224,7 +224,7 @@ describe("BacklogServer document endpoints", () => {
 
 // The second file's raw frontmatter ID is a parameter: `doc-01` differs from `doc-1` as a raw
 // map key, while an identical `doc-1` also collides inside the ContentStore's by-ID maps.
-async function startServerWithColliding(secondDocumentId: string, secondDecisionId: string): Promise<void> {
+async function startServerWithColliding(secondDocumentId: string): Promise<void> {
 	TEST_DIR = createUniqueTestDir("server-content-identity");
 	const filesystem = new FileSystem(TEST_DIR);
 	await filesystem.ensureBacklogStructure();
@@ -239,21 +239,8 @@ async function startServerWithColliding(secondDocumentId: string, secondDecision
 
 	const document = (id: string, title: string): string =>
 		serializeDocument({ id, title, type: "other", createdDate: "2026-01-01 00:00", rawContent: title });
-	const decision = (id: string, title: string): string =>
-		serializeDecision({
-			id,
-			title,
-			date: "2026-01-01 00:00",
-			status: "proposed",
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "",
-		});
 	await Bun.write(join(filesystem.docsDir, "doc-1 - Alpha.md"), document("doc-1", "Alpha"));
 	await Bun.write(join(filesystem.docsDir, "nested", "doc-01 - Beta.md"), document(secondDocumentId, "Beta"));
-	await Bun.write(join(filesystem.decisionsDir, "decision-1 - Alpha.md"), decision("decision-1", "Alpha"));
-	await Bun.write(join(filesystem.decisionsDir, "decision-01 - Beta.md"), decision(secondDecisionId, "Beta"));
 
 	server = new BacklogServer(TEST_DIR);
 	await server.start(0, false);
@@ -276,7 +263,7 @@ async function stopServer(): Promise<void> {
 
 describe("BacklogServer ambiguous content identity", () => {
 	beforeEach(async () => {
-		await startServerWithColliding("doc-01", "decision-01");
+		await startServerWithColliding("doc-01");
 	});
 
 	afterEach(stopServer);
@@ -287,20 +274,12 @@ describe("BacklogServer ambiguous content identity", () => {
 		const documentBody = await documentResponse.text();
 		expect(documentBody).toContain("Document ID doc-1 is ambiguous");
 		expect(documentBody).toContain("nested/doc-01 - Beta.md");
-
-		const decisionResponse = await fetch(`http://127.0.0.1:${serverPort}/api/decisions/decision-1`);
-		expect(decisionResponse.status).toBe(409);
-		const decisionBody = await decisionResponse.text();
-		expect(decisionBody).toContain("Decision ID decision-1 is ambiguous");
-		expect(decisionBody).toContain("decision-01 - Beta.md");
 	});
 
 	it("answers 409 on writes and leaves every candidate file untouched", async () => {
 		const filesystem = new FileSystem(TEST_DIR);
 		const documentPath = join(filesystem.docsDir, "doc-1 - Alpha.md");
-		const decisionPath = join(filesystem.decisionsDir, "decision-1 - Alpha.md");
 		const documentBefore = await Bun.file(documentPath).text();
-		const decisionBefore = await Bun.file(decisionPath).text();
 
 		const documentResponse = await fetch(`http://127.0.0.1:${serverPort}/api/docs/doc-1`, {
 			method: "PUT",
@@ -310,22 +289,13 @@ describe("BacklogServer ambiguous content identity", () => {
 		expect(documentResponse.status).toBe(409);
 		expect(await documentResponse.text()).toContain("Document ID doc-1 is ambiguous");
 
-		const decisionResponse = await fetch(`http://127.0.0.1:${serverPort}/api/decisions/decision-1`, {
-			method: "PUT",
-			headers: { "Content-Type": "text/plain" },
-			body: "## Context\n\nChanged\n",
-		});
-		expect(decisionResponse.status).toBe(409);
-		expect(await decisionResponse.text()).toContain("Decision ID decision-1 is ambiguous");
-
 		expect(await Bun.file(documentPath).text()).toBe(documentBefore);
-		expect(await Bun.file(decisionPath).text()).toBe(decisionBefore);
 	});
 });
 
 describe("BacklogServer identical raw content IDs", () => {
 	beforeEach(async () => {
-		await startServerWithColliding("doc-1", "decision-1");
+		await startServerWithColliding("doc-1");
 	});
 
 	afterEach(stopServer);
@@ -337,12 +307,5 @@ describe("BacklogServer identical raw content IDs", () => {
 		expect(documentBody).toContain("Document ID doc-1 is ambiguous; 2 files match:");
 		expect(documentBody).toContain("doc-1 - Alpha.md");
 		expect(documentBody).toContain("nested/doc-01 - Beta.md");
-
-		const decisionResponse = await fetch(`http://127.0.0.1:${serverPort}/api/decisions/decision-1`);
-		expect(decisionResponse.status).toBe(409);
-		const decisionBody = await decisionResponse.text();
-		expect(decisionBody).toContain("Decision ID decision-1 is ambiguous; 2 files match:");
-		expect(decisionBody).toContain("decision-1 - Alpha.md");
-		expect(decisionBody).toContain("decision-01 - Beta.md");
 	});
 });

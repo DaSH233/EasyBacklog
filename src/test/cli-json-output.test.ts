@@ -65,17 +65,6 @@ describe("CLI JSON output", () => {
 			tags: ["cli"],
 			path: "guides/json.md",
 		});
-
-		await core.filesystem.saveDecision({
-			id: "decision-1",
-			title: "Use stable JSON",
-			date: "2026-07-12",
-			status: "accepted",
-			context: "JSON task consumers need stability",
-			decision: "Publish curated fields",
-			consequences: "Version the contract",
-			rawContent: "JSON task decision",
-		});
 	});
 
 	afterEach(async () => {
@@ -144,28 +133,6 @@ describe("CLI JSON output", () => {
 		const bare = JSON.parse(result.stdout.toString()).tasks.find((t: { id: string }) => t.id === "TASK-3");
 		expect(bare.references).toEqual([]);
 		expect(bare.modifiedFiles).toEqual([]);
-	});
-
-	it("returns a compact versioned decision-list envelope", async () => {
-		const result = await runCli(["decision", "list", "--json"]);
-		expect(result.exitCode).toBe(0);
-		expect(result.stderr.toString()).toBe("");
-		expect(result.stdout.toString().endsWith("\n")).toBe(true);
-
-		expect(JSON.parse(result.stdout.toString())).toEqual({
-			schemaVersion: 1,
-			kind: "decision-list",
-			decisions: [
-				{
-					id: "decision-1",
-					title: "Use stable JSON",
-					status: "accepted",
-					date: "2026-07-12",
-				},
-			],
-		});
-		expect(result.stdout.toString()).not.toContain("rawContent");
-		expect(result.stdout.toString()).not.toContain("Publish curated fields");
 	});
 
 	it("returns a versioned draft-list envelope in the plain output order", async () => {
@@ -298,7 +265,7 @@ describe("CLI JSON output", () => {
 		const output = JSON.parse(result.stdout.toString());
 		expect(output.schemaVersion).toBe(1);
 		expect(output.kind).toBe("search");
-		expect(output.results.map((entry: { type: string }) => entry.type)).toEqual(["task", "document", "decision"]);
+		expect(output.results.map((entry: { type: string }) => entry.type)).toEqual(["task", "document"]);
 		expect(output.results[0].data.id).toBe("TASK-1");
 		expect(output.results[0].data.acceptanceCriteriaCompleted).toBe(1);
 		expect(output.results[0].data.acceptanceCriteriaCount).toBe(1);
@@ -312,12 +279,6 @@ describe("CLI JSON output", () => {
 			tags: ["cli"],
 			createdAt: "2026-07-13",
 			updatedAt: "2026-07-14T08:00:00Z",
-		});
-		expect(output.results[2].data).toEqual({
-			id: "decision-1",
-			title: "Use stable JSON",
-			status: "accepted",
-			date: "2026-07-12",
 		});
 		for (const entry of output.results) {
 			expect(entry.score).toBeUndefined();
@@ -462,7 +423,6 @@ describe("CLI JSON output", () => {
 			["task", "view", "1", "--json", "--plain"],
 			["task", "1", "--json", "--plain"],
 			["search", "JSON", "--json", "--plain"],
-			["decision", "list", "--json", "--plain"],
 			["draft", "list", "--json", "--plain"],
 		]) {
 			const result = await runCli(args);
@@ -526,7 +486,6 @@ describe("CLI JSON output", () => {
 			["task", "view", "--help"],
 			["task", "--help"],
 			["search", "--help"],
-			["decision", "list", "--help"],
 			["draft", "list", "--help"],
 		]) {
 			const result = await runCli(args);

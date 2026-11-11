@@ -10,13 +10,13 @@ remains fully synchronized and up-to-date.
 ### Core Capabilities
 
 - ✅ **Task Management**: Create, edit, assign, prioritize, and track tasks with full metadata
-- ✅ **Search**: Fuzzy search across tasks, documents, and decisions with `backlog search`
+- ✅ **Search**: Fuzzy search across tasks and documents with `backlog search`
 - ✅ **Acceptance Criteria**: Granular control with add/remove/check/uncheck by index
 - ✅ **Definition of Done checklists**: Per-task DoD items with add/remove/check/uncheck
 - ✅ **Board Visualization**: Terminal-based Kanban board (`backlog board`) and web UI (`backlog browser`)
 - ✅ **Git Integration**: Automatic tracking of task states across branches
 - ✅ **Dependencies**: Task relationships and subtask hierarchies
-- ✅ **Documentation & Decisions**: Structured docs and architectural decision records
+- ✅ **Documentation**: Project guides, specifications, and records of architectural choices
 - ✅ **Export & Reporting**: Generate markdown reports and board snapshots
 - ✅ **Machine-readable output**: `--json` provides a stable, versioned contract for scripts; `--plain` provides readable text
 
@@ -59,7 +59,7 @@ remains fully synchronized and up-to-date.
 - Markdown task files live under **`backlog/tasks/`** (drafts under **`backlog/drafts/`**)
 - Files are named: `task-<id> - <title>.md` (e.g., `task-42 - Add GraphQL resolver.md`)
 - Project documentation is in **`backlog/docs/`**
-- Project decisions are in **`backlog/decisions/`**
+- Long-term architectural choices can be recorded as ordinary documents under **`backlog/docs/decisions/`**
 
 ### 🔧 **ACTING** (How to change things)
 
@@ -472,7 +472,7 @@ When users ask you to find tasks related to a topic, use the `backlog search` co
 # Search for tasks about authentication
 backlog search "auth" --plain
 
-# Search only in tasks (not docs/decisions)
+# Search only in tasks (not docs)
 backlog search "login" --type task --plain
 
 # Search with filters
@@ -488,7 +488,7 @@ backlog search --modified-file src/server/api.ts --plain
 - Uses fuzzy matching - finds "authentication" when searching "auth"
 - Searches task titles, descriptions, and content
 - Also searches `modified_files`; `--modified-file` applies a case-insensitive path substring filter
-- Also searches documents and decisions unless filtered with `--type task`
+- Also searches documents unless filtered with `--type task`
 - Always use `--plain` flag for AI-readable output
 
 ---
@@ -729,7 +729,7 @@ Tasks may include images for screenshots, diagrams, or visual references. Local 
 
 ### Document Management
 
-> Docs are used for long-term project reference information, such as development standards, configuration guides, architecture documentation, etc. They differ from `tasks/` (specific tasks), `decisions/` (decision records), and `drafts/` (drafts).
+> Docs are used for long-term project reference information, such as development standards, configuration guides, architecture documentation, etc. They differ from `tasks/` (specific tasks) and `drafts/` (drafts).
 
 Use EasyBacklog public interfaces for document creation and updates so IDs, frontmatter, paths, and search metadata stay consistent.
 
@@ -787,32 +787,6 @@ backlog doc delete doc-1
 - Removing a document takes two steps: archive, then delete. Delete works only on an archived document, asks no question, removes the file and releases the ID once no other file and no committed file on any branch uses the number.
 - Archiving or deleting a document changes no task. The command prints the tasks and drafts whose documentation list names the moved or removed file; update those entries yourself.
 - Prefer CLI, MCP, or Web document APIs over ad-hoc file writes so frontmatter and metadata remain valid.
-
-### Decision Management
-
-Decisions are records of choices, kept in `backlog/decisions/`. The CLI creates and lists decisions, changes only their status, and archives, restores, and deletes them; MCP has no decision tools.
-
-```bash
-# Create a decision and list the decisions
-backlog decision create "Use PostgreSQL" -s accepted
-backlog decision list --plain
-
-# Change only a decision's status
-backlog decision edit decision-1 -s superseded
-
-# Archive a decision that is no longer wanted (its file moves to backlog/archive/decisions/)
-backlog decision archive decision-1
-
-# Bring an archived decision back to backlog/decisions/ with the same ID
-backlog decision restore decision-1
-
-# Remove an archived decision for good; works only after archive and asks no question
-backlog decision delete decision-1
-```
-
-- Archiving keeps the ID reserved, so no new decision receives it. An archived decision leaves lists and search and is read-only until it is restored.
-- Removing a decision takes two steps: archive, then delete. Delete works only on an archived decision, asks no question, removes the file and releases the ID once no other file and no committed file on any branch uses the number.
-- Archiving or deleting a decision changes no task. The command prints the tasks and drafts whose documentation list names the moved or removed file; update those entries yourself.
 
 ### Task Operations
 

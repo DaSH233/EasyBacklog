@@ -1,6 +1,5 @@
 import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Task } from "../../types/index.ts";
-import { decisionIdKey } from "../../utils/decision-id.ts";
 import { documentIdKey } from "../../utils/document-id.ts";
 import { buildTaskIdIndex } from "./task-id-links.ts";
 
@@ -9,29 +8,24 @@ type Node = { type: string; value?: string; url?: string; children?: Node[] };
 export type RecordLinkIndex = Map<string, RecordIdentity>;
 const skipped = new Set(["link", "linkReference", "definition", "code", "inlineCode"]);
 
-export function buildRecordLinkIndex(docs: RecordIdentity[], decisions: RecordIdentity[]): RecordLinkIndex {
+export function buildRecordLinkIndex(docs: RecordIdentity[]): RecordLinkIndex {
 	const index: RecordLinkIndex = new Map();
 	const seen = new Set<string>();
-	for (const [records, keyFor] of [
-		[docs, documentIdKey],
-		[decisions, decisionIdKey],
-	] as const) {
-		for (const record of records) {
-			const key = keyFor(record.id);
-			if (!key) continue;
-			if (seen.has(key)) {
-				index.delete(key);
-				continue;
-			}
-			seen.add(key);
-			index.set(key, record);
+	for (const record of docs) {
+		const key = documentIdKey(record.id);
+		if (!key) continue;
+		if (seen.has(key)) {
+			index.delete(key);
+			continue;
 		}
+		seen.add(key);
+		index.set(key, record);
 	}
 	return index;
 }
 
 function matches(value: string) {
-	return Array.from(value.matchAll(/#?(?:doc|decision)-[0-9]+/gi))
+	return Array.from(value.matchAll(/#?doc-[0-9]+/gi))
 		.filter((match) => {
 			const start = match.index;
 			const end = start + match[0].length;
@@ -42,12 +36,11 @@ function matches(value: string) {
 		})
 		.map((match) => {
 			const id = match[0].replace(/^#/, "");
-			const isDoc = /^doc-/i.test(id);
 			return {
 				start: match.index,
 				text: match[0],
-				key: (isDoc ? documentIdKey(id) : decisionIdKey(id)) as string,
-				route: isDoc ? "documentation" : "decisions",
+				key: documentIdKey(id) as string,
+				route: "documentation",
 			};
 		});
 }

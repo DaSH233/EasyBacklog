@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient, readMovedFailureState } from '../lib/api';
 
 /**
- * The Archive button of the document page and the decision page, and what it does. It extends the
+ * The Archive button of the document page, and what it does. It extends the
  * Archive flow of the task details view: the same native confirmation, the request to the server,
  * and the same handling of a record that moved while only the commit failed (`archiveState`).
  *
@@ -12,19 +12,13 @@ import { apiClient, readMovedFailureState } from '../lib/api';
  * server's message when it refuses, and leaves the page when the record is archived.
  */
 
-/** What differs between the two pages: the noun, the list page, the CLI restore command and the route. */
+/** Document archive behavior: the noun, the list page, the CLI restore command and the route. */
 const ARCHIVABLE_PAGES = {
 	document: {
 		noun: 'document',
 		listPath: '/documentation',
 		restoreCommand: 'backlog doc restore',
 		archive: (id: string) => apiClient.archiveDoc(id),
-	},
-	decision: {
-		noun: 'decision',
-		listPath: '/decisions',
-		restoreCommand: 'backlog decision restore',
-		archive: (id: string) => apiClient.archiveDecision(id),
 	},
 } as const;
 

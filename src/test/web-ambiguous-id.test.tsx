@@ -3,8 +3,7 @@ import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
-import type { Decision as BacklogDecision, Document as BacklogDocument } from "../types/index.ts";
-import DecisionDetail from "../web/components/DecisionDetail.tsx";
+import type { Document as BacklogDocument } from "../types/index.ts";
 import DocumentationDetail from "../web/components/DocumentationDetail.tsx";
 import { ThemeProvider } from "../web/contexts/ThemeContext.tsx";
 
@@ -15,13 +14,6 @@ const AMBIGUOUS_DOCUMENT_MESSAGE = [
 	"Document ID doc-1 is ambiguous; 2 files match:",
 	"  - doc-1 - Alpha.md",
 	"  - nested/doc-01 - Beta.md",
-	"Run 'backlog doctor' to review the conflicting files.",
-].join("\n");
-
-const AMBIGUOUS_DECISION_MESSAGE = [
-	"Decision ID decision-1 is ambiguous; 2 files match:",
-	"  - decision-01 - Beta.md",
-	"  - decision-1 - Alpha.md",
 	"Run 'backlog doctor' to review the conflicting files.",
 ].join("\n");
 
@@ -143,31 +135,6 @@ describe("web ambiguous ID handling", () => {
 		expect(container.textContent).not.toContain("Cached Alpha");
 	});
 
-	it("shows the ambiguity instead of the cached decision entry", async () => {
-		respondWithConflict(AMBIGUOUS_DECISION_MESSAGE);
-		const cached: BacklogDecision = {
-			id: "decision-1",
-			title: "Cached Alpha",
-			date: "2026-01-01 00:00",
-			status: "proposed",
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "Cached body that must not be shown",
-		};
-
-		const container = await renderRoute(
-			"/decisions/1/cached-alpha",
-			"/decisions/:id/:title",
-			<DecisionDetail decisions={[cached]} onRefreshData={async () => {}} />,
-		);
-
-		expect(container.textContent).toContain("This ID matches more than one file");
-		expect(container.textContent).toContain("decision-01 - Beta.md");
-		expect(container.textContent).toContain("backlog doctor");
-		expect(container.textContent).not.toContain("Cached body that must not be shown");
-		expect(container.textContent).not.toContain("Cached Alpha");
-	});
 });
 
 describe("create route after an ambiguity error", () => {
@@ -196,30 +163,4 @@ describe("create route after an ambiguity error", () => {
 		expect(container.querySelector('input[placeholder="Document title"]')).toBeTruthy();
 	});
 
-	it("renders the decision create editor instead of the stale notice", async () => {
-		respondWithConflict(AMBIGUOUS_DECISION_MESSAGE);
-		const cached: BacklogDecision = {
-			id: "decision-1",
-			title: "Cached Alpha",
-			date: "2026-01-01 00:00",
-			status: "proposed",
-			context: "",
-			decision: "",
-			consequences: "",
-			rawContent: "Cached body",
-		};
-
-		const container = await renderReusableRoute(
-			"/decisions/1",
-			"/decisions/:id",
-			"/decisions/new",
-			<DecisionDetail decisions={[cached]} onRefreshData={async () => {}} />,
-		);
-		expect(container.textContent).toContain("This ID matches more than one file");
-
-		await clickNavigate(container);
-
-		expect(container.textContent).not.toContain("This ID matches more than one file");
-		expect(container.querySelector('input[placeholder="Decision title"]')).toBeTruthy();
-	});
 });

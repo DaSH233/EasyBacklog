@@ -1,5 +1,5 @@
 /**
- * Shared identity rules for prefixed entity IDs (tasks, documents, decisions).
+ * Shared identity rules for prefixed entity IDs (tasks and documents).
  *
  * Identity must fail closed: an ID with no addressable body never matches, and an ID that
  * matches more than one file raises {@link AmbiguousIdError} instead of picking a winner.

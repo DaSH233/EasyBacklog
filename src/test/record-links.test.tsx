@@ -15,43 +15,47 @@ const task: Task = {
 	assignee: [],
 	labels: [],
 	dependencies: [],
-	description: "doc-01 and #doc-1; decision-2",
+	description: "doc-01 and #doc-1; doc-2",
 };
-const docs = [{ id: "doc-001", title: "Guide <safe>" }];
-const decisions = [{ id: "decision-2", title: "Architecture" }];
+const docs = [{ id: "doc-001", title: "Guide <safe>" }, { id: "doc-2", title: "Architecture" }];
 function render(source: string) {
 	return new JSDOM(
 		renderToString(
-			<TaskIdIndexProvider tasks={[task]} docs={docs} decisions={decisions}>
+			<TaskIdIndexProvider tasks={[task]} docs={docs}>
 				<MermaidMarkdown source={source} />
 			</TaskIdIndexProvider>,
 		),
 	).window.document;
 }
 describe("record links", () => {
+	it("leaves retired decision IDs as text without backlinks", () => {
+		const source = "decision-1 and #decision-02";
+		expect(render(source).querySelectorAll("a").length).toBe(0);
+		expect(buildRecordBacklinks([{ ...task, description: source }]).size).toBe(0);
+	});
 	it("links numeric IDs, optional hashes and case variants with titles or ID fallback", () => {
-		const links = Array.from(render("doc-01, #DOC-1; decision-2 and #decision-99").querySelectorAll("a"));
+		const links = Array.from(render("doc-01, #DOC-1; doc-2 and #doc-99").querySelectorAll("a"));
 		expect(links.map((a) => a.getAttribute("href"))).toEqual([
 			"/documentation/doc-1",
 			"/documentation/doc-1",
-			"/decisions/decision-2",
-			"/decisions/decision-99",
+			"/documentation/doc-2",
+			"/documentation/doc-99",
 		]);
 		expect(links.map((a) => a.textContent)).toEqual([
 			"doc-01 — Guide <safe>",
 			"#DOC-1 — Guide <safe>",
-			"decision-2 — Architecture",
-			"#decision-99",
+			"doc-2 — Architecture",
+			"#doc-99",
 		]);
 	});
 	it("does not rewrite code, existing links, paths or longer identifiers", () => {
 		const source =
-			"`doc-1`\n\n```md\ndecision-2\n```\n\n[doc-1](/elsewhere) xdoc-1 dir/doc-1 doc-1.md doc-1/sub doc-1a #doc-2suffix";
+			"`doc-1`\n\n```md\ndoc-2\n```\n\n[doc-1](/elsewhere) xdoc-1 dir/doc-1 doc-1.md doc-1/sub doc-1a #doc-2suffix";
 		expect(Array.from(render(source).querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual(["/elsewhere"]);
 		expect(buildRecordBacklinks([{ ...task, description: source }]).size).toBe(0);
 	});
 	it("does not guess titles for ambiguous canonical IDs", () => {
-		expect(buildRecordLinkIndex([...docs, { id: "DOC-1", title: "Duplicate" }], decisions).has("doc-1")).toBe(false);
+		expect(buildRecordLinkIndex([...docs, { id: "DOC-1", title: "Duplicate" }]).has("doc-1")).toBe(false);
 	});
 	it("deduplicates references, covers all rendered fields, and recomputes without mutation", () => {
 		const input = [
@@ -66,7 +70,7 @@ describe("record links", () => {
 		const before = JSON.stringify(input);
 		const result = buildRecordBacklinks(input);
 		expect(result.get("doc-1")).toHaveLength(1);
-		expect([...result.keys()]).toEqual(["doc-1", "decision-2", "doc-3", "doc-4", "doc-5", "doc-6"]);
+		expect([...result.keys()]).toEqual(["doc-1", "doc-2", "doc-3", "doc-4", "doc-5", "doc-6"]);
 		expect(JSON.stringify(input)).toBe(before);
 		expect(buildRecordBacklinks([{ ...task, description: "Removed" }]).size).toBe(0);
 	});

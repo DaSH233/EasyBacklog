@@ -21,13 +21,6 @@ const cases = [
 		body: "---\nid: doc-1\ntitle: Example\ntype: other\ncreated_date: 2026-10-29\n---\n\nKeep this body.\n",
 	},
 	{
-		kind: "decisions",
-		id: "decision-1",
-		folder: "decisions",
-		name: "decision-1 - Example.md",
-		body: "---\nid: decision-1\ntitle: Example\nstatus: proposed\ndate: 2026-10-29\n---\n\n## Context\nKeep this body.\n",
-	},
-	{
 		kind: "milestones",
 		id: "m-1",
 		folder: "milestones",
