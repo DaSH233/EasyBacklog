@@ -418,8 +418,8 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
         {isEmpty && !isDragOver && (
           <div className="text-center py-2 text-gray-400 dark:text-gray-500 text-xs transition-colors duration-200">
             {dragSourceStatus && dragSourceStatus !== title
-              ? `Drop to move`
-              : `Empty`}
+              ? t("Drop to move")
+              : t("Empty")}
           </div>
         )}
 

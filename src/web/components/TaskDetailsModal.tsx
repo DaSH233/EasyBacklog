@@ -221,8 +221,9 @@ export const TaskDetailsModal: React.FC<Props> = ({
   const [demoting, setDemoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Title field for create mode
+  const [titleValidationRequested, setTitleValidationRequested] = useState(false);
   const [title, setTitle] = useState(task?.title || "");
+  const hasTitleError = titleValidationRequested && !title.trim();
 
   // Editable fields (edit mode)
   const [description, setDescription] = useState(task?.description || "");
@@ -608,6 +609,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
       return;
     }
 
+    setTitleValidationRequested(false);
     setTitle(nextFormState.title);
     setDescription(nextFormState.description);
     setPlan(nextFormState.plan);
@@ -687,6 +689,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
       const confirmDiscard = window.confirm(t("Discard unsaved changes?"));
       if (!confirmDiscard) return;
     }
+    setTitleValidationRequested(false);
     if (isCreateMode) {
       // In create mode, close the modal on cancel
       onClose();
@@ -805,9 +808,8 @@ export const TaskDetailsModal: React.FC<Props> = ({
     setSaving(true);
     setError(null);
 
-    // Validation for create mode
-    if (isCreateMode && !title.trim()) {
-      setError("Title is required");
+    setTitleValidationRequested(true);
+    if (!title.trim()) {
       setSaving(false);
       return;
     }
@@ -1180,8 +1182,8 @@ export const TaskDetailsModal: React.FC<Props> = ({
         </div>
       }
     >
-      {error && (
-        <div role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">{t(error)}</div>
+      {(error || (isCreateMode && hasTitleError)) && (
+        <div role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">{t(error ?? "Title is required")}</div>
       )}
 
 		<fieldset disabled={demoting} className="contents" aria-busy={demoting}>
@@ -1679,7 +1681,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
           {/* Final Summary */}
           {(mode !== "preview" || finalSummary.trim().length > 0) && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-              <SectionHeader title={t("Final Summary")} right="Completion summary" />
+              <SectionHeader title={t("Final Summary")} />
               {mode === "preview" ? (
                 <div className="prose prose-sm !max-w-none wmde-markdown" data-color-mode={theme}>
                   <MermaidMarkdown source={finalSummary} />
@@ -1738,6 +1740,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
                   setTitle(e.target.value);
                 }}
                 onBlur={() => {
+                  setTitleValidationRequested(true);
                   if (title.trim() && title !== task.title) {
                     void handleInlineMetaUpdate({ title: title.trim() });
                   }
@@ -1747,9 +1750,15 @@ export const TaskDetailsModal: React.FC<Props> = ({
                     e.currentTarget.blur();
                   }
                 }}
+                aria-label={t("Title")}
+                aria-invalid={hasTitleError}
+                aria-describedby={hasTitleError ? "task-title-error" : undefined}
                 disabled={isReadOnly}
                 className={`w-full h-10 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200 ${isReadOnly ? 'opacity-60 cursor-not-allowed' : ''}`}
               />
+              {hasTitleError && (
+                <div id="task-title-error" role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{t("Title is required")}</div>
+              )}
             </div>
           )}
 
