@@ -21,8 +21,6 @@ import { assertSectionInputHasNoMarkerLines, assertValidChecklistMarks } from ".
 import {
 	type AcceptanceCriterion,
 	type BacklogConfig,
-	type ContentRecord,
-	type ContentRecordKind,
 	DOCUMENT_TYPE_VALUES,
 	type Document,
 	type DocumentCreateInput,
@@ -471,59 +469,36 @@ export class TaskNotArchivedError extends RecordRefusedError {
 	}
 }
 
-/**
- * Shared wording for document archive, restore and delete messages and commit subjects.
- * - `singular`, `plural`, `sentenceStart`: the noun, as in "Archived document doc-1", "Archived
- *   documents are read-only" and "Document doc-1 was archived".
- * - `cliCommand`: the command group that changes the kind, named in the read-only message.
- * - `folderName`: the folder a record of the kind is in when it is not archived.
- * - `notFound`: the answer when no record of the kind claims an ID.
- */
-export const CONTENT_RECORD_WORDS = {
-	document: {
-		singular: "document",
-		plural: "documents",
-		sentenceStart: "Document",
-		cliCommand: "backlog doc",
-		folderName: "docs folder",
-		notFound: documentNotFoundMessage,
-	},
-} as const satisfies Record<ContentRecordKind, unknown>;
-
 /** The words of each operation: the start of its commit subject, what was done, and how it is reported. */
-const CONTENT_RECORD_OPERATION_WORDS = {
+const DOCUMENT_OPERATION_WORDS = {
 	archive: { commitVerb: "Archive", done: "archived", reported: "Archived" },
 	restore: { commitVerb: "Restore", done: "restored", reported: "Restored" },
 	delete: { commitVerb: "Delete", done: "deleted", reported: "Deleted" },
 } as const;
 
-type ContentRecordOperation = keyof typeof CONTENT_RECORD_OPERATION_WORDS;
+type DocumentOperation = keyof typeof DOCUMENT_OPERATION_WORDS;
 
 /**
  * A change targeted a document that is in the archive, where it is read-only: an
  * update, or archiving it a second time. Restoring it is the way to change it, so the message names
  * the command.
  */
-export class ContentRecordArchivedError extends RecordRefusedError {
-	constructor(kind: ContentRecordKind, id: string) {
-		const words = CONTENT_RECORD_WORDS[kind];
-		super(
-			`${words.sentenceStart} ${id} is archived. Archived ${words.plural} are read-only. Restore it first: ${words.cliCommand} restore ${id}`,
-		);
-		this.name = "ContentRecordArchivedError";
+export class DocumentArchivedError extends RecordRefusedError {
+	constructor(id: string) {
+		super(`Document ${id} is archived. Archived documents are read-only. Restore it first: backlog doc restore ${id}`);
+		this.name = "DocumentArchivedError";
 	}
 }
 
 /** Restore or delete targeted a document that is not archived; both act on archived ones only. */
-export class ContentRecordNotArchivedError extends RecordRefusedError {
-	constructor(kind: ContentRecordKind, id: string, operation: "restore" | "delete") {
-		const words = CONTENT_RECORD_WORDS[kind];
+export class DocumentNotArchivedError extends RecordRefusedError {
+	constructor(id: string, operation: "restore" | "delete") {
 		super(
 			operation === "delete"
-				? `${words.sentenceStart} ${id} is not archived. A ${words.singular} must be archived before it can be deleted.`
-				: `${words.sentenceStart} ${id} is not archived, so there is nothing to restore.`,
+				? `Document ${id} is not archived. A document must be archived before it can be deleted.`
+				: `Document ${id} is not archived, so there is nothing to restore.`,
 		);
-		this.name = "ContentRecordNotArchivedError";
+		this.name = "DocumentNotArchivedError";
 	}
 }
 
@@ -531,15 +506,14 @@ export class ContentRecordNotArchivedError extends RecordRefusedError {
  * Archive or restore found a file already at the path the record's file would move to. Neither file
  * was moved or changed. `takenPath` is written from the project root.
  */
-export class ContentRecordFileExistsError extends RecordRefusedError {
-	constructor(kind: ContentRecordKind, id: string, operation: "archive" | "restore", takenPath: string) {
-		const words = CONTENT_RECORD_WORDS[kind];
+export class DocumentFileExistsError extends RecordRefusedError {
+	constructor(id: string, operation: "archive" | "restore", takenPath: string) {
 		super(
 			operation === "archive"
-				? `${words.sentenceStart} ${id} cannot be archived: the archive already has a file at ${takenPath}.`
-				: `${words.sentenceStart} ${id} cannot be restored: the ${words.folderName} already has a file at ${takenPath}.`,
+				? `Document ${id} cannot be archived: the archive already has a file at ${takenPath}.`
+				: `Document ${id} cannot be restored: the docs folder already has a file at ${takenPath}.`,
 		);
-		this.name = "ContentRecordFileExistsError";
+		this.name = "DocumentFileExistsError";
 	}
 }
 
@@ -553,7 +527,7 @@ export const ARCHIVED_DOCUMENT_NOTICE = "This document is archived and read-only
  * had before it was archived. Core changes none of them, so every interface reports them and a
  * person can update them.
  */
-export interface ContentRecordChangeResult {
+export interface DocumentChangeResult {
 	id: string;
 	listedAsDocumentationBy: string[];
 }
@@ -563,33 +537,14 @@ export interface ContentRecordChangeResult {
  * line each: the confirmation, then the tasks and drafts that still name a path the file is no
  * longer at, when there are any.
  */
-export function describeContentRecordChange(
-	kind: ContentRecordKind,
-	operation: ContentRecordOperation,
-	result: ContentRecordChangeResult,
-): string[] {
-	const confirmation = `${CONTENT_RECORD_OPERATION_WORDS[operation].reported} ${CONTENT_RECORD_WORDS[kind].singular} ${result.id}`;
+export function describeDocumentChange(operation: DocumentOperation, result: DocumentChangeResult): string[] {
+	const confirmation = `${DOCUMENT_OPERATION_WORDS[operation].reported} document ${result.id}`;
 	const references = formatDocumentationReferencesMessage(result.listedAsDocumentationBy);
 	return references ? [confirmation, references] : [confirmation];
 }
 
-/**
- * What the shared archive, restore and delete need from one content record kind, besides its words
- * (`CONTENT_RECORD_WORDS`) and its storage (`FileSystem.contentRecordStorage`): how an ID is
- * resolved, and how a running server's lists and search follow a record that left or reached its
- * folder. `Core.contentRecords` builds one per kind.
- */
-interface ContentRecordOperations<R extends ContentRecord> {
-	/** The record an ID names, in its folder or in the archive (`archived` set). Null when none claims it. */
-	find(id: string): Promise<R | null>;
-	/** The record's file left its folder for the archive. */
-	leftFolder(record: R): void;
-	/** The record's file reached its folder from the archive. */
-	reachedFolder(record: R): void;
-}
-
 /** A copy of a record without the `archived` flag, as a record that is listed from its folder is. */
-function withoutArchivedFlag<R extends ContentRecord>(record: R): R {
+function withoutArchivedFlag(record: Document): Document {
 	const copy = { ...record };
 	delete copy.archived;
 	return copy;
@@ -614,18 +569,13 @@ export class ChangeNotCommittedError extends Error {
 }
 
 /** The subject of the commit an operation makes, for example `backlog: Archive document doc-2`. */
-function contentRecordCommitSubject(kind: ContentRecordKind, operation: ContentRecordOperation, id: string): string {
-	return `backlog: ${CONTENT_RECORD_OPERATION_WORDS[operation].commitVerb} ${CONTENT_RECORD_WORDS[kind].singular} ${id}`;
+function documentCommitSubject(operation: DocumentOperation, id: string): string {
+	return `backlog: ${DOCUMENT_OPERATION_WORDS[operation].commitVerb} document ${id}`;
 }
 
 /** The error for an operation whose change is on disk while its commit failed: "Document doc-2 was archived, but ...". */
-function contentRecordNotCommittedError(
-	kind: ContentRecordKind,
-	operation: ContentRecordOperation,
-	id: string,
-	cause: unknown,
-): ChangeNotCommittedError {
-	const change = `${CONTENT_RECORD_WORDS[kind].sentenceStart} ${id} was ${CONTENT_RECORD_OPERATION_WORDS[operation].done}`;
+function documentNotCommittedError(operation: DocumentOperation, id: string, cause: unknown): ChangeNotCommittedError {
+	const change = `Document ${id} was ${DOCUMENT_OPERATION_WORDS[operation].done}`;
 	return new ChangeNotCommittedError(change, cause);
 }
 
@@ -1574,7 +1524,7 @@ export class Core {
 			this.fs.listArchivedDocuments(),
 		]);
 		return findDocumentById([...documents, ...archivedDocuments], documentId, (document) =>
-			this.fs.contentRecordProjectPath("document", document),
+			this.fs.documentProjectPath(document),
 		);
 	}
 
@@ -1589,7 +1539,7 @@ export class Core {
 
 		let content: string;
 		try {
-			content = await Bun.file(this.fs.contentRecordFilePath("document", document)).text();
+			content = await Bun.file(this.fs.documentFilePath(document)).text();
 		} catch {
 			return null;
 		}
@@ -4422,7 +4372,7 @@ export class Core {
 
 	/**
 	 * Change a document in the docs folder. An archived document is read-only: the update is refused
-	 * with `ContentRecordArchivedError` and no file is written. The CLI, MCP and the web save all update
+	 * with `DocumentArchivedError` and no file is written. The CLI, MCP and the web save all update
 	 * through this method, so they refuse with that one message.
 	 */
 	async updateDocumentFromInput(input: DocumentUpdateInput, autoCommit?: boolean): Promise<Document> {
@@ -4431,7 +4381,7 @@ export class Core {
 			throw new Error(documentNotFoundMessage(input.id));
 		}
 		if (existingDoc.archived) {
-			throw new ContentRecordArchivedError("document", existingDoc.id);
+			throw new DocumentArchivedError(existingDoc.id);
 		}
 
 		const normalizedTitle = input.title?.trim();
@@ -4460,89 +4410,72 @@ export class Core {
 	}
 
 	/**
-	 * Move a document out of its folder into the archive of its kind, under the same
+	 * Move a document out of the docs folder into the document archive, under the same
 	 * path. From then on it cannot be changed, and lists and search leave it out. See
-	 * {@link moveContentRecord} for what the move keeps and when it is refused.
+	 * {@link moveDocument} for what the move keeps and when it is refused.
 	 */
-	async archiveContentRecord(
-		kind: ContentRecordKind,
-		id: string,
-		autoCommit?: boolean,
-	): Promise<ContentRecordChangeResult | null> {
-		return await this.moveContentRecord(kind, id, "archive", autoCommit);
+	async archiveDocument(id: string, autoCommit?: boolean): Promise<DocumentChangeResult | null> {
+		return await this.moveDocument(id, "archive", autoCommit);
 	}
 
 	/**
 	 * Move an archived document back to its folder, under the path it has in the archive.
-	 * It is then a record like any other. See {@link moveContentRecord}.
+	 * It is then a record like any other. See {@link moveDocument}.
 	 */
-	async restoreContentRecord(
-		kind: ContentRecordKind,
-		id: string,
-		autoCommit?: boolean,
-	): Promise<ContentRecordChangeResult | null> {
-		return await this.moveContentRecord(kind, id, "restore", autoCommit);
+	async restoreDocument(id: string, autoCommit?: boolean): Promise<DocumentChangeResult | null> {
+		return await this.moveDocument(id, "restore", autoCommit);
 	}
 
 	/**
-	 * The one move behind archive and restore, for every content record kind. `archive` moves the
-	 * record's file from its folder to the archive of its kind, `restore` moves it back; the path
+	 * The one move behind document archive and restore. `archive` moves the document file
+	 * from the docs folder to the document archive; `restore` moves it back. The path
 	 * under the folder stays the same. The file is moved as it is and not rewritten, so the record
 	 * keeps its ID, and a file that is a symbolic link stays a link to the same file. No task or
 	 * draft is changed: the result names the ones whose `documentation` list names the path the file
 	 * left.
 	 *
-	 * Returns null when no record of the kind claims the ID. An ID that several files claim throws
+	 * Returns null when no document claims the ID. An ID that several files claim throws
 	 * `AmbiguousIdError`. Every refusal is a `RecordRefusedError` with nothing moved: the record is
 	 * already where the move would take it, or a file is already at the destination path.
 	 *
 	 * Documents have no update lock yet, so this takes none.
 	 */
-	private async moveContentRecord(
-		kind: ContentRecordKind,
+	private async moveDocument(
 		id: string,
 		direction: "archive" | "restore",
 		autoCommit?: boolean,
-	): Promise<ContentRecordChangeResult | null> {
-		const record = await this.loadContentRecordForChange(kind, id, direction);
+	): Promise<DocumentChangeResult | null> {
+		const record = await this.loadDocumentForChange(id, direction);
 		if (!record) return null;
 		// Everything that only reads comes before the move: a config or a task file that cannot be
 		// read then stops the command while the record is still where it was.
 		const commitMove = await this.shouldAutoCommit(autoCommit);
-		const listedAsDocumentationBy = await this.listRecordsDocumenting([this.fs.contentRecordProjectPath(kind, record)]);
+		const listedAsDocumentationBy = await this.listRecordsDocumenting([this.fs.documentProjectPath(record)]);
 
 		const movedRecord = direction === "archive" ? { ...record, archived: true } : withoutArchivedFlag(record);
-		const fromPath = this.fs.contentRecordFilePath(kind, record);
-		const toPath = this.fs.contentRecordFilePath(kind, movedRecord);
+		const fromPath = this.fs.documentFilePath(record);
+		const toPath = this.fs.documentFilePath(movedRecord);
 		await this.moveRecordFile(
 			fromPath,
 			toPath,
-			() =>
-				new ContentRecordFileExistsError(
-					kind,
-					record.id,
-					direction,
-					this.fs.contentRecordProjectPath(kind, movedRecord),
-				),
+			() => new DocumentFileExistsError(record.id, direction, this.fs.documentProjectPath(movedRecord)),
 		);
 		// Lists and search read the content store, which holds the records of each folder. Without
 		// this, a long-running server would show the old state until its file watcher noticed.
-		const records = this.contentRecords();
-		if (direction === "archive") records.leftFolder(record);
-		else records.reachedFolder(movedRecord);
+		if (direction === "archive") {
+			if (record.path) this.contentStore?.removeDocument(record.path);
+		} else {
+			this.contentStore?.addDocument(movedRecord);
+		}
 
 		if (commitMove) {
 			// The file is moved from here on. A commit that fails says so, so that nobody runs the
 			// move a second time.
 			try {
 				const repoRoot = await this.git.stageFileMove(fromPath, toPath);
-				await this.git.commitFiles(
-					contentRecordCommitSubject(kind, direction, record.id),
-					[fromPath, toPath],
-					repoRoot,
-				);
+				await this.git.commitFiles(documentCommitSubject(direction, record.id), [fromPath, toPath], repoRoot);
 			} catch (error) {
-				const failure = contentRecordNotCommittedError(kind, direction, record.id, error);
+				const failure = documentNotCommittedError(direction, record.id, error);
 				// The browser archives documents, as it archives tasks. The tag tells it the
 				// record moved, so the page treats it as archived instead of offering the archive again.
 				throw direction === "archive" ? markRecordAlreadyMoved(failure, "archiveState") : failure;
@@ -4558,72 +4491,52 @@ export class Core {
 	 * or draft is changed: the result names the ones whose `documentation` list names the removed
 	 * file, by its path in the archive or by the path it had before it was archived.
 	 *
-	 * Returns null when no record of the kind claims the ID. An ID that several files claim throws
+	 * Returns null when no document claims the ID. An ID that several files claim throws
 	 * `AmbiguousIdError`. A record that is not archived is refused with
-	 * `ContentRecordNotArchivedError` and nothing is removed.
+	 * `DocumentNotArchivedError` and nothing is removed.
 	 *
 	 * Documents have no update lock yet, so this takes none.
 	 */
-	async deleteContentRecord(
-		kind: ContentRecordKind,
-		id: string,
-		autoCommit?: boolean,
-	): Promise<ContentRecordChangeResult | null> {
-		const record = await this.loadContentRecordForChange(kind, id, "delete");
+	async deleteDocument(id: string, autoCommit?: boolean): Promise<DocumentChangeResult | null> {
+		const record = await this.loadDocumentForChange(id, "delete");
 		if (!record) return null;
 		// Everything that only reads comes before the removal, as for a move.
 		const commitRemoval = await this.shouldAutoCommit(autoCommit);
 		const activeRecord = withoutArchivedFlag(record);
-		const activePath = this.fs.contentRecordFilePath(kind, activeRecord);
+		const activePath = this.fs.documentFilePath(activeRecord);
 		const listedAsDocumentationBy = await this.listRecordsDocumenting([
-			this.fs.contentRecordProjectPath(kind, record),
-			this.fs.contentRecordProjectPath(kind, activeRecord),
+			this.fs.documentProjectPath(record),
+			this.fs.documentProjectPath(activeRecord),
 		]);
 
-		const removedPath = await this.fs.removeArchivedContentRecordFile(kind, record);
+		const removedPath = await this.fs.removeArchivedDocumentFile(record);
 
 		if (commitRemoval) {
 			// An archive made without a commit can leave the active-path deletion pending.
 			const changedPaths = [removedPath, activePath];
 			try {
 				for (const path of changedPaths) await this.stageChangedPath(path);
-				await this.git.commitFiles(contentRecordCommitSubject(kind, "delete", record.id), changedPaths);
+				await this.git.commitFiles(documentCommitSubject("delete", record.id), changedPaths);
 			} catch (error) {
-				throw contentRecordNotCommittedError(kind, "delete", record.id, error);
+				throw documentNotCommittedError("delete", record.id, error);
 			}
 		}
 		return { id: record.id, listedAsDocumentationBy };
 	}
 
 	/**
-	 * The document an ID names, for archive, restore or delete. Null when no record of
-	 * the kind claims the ID. A record in the wrong place for `operation` is refused here, so the
-	 * three operations answer with the same words for every kind: archive needs a record that is not
-	 * archived, restore and delete need an archived one.
+	 * The document an ID names, for archive, restore or delete. Null when no document claims the ID.
+	 * Archive needs an active document; restore and delete need an archived one. Refuse a document
+	 * in the wrong state before any file is changed.
 	 */
-	private async loadContentRecordForChange(
-		kind: ContentRecordKind,
-		id: string,
-		operation: ContentRecordOperation,
-	): Promise<Document | null> {
-		const record = await this.contentRecords().find(id);
+	private async loadDocumentForChange(id: string, operation: DocumentOperation): Promise<Document | null> {
+		const record = await this.getDocument(id);
 		if (!record) return null;
-		if (operation === "archive" && record.archived) throw new ContentRecordArchivedError(kind, record.id);
+		if (operation === "archive" && record.archived) throw new DocumentArchivedError(record.id);
 		if (operation !== "archive" && !record.archived) {
-			throw new ContentRecordNotArchivedError(kind, record.id, operation);
+			throw new DocumentNotArchivedError(record.id, operation);
 		}
 		return record;
-	}
-
-	/** Keep document archive changes synchronized with the running server. */
-	private contentRecords(): ContentRecordOperations<Document> {
-		return {
-			find: (id) => this.getDocument(id),
-			leftFolder: (document) => {
-				if (document.path) this.contentStore?.removeDocument(document.path);
-			},
-			reachedFolder: (document) => this.contentStore?.addDocument(document),
-		};
 	}
 
 	/**

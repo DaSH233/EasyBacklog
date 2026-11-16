@@ -2,7 +2,7 @@ import { useTranslation } from "../contexts/LanguageContext";
 import React, { useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { apiClient } from "../lib/api";
-import { buildMilestoneBuckets, collectArchivedMilestoneKeys, isDoneStatus, milestoneKey } from "../utils/milestones";
+import { buildMilestoneBuckets, collectArchivedMilestoneKeys, isDoneStatus, milestoneKey } from "../../core/milestones";
 import { type Milestone, type MilestoneBucket, type Task } from "../../types";
 import { createTaskSearchIndex } from "../../utils/task-search";
 import MilestoneTaskRow from "./MilestoneTaskRow";

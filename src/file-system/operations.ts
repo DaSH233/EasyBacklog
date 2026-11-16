@@ -12,15 +12,7 @@ import {
 import { parseFrontmatter } from "../markdown/frontmatter.ts";
 import { parseDocument, parseMilestone, parseTask, TaskDependenciesParseError } from "../markdown/parser.ts";
 import { serializeDocument, serializeTask } from "../markdown/serializer.ts";
-import type {
-	BacklogConfig,
-	ContentRecord,
-	ContentRecordKind,
-	Document,
-	Milestone,
-	Task,
-	TaskListFilter,
-} from "../types/index.ts";
+import type { BacklogConfig, Document, Milestone, Task, TaskListFilter } from "../types/index.ts";
 import type { BacklogConfigSource } from "../utils/backlog-directory.ts";
 import {
 	normalizeProjectBacklogDirectory,
@@ -1497,7 +1489,7 @@ export class FileSystem {
 		const normalizedSubPath = normalizeDocumentSubPath(subPath);
 		const relativePath = normalizedSubPath ? `${normalizedSubPath}/${filename}` : filename;
 		const filepath = join(docsDir, ...relativePath.split("/"));
-		const loadedFromPath = document.path ? this.contentRecordFilePath("document", document) : undefined;
+		const loadedFromPath = document.path ? this.documentFilePath(document) : undefined;
 		const originalFile = loadedFromPath ? Bun.file(loadedFromPath) : undefined;
 		const originalContent = (await originalFile?.exists()) ? await originalFile?.text() : undefined;
 
@@ -1638,30 +1630,13 @@ export class FileSystem {
 	}
 
 	/**
-	 * Where document files are stored and how a file is read back.
-	 * - `folder` and `archiveFolder`: where the record is, depending on `archived`.
-	 * - `relativePath`: the record's path under that folder. A document keeps its subfolders; a
-	 *   document retains that path when archived.
-	 * - `storedId` and `idsEqual`: the ID a file of this kind claims, to check a file before removal.
+	 * The file of a listed document: in the docs folder, or in the document archive
+	 * when it is archived. This is the one place that maps `archived` to a folder.
 	 */
-	private contentRecordStorage() {
-		return {
-			folder: this.docsDir,
-			archiveFolder: this.archiveDocsDir,
-			relativePath: (record: ContentRecord) => normalizeDocumentRelativePath(record.path ?? `${record.id}.md`),
-			storedId: (content: string) => parseDocument(content).id,
-			idsEqual: documentIdsEqual,
-		};
-	}
-
-	/**
-	 * The file of a listed document: in the folder of its kind, or in the archive folder
-	 * of its kind when it is archived. This is the one place that maps `archived` to a folder.
-	 */
-	contentRecordFilePath(_kind: ContentRecordKind, record: ContentRecord): string {
-		const storage = this.contentRecordStorage();
-		const folder = record.archived ? storage.archiveFolder : storage.folder;
-		return join(folder, ...storage.relativePath(record).split("/"));
+	documentFilePath(document: Document): string {
+		const folder = document.archived ? this.archiveDocsDir : this.docsDir;
+		const relativePath = normalizeDocumentRelativePath(document.path ?? `${document.id}.md`);
+		return join(folder, ...relativePath.split("/"));
 	}
 
 	/**
@@ -1669,33 +1644,32 @@ export class FileSystem {
 	 * for example `backlog/docs/guides/doc-3 - API-Guidelines.md`. Messages name a record's file this
 	 * way, and a task's `documentation` entry that names the file is written this way.
 	 */
-	contentRecordProjectPath(kind: ContentRecordKind, record: ContentRecord): string {
-		return relative(this.projectRoot, this.contentRecordFilePath(kind, record)).split(sep).join("/");
+	documentProjectPath(document: Document): string {
+		return relative(this.projectRoot, this.documentFilePath(document)).split(sep).join("/");
 	}
 
 	/**
-	 * Removes the file of an archived document for `Core.deleteContentRecord`, and returns
+	 * Removes the file of an archived document for `Core.deleteDocument`, and returns
 	 * its path. A file that is a symbolic link is removed as a link; the file it points to stays.
 	 *
 	 * Nothing but that file can be removed through this. It refuses, and removes nothing, when the
 	 * record is not archived and when the file at its path does not claim the record's ID, for
 	 * example because another file took its place after the record was listed. A path that leaves the
 	 * archive folder (`..`, an absolute path, or another path outside the archive) is refused by
-	 * `contentRecordFilePath` already.
+	 * `documentFilePath` already.
 	 */
-	async removeArchivedContentRecordFile(kind: ContentRecordKind, record: ContentRecord): Promise<string> {
-		const refuse = (reason: string) => new Error(`The file of ${kind} ${record.id} was not removed: ${reason}`);
-		if (!record.archived) throw refuse(`the ${kind} is not archived.`);
-		const storage = this.contentRecordStorage();
-		const filePath = this.contentRecordFilePath(kind, record);
-		const projectPath = this.contentRecordProjectPath(kind, record);
+	async removeArchivedDocumentFile(document: Document): Promise<string> {
+		const refuse = (reason: string) => new Error(`The file of document ${document.id} was not removed: ${reason}`);
+		if (!document.archived) throw refuse("the document is not archived.");
+		const filePath = this.documentFilePath(document);
+		const projectPath = this.documentProjectPath(document);
 		let storedId: string;
 		try {
-			storedId = storage.storedId(await Bun.file(filePath).text());
+			storedId = parseDocument(await Bun.file(filePath).text()).id;
 		} catch {
-			throw refuse(`${projectPath} cannot be read as a ${kind}.`);
+			throw refuse(`${projectPath} cannot be read as a document.`);
 		}
-		if (!storage.idsEqual(storedId, record.id)) {
+		if (!documentIdsEqual(storedId, document.id)) {
 			throw refuse(`${projectPath} is the file of ${storedId}.`);
 		}
 		await unlink(filePath);
@@ -1709,7 +1683,7 @@ export class FileSystem {
 	 */
 	async loadDocument(id: string): Promise<Document> {
 		const document = findDocumentById(await this.listDocuments(), id, (candidate) =>
-			this.contentRecordProjectPath("document", candidate),
+			this.documentProjectPath(candidate),
 		);
 		if (!document) {
 			throw new Error(documentNotFoundMessage(id));

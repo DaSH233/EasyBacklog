@@ -1,18 +1,22 @@
-# EasyBacklog MCP Implementation (MVP)
+# EasyBacklog MCP adapter
 
-This directory exposes a minimal stdio MCP surface so local agents can work with EasyBacklog without duplicating business
-logic.
+This directory provides the optional local stdio MCP interface. The CLI and its
+workflow instructions remain the canonical product surface.
 
-## What’s included
+## Directory responsibilities
 
-- `server.ts` / `createMcpServer()` – bootstraps a stdio-only server that extends `Core` and registers task, milestone, Definition of Done defaults, and document tools (`task_*`, `milestone_*`, `definition_of_done_defaults_*`, `document_*`) for MCP clients.
-- `tasks/` – consolidated task tooling that delegates to shared Core helpers (including plan/notes/AC editing).
-- `documents/` – document tooling layered on `Core`’s document helpers for list/view/create/update/archive/restore/delete/search flows, including docs-directory-relative path metadata.
-- `tools/dependency-tools.ts` – dependency helpers reusing shared builders.
-- `resources/` – lightweight resource adapters for agents.
-- `guidelines/mcp/` – task workflow content surfaced via MCP.
-
-Everything routes through existing Core APIs so the MCP layer stays a protocol wrapper.
+- [server.ts](server.ts) creates a server backed by `Core` and registers tools,
+  resources and prompts.
+- [tools/tasks/](tools/tasks/) exposes task operations, including dependencies,
+  plan, notes and acceptance criteria through shared task helpers.
+- [tools/documents/](tools/documents/) exposes document lifecycle and search operations.
+- [tools/milestones/](tools/milestones/) adapts shared
+  [milestone operations](../core/milestone-operations.ts) to MCP responses. CLI and
+  HTTP call the same core operations directly; alias and grouping rules live in
+  [core/milestones.ts](../core/milestones.ts).
+- [tools/definition-of-done/](tools/definition-of-done/) manages project checklist defaults.
+- [tools/workflow/](tools/workflow/) and [resources/](resources/) expose workflow guidance.
+- [../guidelines/mcp/](../guidelines/mcp/) contains the bundled MCP workflow text.
 
 Standalone decision records are no longer exposed. Use `document_create`, `document_view`, and the other document tools for shared architectural choices; the CLI migration procedure is documented in [Migrating legacy decision records](../../CLI-INSTRUCTIONS.md#migrating-legacy-decision-records). Milestone tools remain available.
 
@@ -40,8 +44,8 @@ bun run cli mcp start
 backlog mcp start
 
 # Tests
-bun test src/test/mcp-*.test.ts
+bun test --timeout=10000 src/test/mcp-
 ```
 
-The test suite keeps to the reduced surface area and focuses on happy-path coverage for tasks, dependencies, and server
-bootstrap.
+The MCP tests cover tool schemas, mutations, validation failures, workflow resources
+and server lifecycle behavior.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Milestone, Task } from "../../types";
+import type { Milestone, Task } from "../types";
 import { buildMilestoneBuckets, collectMilestoneIds, validateMilestoneName } from "./milestones";
 
 const makeTask = (overrides: Partial<Task>): Task => ({

@@ -113,7 +113,7 @@ describe("CLI Integration", () => {
 				"- A description that captures why the task exists: the problem, trigger, or user need behind it, plus any context a future agent cannot recover from the code. The acceptance criteria already state what will be true when the work is done — do not restate them here.",
 			);
 			expect(taskCreation).toContain(
-				'-d "Finding anything means running three separate commands, and matches in the ones you skip are missed silently. One search command covers tasks and docs."',
+				'-d "Finding anything means running separate commands, and matches in the ones you skip are missed silently. One search command covers tasks and docs."',
 			);
 			expect(taskCreation).toContain(
 				'Too thin: `-d "Users can search tasks and docs from one CLI command."` states the change but not the need,\nso a future agent cannot weigh scope or alternatives.',

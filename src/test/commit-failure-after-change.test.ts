@@ -46,7 +46,7 @@ beforeEach(async () => {
 	expect(await core.archiveTask("TASK-2")).toBe(true);
 	await core.createDocumentFromInput({ title: "A document", content: "" });
 	await core.createDocumentFromInput({ title: "An archived document", content: "" });
-	expect(await core.archiveContentRecord("document", "doc-2")).not.toBeNull();
+	expect(await core.archiveDocument("doc-2")).not.toBeNull();
 	await $`git add -A`.cwd(TEST_DIR).quiet();
 	await $`git commit -m "Set up the project"`.cwd(TEST_DIR).quiet().nothrow();
 });
@@ -73,6 +73,14 @@ describe("a change whose commit failed, on the CLI", () => {
 		expect(result.stderr).toContain("index.lock");
 		// No success line, because the command did not finish what it does.
 		expect(result.stdout).toBe("");
+		if (command[0] === "doc") {
+			const document = await new Core(TEST_DIR).getDocument(command[2] ?? "");
+			if (command[1] === "delete") expect(document).toBeNull();
+			else {
+				expect(document).not.toBeNull();
+				expect(document?.archived).toBe(command[1] === "archive" ? true : undefined);
+			}
+		}
 	});
 });
 
@@ -125,7 +133,7 @@ describe("a change whose commit failed, in core and over HTTP", () => {
 
 		await unlockIndex();
 		await lockIndex();
-		const document = await core.archiveContentRecord("document", "doc-1").catch((error: unknown) => error);
+		const document = await core.archiveDocument("doc-1").catch((error: unknown) => error);
 		expect(document).toBeInstanceOf(ChangeNotCommittedError);
 		expect((document as Error).message).toStartWith(`Document doc-1 was archived, ${COMMIT_FAILED}`);
 	});

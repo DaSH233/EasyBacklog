@@ -1,13 +1,21 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
+import zshScript from "../../completions/_backlog" with { type: "text" };
+import bashScript from "../../completions/backlog.bash" with { type: "text" };
+import fishScript from "../../completions/backlog.fish" with { type: "text" };
+import pwshScript from "../../completions/backlog.ps1" with { type: "text" };
 import { getCompletions } from "../completions/helper.ts";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const completionScripts: Record<Shell, string> = {
+	bash: bashScript,
+	zsh: zshScript,
+	fish: fishScript,
+	pwsh: pwshScript,
+};
 
 export type Shell = "bash" | "zsh" | "fish" | "pwsh";
 
@@ -115,208 +123,6 @@ function detectShell(): Shell | null {
 }
 
 /**
- * Get the completion script content for a shell
- */
-async function getCompletionScript(shell: Shell): Promise<string> {
-	// Try to read from file system first (for development)
-	const scriptPath = join(__dirname, "..", "..", "completions", getScriptFilename(shell));
-
-	try {
-		if (existsSync(scriptPath)) {
-			return await readFile(scriptPath, "utf-8");
-		}
-	} catch {
-		// Fall through to embedded scripts
-	}
-
-	// Fallback to embedded scripts (for compiled binary)
-	return getEmbeddedCompletionScript(shell);
-}
-
-/**
- * Get embedded completion script (used when files aren't available)
- */
-function getEmbeddedCompletionScript(shell: Shell): string {
-	const scripts: Record<Shell, string> = {
-		bash: `#!/usr/bin/env bash
-# Bash completion script for backlog CLI
-#
-# Installation:
-#   - Copy to /etc/bash_completion.d/backlog
-#   - Or source directly in ~/.bashrc: source /path/to/backlog.bash
-#
-# Requirements:
-#   - Bash 3.2 or later
-#   - bash-completion package (optional but recommended)
-
-# Main completion function for backlog CLI
-_backlog() {
-	# Initialize completion variables using bash-completion helper if available
-	# Falls back to manual initialization if bash-completion is not installed
-	local cur prev words cword
-	if declare -F _init_completion >/dev/null 2>&1; then
-		_init_completion || return
-	else
-		# Manual initialization fallback
-		COMPREPLY=()
-		cur="\${COMP_WORDS[COMP_CWORD]}"
-		prev="\${COMP_WORDS[COMP_CWORD-1]}"
-		words=("\${COMP_WORDS[@]}")
-		cword=$COMP_CWORD
-	fi
-
-	# Get the full command line and cursor position
-	local line="\${COMP_LINE}"
-	local point="\${COMP_POINT}"
-
-	# Call the CLI's internal completion command
-	# This delegates all completion logic to the TypeScript implementation
-	# Output format: one completion per line
-	local completions
-	completions=$(backlog completion __complete "$line" "$point" 2>/dev/null)
-
-	# Check if the completion command failed
-	if [[ $? -ne 0 ]]; then
-		# Silent failure - completion should never break the shell
-		return 0
-	fi
-
-	# Preserve each newline-delimited result as one completion candidate.
-	# This loop is compatible with Bash 3.2 (which does not provide mapfile).
-	COMPREPLY=()
-	local completion
-	while IFS= read -r completion; do
-		[[ -n "$completion" && "$completion" == "$cur"* ]] && COMPREPLY+=("$completion")
-	done <<< "$completions"
-
-	# Return success
-	return 0
-}
-
-# Register the completion function for the 'backlog' command
-# -F: use function for completion
-# _backlog: name of the completion function
-# backlog: command to complete
-complete -F _backlog backlog
-`,
-		zsh: `#compdef backlog
-
-# Zsh completion script for backlog CLI
-#
-# Installation:
-#   1. Copy this file to a directory in your $fpath
-#   2. Run: compinit
-#
-# Or use: backlog completion install --shell zsh
-
-_backlog() {
-	# Get the current command line buffer and cursor position
-	local line=$BUFFER
-	local point=$CURSOR
-
-	# Call the backlog completion command to get dynamic completions
-	# The __complete command returns one completion per line
-	local -a completions
-	completions=(\${(f)"$(backlog completion __complete "$line" "$point" 2>/dev/null)"})
-
-	# Check if we got any completions
-	if (( \${#completions[@]} == 0 )); then
-		# No completions available
-		return 1
-	fi
-
-	# Present the completions to the user
-	# _describe shows completions with optional descriptions
-	# The first argument is the tag name shown in completion groups
-	_describe 'backlog commands' completions
-}
-
-# Register the completion function for the backlog command
-compdef _backlog backlog
-`,
-		fish: `#!/usr/bin/env fish
-# Fish completion script for backlog CLI
-#
-# Installation:
-#   - Copy to ~/.config/fish/completions/backlog.fish
-#   - Or use: backlog completion install --shell fish
-#
-# Requirements:
-#   - Fish 3.x or later
-
-# Helper function to get completions from the CLI
-# This delegates all completion logic to the TypeScript implementation
-function __backlog_complete
-	# Get the current command line and cursor position
-	# -cp: get the command line with cursor position preserved
-	set -l line (commandline -cp)
-
-	# Calculate the cursor position (length of the line up to cursor)
-	# Fish tracks cursor position differently than bash/zsh
-	set -l point (string length "$line")
-
-	# Call the CLI's internal completion command
-	# Output format: one completion per line
-	# Redirect stderr to /dev/null to suppress error messages
-	backlog completion __complete "$line" "$point" 2>/dev/null
-
-	# Fish will automatically handle the exit status
-	# If the command fails, no completions will be shown
-end
-
-# Register completion for the 'backlog' command
-# -c: specify the command to complete
-# -f: disable file completion (we handle all completions dynamically)
-# -a: add completion candidates from the function output
-complete -c backlog -f -a '(__backlog_complete)'
-`,
-		pwsh: `# PowerShell completion script for backlog CLI
-#
-# Installation:
-#   - Recommended: backlog completion install --shell pwsh
-#   - Manual: Save this file and source it from your $PROFILE.CurrentUserAllHosts
-#
-# Requirements:
-#   - PowerShell 7+ recommended
-
-$__backlogCompletionScriptBlock = {
-	param($wordToComplete, $commandAst, $cursorPosition)
-
-	$line = $commandAst.ToString()
-	# Preserve trailing whitespace context because CommandAst text omits it.
-	if ($cursorPosition -gt $line.Length) {
-		$line = $line.PadRight($cursorPosition)
-	}
-
-	# Cursor position is already an endpoint offset for completion APIs.
-	$point = [Math]::Min([Math]::Max($cursorPosition, 0), $line.Length)
-
-	try {
-		$completions = @(backlog completion __complete "$line" "$point" 2>$null)
-		foreach ($completion in $completions) {
-			if ($completion) {
-				$completionText = "$completion "
-				[System.Management.Automation.CompletionResult]::new(
-					$completionText,
-					$completion,
-					[System.Management.Automation.CompletionResultType]::ParameterValue,
-					$completion
-				)
-			}
-		}
-	} catch {
-		return
-	}
-}
-
-Register-ArgumentCompleter -Native -CommandName @("backlog", "backlog.exe") -ScriptBlock $__backlogCompletionScriptBlock
-`,
-	};
-
-	return scripts[shell];
-}
-
-/**
  * Get installation paths for a shell
  */
 function getInstallPaths(
@@ -417,13 +223,7 @@ export async function installCompletion(
 		throw new Error(`Unsupported shell: ${detectedShell}\nSupported shells: bash, zsh, fish, pwsh`);
 	}
 
-	// Get completion script content
-	let scriptContent: string;
-	try {
-		scriptContent = await getCompletionScript(detectedShell);
-	} catch (error) {
-		throw new Error(error instanceof Error ? error.message : String(error));
-	}
+	const scriptContent = completionScripts[detectedShell];
 
 	// Get installation paths
 	const paths = getInstallPaths(detectedShell, options.resolvePowerShellProfilePath, options.homeDir);

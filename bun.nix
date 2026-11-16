@@ -489,10 +489,6 @@
     url = "https://registry.npmjs.org/@types/hast/-/hast-3.0.5.tgz";
     hash = "sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==";
   };
-  "@types/history@4.7.11" = fetchurl {
-    url = "https://registry.npmjs.org/@types/history/-/history-4.7.11.tgz";
-    hash = "sha512-qjDJRrmvBMiTx+jyLxvLfJU7UznFuokDv4f3WRuriHKERccVpFU+8XMQUAbDzoiJCsmexxRExQeMwwCdamSKDA==";
-  };
   "@types/jsdom@30.0.0" = fetchurl {
     url = "https://registry.npmjs.org/@types/jsdom/-/jsdom-30.0.0.tgz";
     hash = "sha512-uAHGxujGE0cDaKGdK28zgDotFtNA7MKq5DXl8LrfdxdCI8VHcg15oJz+amHTChPNI5JpgEPQWc2xFdrw3em/nQ==";
@@ -520,14 +516,6 @@
   "@types/react-dom@19.3.0" = fetchurl {
     url = "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.3.0.tgz";
     hash = "sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==";
-  };
-  "@types/react-router-dom@5.3.3" = fetchurl {
-    url = "https://registry.npmjs.org/@types/react-router-dom/-/react-router-dom-5.3.3.tgz";
-    hash = "sha512-kpqnYK4wcdm5UaWI3fLcELopqLrHgLqNsdpHauzlQktfkHL3npOSwtj1Uz9oKBAzs7lFtVkV8j83voAz2D8fhw==";
-  };
-  "@types/react-router@5.1.20" = fetchurl {
-    url = "https://registry.npmjs.org/@types/react-router/-/react-router-5.1.20.tgz";
-    hash = "sha512-jGjmu/ZqS7FjSH6owMcD5qpq19+1RS9DeVRqfl1FeBMxTDQAGwlMWOcs52NDoXaNKyG3d1cYQFMs9rCrb88o9Q==";
   };
   "@types/react@19.3.0" = fetchurl {
     url = "https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz";
@@ -1304,10 +1292,6 @@
   "inline-style-parser@0.2.7" = fetchurl {
     url = "https://registry.npmjs.org/inline-style-parser/-/inline-style-parser-0.2.7.tgz";
     hash = "sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA==";
-  };
-  "install@0.13.0" = fetchurl {
-    url = "https://registry.npmjs.org/install/-/install-0.13.0.tgz";
-    hash = "sha512-zDml/jzr2PKU9I8J/xyZBQn8rPCAY//UOYNmR01XwNwyfhEWObo2SWfSl1+0tm1u6PhxLwDnfsT/6jB7OUxqFA==";
   };
   "internmap@1.0.1" = fetchurl {
     url = "https://registry.npmjs.org/internmap/-/internmap-1.0.1.tgz";

@@ -24,9 +24,10 @@ import { pickTaskForEditWizard, runTaskCreateWizard, runTaskEditWizard } from ".
 import { watchJson } from "./commands/watch-json.ts";
 import { DEFAULT_DIRECTORIES, DEFAULT_FILES, DEFAULT_STATUSES } from "./constants/index.ts";
 import { type ArchivedTaskMovePlan, moveArchivedTasks, previewArchivedTaskMove } from "./core/archived-task-move.ts";
-import { CONTENT_RECORD_WORDS, describeContentRecordChange, formatCleanupResult } from "./core/backlog.ts";
+import { describeDocumentChange, formatCleanupResult } from "./core/backlog.ts";
 import { type DuplicateRepairPlan, findLocalDuplicateTaskIds } from "./core/duplicate-task-repair.ts";
 import { initializeProject, MCP_GUIDE_URL } from "./core/init.ts";
+import { MilestoneOperations, type MilestoneRemoveArgs } from "./core/milestone-operations.ts";
 import { buildMilestoneBuckets, collectArchivedMilestoneKeys, milestoneKey } from "./core/milestones.ts";
 import { loadTaskDetail, loadTaskListItems } from "./core/task-detail.ts";
 import { isConfigValueError } from "./file-system/operations.ts";
@@ -52,11 +53,8 @@ import {
 	isGitRepository,
 	updateReadmeWithBoard,
 } from "./index.ts";
-import { MilestoneHandlers, type MilestoneRemoveArgs } from "./mcp/tools/milestones/handlers.ts";
-import type { CallToolResult } from "./mcp/types.ts";
 import {
 	type BacklogConfig,
-	type ContentRecordKind,
 	DOCUMENT_TYPE_VALUES,
 	type Document as DocType,
 	type DocumentSearchResult,
@@ -382,23 +380,6 @@ async function normalizeCliProjects(core: Core, values: string[], optionName: st
 	return canonicalProjects;
 }
 
-function formatToolResultText(result: CallToolResult): string {
-	return result.content
-		.map((item) => (item.type === "text" ? item.text : ""))
-		.filter(Boolean)
-		.join("\n");
-}
-
-function printToolResult(result: CallToolResult): void {
-	const text = formatToolResultText(result);
-	if (text) {
-		console.log(text);
-	}
-	if (result.isError) {
-		process.exitCode = 1;
-	}
-}
-
 async function printDuplicateIntegrityWarning(core: Core): Promise<boolean> {
 	const groups = await findLocalDuplicateTaskIds(core);
 	if (groups.length === 0) return false;
@@ -554,13 +535,13 @@ function printDependencyDefectsReport(defects: DependencyDefects): void {
 	}
 }
 
-async function runMilestoneMutation(action: (handlers: MilestoneHandlers) => Promise<CallToolResult>): Promise<void> {
+async function runMilestoneMutation(action: (operations: MilestoneOperations) => Promise<string>): Promise<void> {
 	const cwd = await requireProjectRoot();
 	const core = new Core(cwd);
-	const handlers = new MilestoneHandlers(core);
+	const operations = new MilestoneOperations(core);
 
 	try {
-		printToolResult(await action(handlers));
+		console.log(await action(operations));
 	} catch (error) {
 		console.error(error instanceof Error ? error.message : String(error));
 		process.exitCode = 1;
@@ -4903,25 +4884,21 @@ addHelpSchema(docCmd.command("update <docId>"), {
 
 /**
  * The action of `doc archive|restore|delete`: runs the core
- * operation for the kind and prints the lines core describes for the change. An ID that no record
- * of the kind claims is answered with the kind's not-found message.
+ * document operation and prints the lines core describes for the change. An ID that no document
+ * claims is answered with the document not-found message.
  */
-async function changeContentRecord(
-	kind: ContentRecordKind,
-	operation: "archive" | "restore" | "delete",
-	id: string,
-): Promise<void> {
+async function changeDocument(operation: "archive" | "restore" | "delete", id: string): Promise<void> {
 	const core = new Core(await requireProjectRoot());
 	const operations = {
-		archive: () => core.archiveContentRecord(kind, id),
-		restore: () => core.restoreContentRecord(kind, id),
-		delete: () => core.deleteContentRecord(kind, id),
+		archive: () => core.archiveDocument(id),
+		restore: () => core.restoreDocument(id),
+		delete: () => core.deleteDocument(id),
 	};
 	const result = await operations[operation]();
 	if (!result) {
-		throw new Error(CONTENT_RECORD_WORDS[kind].notFound(id));
+		throw new Error(documentNotFoundMessage(id));
 	}
-	for (const line of describeContentRecordChange(kind, operation, result)) {
+	for (const line of describeDocumentChange(operation, result)) {
 		console.log(line);
 	}
 }
@@ -4935,7 +4912,7 @@ addHelpSchema(docCmd.command("archive <docId>"), {
 	examples: ["backlog doc archive doc-1"],
 })
 	.description("move a document into the archive, keeping its ID reserved")
-	.action((docId: string) => changeContentRecord("document", "archive", docId));
+	.action((docId: string) => changeDocument("archive", docId));
 
 addHelpSchema(docCmd.command("restore <docId>"), {
 	required: [{ name: "docId", type: "Document ID", description: "Archived document to restore" }],
@@ -4947,7 +4924,7 @@ addHelpSchema(docCmd.command("restore <docId>"), {
 	examples: ["backlog doc restore doc-1"],
 })
 	.description("move an archived document back to the docs folder")
-	.action((docId: string) => changeContentRecord("document", "restore", docId));
+	.action((docId: string) => changeDocument("restore", docId));
 
 addHelpSchema(docCmd.command("delete <docId>"), {
 	required: [{ name: "docId", type: "Document ID", description: "Archived document to delete" }],
@@ -4959,7 +4936,7 @@ addHelpSchema(docCmd.command("delete <docId>"), {
 	examples: ["backlog doc archive doc-1", "backlog doc delete doc-1"],
 })
 	.description("permanently delete an archived document, releasing its ID")
-	.action((docId: string) => changeContentRecord("document", "delete", docId));
+	.action((docId: string) => changeDocument("delete", docId));
 
 const docListCommand = addHelpSchema(docCmd.command("list"), {
 	reads: "Documents under the configured docs directory",

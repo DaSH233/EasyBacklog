@@ -409,7 +409,7 @@ describe("backlog doc restore and delete in a Git repository", () => {
 		if (!config) throw new Error("Expected the project config");
 		await core.filesystem.saveConfig({ ...config, autoCommit, remoteOperations: false });
 		expect(await createDocument("API Guidelines", subPath)).toBe(NAME);
-		await core.archiveContentRecord("document", "doc-1", false);
+		await core.archiveDocument("doc-1", false);
 		await git("add", "-A");
 		await git("commit", "-m", "Set up the project");
 	}
@@ -587,10 +587,10 @@ describe("doc restore and doc delete help and guides", () => {
 	});
 
 	it("is described in the shipped guides and in CLI-INSTRUCTIONS.md", async () => {
-		const executionGuide = (await backlog("instructions", "task-execution")).stdout;
+		const referenceGuide = (await backlog("instructions", "workflow-reference")).stdout;
 		const cliInstructions = await readFile(join(import.meta.dir, "..", "..", "CLI-INSTRUCTIONS.md"), "utf8");
 
-		for (const guide of [executionGuide, AGENT_GUIDELINES, cliInstructions]) {
+		for (const guide of [referenceGuide, AGENT_GUIDELINES, cliInstructions]) {
 			expect(guide).toContain("backlog doc restore doc-1");
 			expect(guide).toContain("backlog doc delete doc-1");
 			// Two steps, no question, the ID released, tasks reported and not changed.

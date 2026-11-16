@@ -421,10 +421,10 @@ describe("backlog doc archive", () => {
 	});
 
 	it("is described in the shipped guides and in CLI-INSTRUCTIONS.md", async () => {
-		const executionGuide = (await backlog("instructions", "task-execution")).stdout;
+		const referenceGuide = (await backlog("instructions", "workflow-reference")).stdout;
 		const cliInstructions = await readFile(join(import.meta.dir, "..", "..", "CLI-INSTRUCTIONS.md"), "utf8");
 
-		for (const guide of [executionGuide, AGENT_GUIDELINES, cliInstructions]) {
+		for (const guide of [referenceGuide, AGENT_GUIDELINES, cliInstructions]) {
 			expect(guide).toContain("backlog doc archive doc-1");
 			// Where the file goes, what happens to the ID, and what an archived document still allows.
 			expect(guide).toContain("backlog/archive/docs/");

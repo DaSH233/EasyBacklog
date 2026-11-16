@@ -5,7 +5,6 @@ import type { Server, ServerWebSocket } from "bun";
 import { DEFAULT_STATUSES } from "../constants/index.ts";
 import {
 	ChangeNotCommittedError,
-	CONTENT_RECORD_WORDS,
 	Core,
 	formatCleanupResult,
 	RecordRefusedError,
@@ -13,14 +12,13 @@ import {
 } from "../core/backlog.ts";
 import type { ContentStore } from "../core/content-store.ts";
 import { initializeProject } from "../core/init.ts";
+import { MilestoneOperationError, MilestoneOperations } from "../core/milestone-operations.ts";
+import { buildMilestoneMatchKeys, keySetsIntersect } from "../core/milestones.ts";
 import type { SearchService } from "../core/search-service.ts";
 import { getTaskStatistics } from "../core/statistics.ts";
 import { loadTaskDetail } from "../core/task-detail.ts";
 import { isCreateLockError, isTaskLockError } from "../file-system/operations.ts";
-import { BacklogToolError } from "../mcp/errors/mcp-errors.ts";
-import { MilestoneHandlers } from "../mcp/tools/milestones/handlers.ts";
 import {
-	type ContentRecordKind,
 	DOCUMENT_TYPE_VALUES,
 	type Document,
 	type SearchPriorityFilter,
@@ -30,6 +28,7 @@ import {
 } from "../types/index.ts";
 import { launchBrowser } from "../utils/browser-launch.ts";
 import type { BrowserLoadingState } from "../utils/browser-loading-state.ts";
+import { documentNotFoundMessage } from "../utils/document-id.ts";
 import { normalizeDueDate } from "../utils/due-date.ts";
 import { openInEditor } from "../utils/editor.ts";
 import { isAmbiguousIdError } from "../utils/entity-id.ts";
@@ -506,8 +505,7 @@ export class BacklogServer {
 						PUT: async (req: Request & { params: { id: string } }) => await this.handleUpdateDoc(req, req.params.id),
 					},
 					"/api/docs/:id/archive": {
-						POST: async (req: Request & { params: { id: string } }) =>
-							await this.handleArchiveContentRecord("document", req.params.id),
+						POST: async (req: Request & { params: { id: string } }) => await this.handleArchiveDocument(req.params.id),
 					},
 					"/api/drafts": {
 						GET: async () => await this.handleListDrafts(),
@@ -1305,10 +1303,10 @@ export class BacklogServer {
 	 * ambiguous ID, 400 with core's message for a refusal, and 500 with `archiveState` when the record
 	 * moved and only the commit failed, so the page treats it as archived.
 	 */
-	private async handleArchiveContentRecord(kind: ContentRecordKind, id: string): Promise<Response> {
+	private async handleArchiveDocument(id: string): Promise<Response> {
 		try {
-			if (!(await this.core.archiveContentRecord(kind, id))) {
-				return Response.json({ error: CONTENT_RECORD_WORDS[kind].notFound(id) }, { status: 404 });
+			if (!(await this.core.archiveDocument(id))) {
+				return Response.json({ error: documentNotFoundMessage(id) }, { status: 404 });
 			}
 			this.broadcastDataUpdated();
 			return Response.json({ success: true });
@@ -1322,7 +1320,7 @@ export class BacklogServer {
 			const archiveState = readMovedState(error, "archiveState");
 			if (archiveState) {
 				this.broadcastDataUpdated();
-				console.error(`Error archiving ${kind} after it moved:`, error);
+				console.error("Error archiving document after it moved:", error);
 				return Response.json({ error: (error as Error).message, archiveState }, { status: 500 });
 			}
 			throw error;
@@ -1355,7 +1353,7 @@ export class BacklogServer {
 			if (kind === "tasks") {
 				const deleted = await this.core.deleteTask(id);
 				result = deleted.success;
-			} else if (kind === "documents") result = await this.core.deleteContentRecord("document", id);
+			} else if (kind === "documents") result = await this.core.deleteDocument(id);
 			else if (kind === "drafts" || kind === "milestones")
 				result = await this.core.deleteAuxiliaryRecord(kind === "drafts" ? "draft" : "milestone", id);
 			else return Response.json({ error: "Unknown archive category" }, { status: 404 });
@@ -1383,7 +1381,7 @@ export class BacklogServer {
 	private async handleRestoreArchiveCategory(kind: string, id: string): Promise<Response> {
 		try {
 			let restored: unknown;
-			if (kind === "documents") restored = await this.core.restoreContentRecord("document", id);
+			if (kind === "documents") restored = await this.core.restoreDocument(id);
 			else if (kind === "drafts" || kind === "milestones")
 				restored = await this.core.restoreAuxiliaryRecord(kind === "drafts" ? "draft" : "milestone", id);
 			else return Response.json({ error: "Unknown archive category" }, { status: 404 });
@@ -1709,26 +1707,19 @@ export class BacklogServer {
 		try {
 			body = JSON.parse(text);
 		} catch {
-			throw new BacklogToolError("Request body must be valid JSON.", "VALIDATION_ERROR");
+			throw new MilestoneOperationError("Request body must be valid JSON.", "VALIDATION_ERROR");
 		}
 
 		if (!body || typeof body !== "object" || Array.isArray(body)) {
-			throw new BacklogToolError("Request body must be a JSON object.", "VALIDATION_ERROR");
+			throw new MilestoneOperationError("Request body must be a JSON object.", "VALIDATION_ERROR");
 		}
 
 		return body as Record<string, unknown>;
 	}
 
-	private getMilestoneMutationMessage(result: { content: Array<{ type: string; text?: string }> }): string {
-		return result.content
-			.filter((item) => item.type === "text" && typeof item.text === "string")
-			.map((item) => item.text)
-			.join("\n");
-	}
-
 	private milestoneMutationErrorResponse(error: unknown, context: string): Response {
 		const status =
-			error instanceof BacklogToolError
+			error instanceof MilestoneOperationError
 				? error.code === "NOT_FOUND"
 					? 404
 					: error.code === "VALIDATION_ERROR"
@@ -1740,7 +1731,7 @@ export class BacklogServer {
 			console.error(context, error);
 		}
 		return Response.json(
-			{ error: message, code: error instanceof BacklogToolError ? error.code : "INTERNAL_ERROR" },
+			{ error: message, code: error instanceof MilestoneOperationError ? error.code : "INTERNAL_ERROR" },
 			{ status },
 		);
 	}
@@ -1791,37 +1782,13 @@ export class BacklogServer {
 
 			// Check for duplicates
 			const existingMilestones = await this.core.filesystem.listMilestones();
-			const buildAliasKeys = (value: string): Set<string> => {
-				const normalized = value.trim().toLowerCase();
-				const keys = new Set<string>();
-				if (!normalized) {
-					return keys;
-				}
-				keys.add(normalized);
-				if (/^\d+$/.test(normalized)) {
-					const numeric = String(Number.parseInt(normalized, 10));
-					keys.add(numeric);
-					keys.add(`m-${numeric}`);
-					return keys;
-				}
-				const match = normalized.match(/^m-(\d+)$/);
-				if (match?.[1]) {
-					const numeric = String(Number.parseInt(match[1], 10));
-					keys.add(numeric);
-					keys.add(`m-${numeric}`);
-				}
-				return keys;
-			};
-			const requestedKeys = buildAliasKeys(title);
-			const duplicate = existingMilestones.find((milestone) => {
-				const milestoneKeys = new Set<string>([...buildAliasKeys(milestone.id), ...buildAliasKeys(milestone.title)]);
-				for (const key of requestedKeys) {
-					if (milestoneKeys.has(key)) {
-						return true;
-					}
-				}
-				return false;
-			});
+			const requestedKeys = buildMilestoneMatchKeys(title, []);
+			const duplicate = existingMilestones.find((milestone) =>
+				keySetsIntersect(
+					requestedKeys,
+					new Set([...buildMilestoneMatchKeys(milestone.id, []), ...buildMilestoneMatchKeys(milestone.title, [])]),
+				),
+			);
 			if (duplicate) {
 				return Response.json({ error: "A milestone with this title or ID already exists" }, { status: 400 });
 			}
@@ -1848,7 +1815,7 @@ export class BacklogServer {
 			}
 
 			const sourceMilestone = await this.core.filesystem.loadMilestone(milestoneId);
-			const result = await new MilestoneHandlers(this.core).renameMilestone({
+			const result = await new MilestoneOperations(this.core).renameMilestone({
 				from: milestoneId,
 				to: title,
 				updateTasks,
@@ -1861,7 +1828,7 @@ export class BacklogServer {
 			return Response.json({
 				success: true,
 				milestone: milestone ?? null,
-				message: this.getMilestoneMutationMessage(result),
+				message: result,
 			});
 		} catch (error) {
 			return this.milestoneMutationErrorResponse(error, "Error updating milestone");
@@ -1884,7 +1851,7 @@ export class BacklogServer {
 				return Response.json({ error: "taskHandling must be clear, keep, or reassign" }, { status: 400 });
 			}
 
-			const result = await new MilestoneHandlers(this.core).removeMilestone({
+			const result = await new MilestoneOperations(this.core).removeMilestone({
 				name: milestoneId,
 				taskHandling,
 				reassignTo,
@@ -1892,7 +1859,7 @@ export class BacklogServer {
 			this.broadcastDataUpdated("milestones");
 			return Response.json({
 				success: true,
-				message: this.getMilestoneMutationMessage(result),
+				message: result,
 			});
 		} catch (error) {
 			return this.milestoneMutationErrorResponse(error, "Error removing milestone");

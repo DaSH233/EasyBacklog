@@ -1,8 +1,8 @@
+import { getMilestoneLabel } from "../../core/milestones";
 import type { Milestone, Task } from "../../types";
 import { getPriorityRank } from "../../utils/priority-config";
 import { compareTaskIds, compareTaskIdsDescending, sortTasks } from "../../utils/task-sorting";
 import { parseStoredUtcDate } from "../../utils/utc-timestamp";
-import { getMilestoneLabel } from "./milestones";
 export type TaskSortColumn = "id" | "title" | "status" | "priority" | "ordinal" | "milestone" | "created";
 export type SortDirection = "asc" | "desc";
 

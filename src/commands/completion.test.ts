@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { installCompletion } from "./completion.ts";
 
 const originalShell = process.env.SHELL;
@@ -32,6 +33,60 @@ afterEach(async () => {
 });
 
 describe("installCompletion", () => {
+	test.each([
+		["bash", "backlog.bash"],
+		["zsh", "_backlog"],
+		["fish", "backlog.fish"],
+		["pwsh", "backlog.ps1"],
+	])("installs the canonical %s script", async (shell, filename) => {
+		const tempDir = await makeTempDir();
+		const result = await installCompletion(shell, {
+			homeDir: tempDir,
+			resolvePowerShellProfilePath: () => join(tempDir, "PowerShell", "profile.ps1"),
+		});
+		const source = new URL(`../../completions/${filename}`, import.meta.url);
+		expect(await Bun.file(result.installPath).text()).toBe(await Bun.file(source).text());
+	});
+
+	test("installs all scripts from a standalone executable outside the source tree", async () => {
+		const tempDir = await makeTempDir();
+		const entrypoint = join(tempDir, "install.ts");
+		const executable = join(tempDir, process.platform === "win32" ? "install.exe" : "install");
+		const modulePath = fileURLToPath(new URL("./completion.ts", import.meta.url));
+		await Bun.write(
+			entrypoint,
+			[
+				`import { installCompletion } from ${JSON.stringify(modulePath)};`,
+				'import { join } from "node:path";',
+				"const results = [];",
+				'for (const shell of ["bash", "zsh", "fish", "pwsh"]) {',
+				"  results.push(await installCompletion(shell, {",
+				"    homeDir: process.cwd(),",
+				'    resolvePowerShellProfilePath: () => join(process.cwd(), "profile.ps1"),',
+				"  }));",
+				"}",
+				"console.log(JSON.stringify(results));",
+			].join("\n"),
+		);
+		await Bun.build({ entrypoints: [entrypoint], target: "bun", compile: { outfile: executable } });
+		await rm(entrypoint);
+		const child = Bun.spawn([executable], { cwd: tempDir, stdout: "pipe", stderr: "pipe" });
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(child.stdout).text(),
+			new Response(child.stderr).text(),
+			child.exited,
+		]);
+		expect(stderr).toBe("");
+		expect(exitCode).toBe(0);
+		const filenames = { bash: "backlog.bash", zsh: "_backlog", fish: "backlog.fish", pwsh: "backlog.ps1" };
+		const results = JSON.parse(stdout) as Array<{ shell: keyof typeof filenames; installPath: string }>;
+		expect(results).toHaveLength(4);
+		for (const result of results) {
+			const source = new URL(`../../completions/${filenames[result.shell]}`, import.meta.url);
+			expect(await Bun.file(result.installPath).text()).toBe(await Bun.file(source).text());
+		}
+	}, 30000);
+
 	test("preserves multi-word Bash completion candidates", async () => {
 		if (!existsSync("/bin/bash")) {
 			return;

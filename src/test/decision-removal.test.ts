@@ -60,7 +60,7 @@ describe("retired decision feature", () => {
 			path: "decisions",
 			content: "Original record: decision-1\nOriginal status: accepted\n\n## Context\nPreserved history",
 		});
-		await core.archiveContentRecord("document", document.id);
+		await core.archiveDocument(document.id);
 		server = new BacklogServer(directory);
 		await server.start(0, false);
 		const base = `http://127.0.0.1:${server.getPort()}`;

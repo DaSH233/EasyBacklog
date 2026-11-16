@@ -1,7 +1,12 @@
+import type {
+	MilestoneAddArgs,
+	MilestoneArchiveArgs,
+	MilestoneRemoveArgs,
+	MilestoneRenameArgs,
+} from "../../../core/milestone-operations.ts";
 import type { McpServer } from "../../server.ts";
 import type { McpToolHandler } from "../../types.ts";
 import { createSimpleValidatedTool } from "../../validation/tool-wrapper.ts";
-import type { MilestoneAddArgs, MilestoneArchiveArgs, MilestoneRemoveArgs, MilestoneRenameArgs } from "./handlers.ts";
 import { MilestoneHandlers } from "./handlers.ts";
 import {
 	milestoneAddSchema,

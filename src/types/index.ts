@@ -217,20 +217,6 @@ export interface Milestone {
 	readonly rawContent: string; // Raw markdown content without frontmatter
 }
 
-/**
- * Documents use the content-record archive operations; tasks and drafts have their own lifecycle.
- */
-export type ContentRecordKind = "document";
-
-/** The fields of a document that its archive, restore and delete read. */
-export interface ContentRecord {
-	id: string;
-	/** Relative path under the document's active or archive folder. */
-	path?: string;
-	/** True when the file is in the archive folder of its kind. */
-	archived?: boolean;
-}
-
 export const DOCUMENT_TYPE_VALUES = ["readme", "guide", "specification", "other"] as const;
 export type DocumentType = (typeof DOCUMENT_TYPE_VALUES)[number];
 

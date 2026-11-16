@@ -1,4 +1,5 @@
 import { ChangeNotCommittedError, RecordRefusedError, TaskDeletionAppliedError } from "../../core/backlog.ts";
+import { MilestoneOperationError } from "../../core/milestone-operations.ts";
 import { isAmbiguousIdError } from "../../utils/entity-id.ts";
 import { isAmbiguousTaskIdError } from "../../utils/task-path.ts";
 import type { CallToolResult } from "../types.ts";
@@ -29,6 +30,9 @@ export async function runCoreOperation<T>(operation: () => Promise<T>): Promise<
 	try {
 		return await operation();
 	} catch (error) {
+		if (error instanceof MilestoneOperationError) {
+			throw new BacklogToolError(error.message, error.code);
+		}
 		if (error instanceof RecordRefusedError) {
 			throw new BacklogToolError(error.message, "VALIDATION_ERROR");
 		}

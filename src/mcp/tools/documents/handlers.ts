@@ -1,4 +1,4 @@
-import { type ContentRecordChangeResult, describeContentRecordChange } from "../../../core/backlog.ts";
+import { type DocumentChangeResult, describeDocumentChange } from "../../../core/backlog.ts";
 import type { Document, DocumentSearchResult } from "../../../types/index.ts";
 import { documentNotFoundMessage } from "../../../utils/document-id.ts";
 import { isAmbiguousIdError } from "../../../utils/entity-id.ts";
@@ -169,23 +169,17 @@ export class DocumentHandlers {
 	}
 
 	async archiveDocument(args: DocumentViewArgs): Promise<CallToolResult> {
-		const result = await this.changeDocument("Failed to archive document", () =>
-			this.core.archiveContentRecord("document", args.id),
-		);
+		const result = await this.changeDocument("Failed to archive document", () => this.core.archiveDocument(args.id));
 		return this.reportDocumentChange("archive", args.id, result);
 	}
 
 	async restoreDocument(args: DocumentViewArgs): Promise<CallToolResult> {
-		const result = await this.changeDocument("Failed to restore document", () =>
-			this.core.restoreContentRecord("document", args.id),
-		);
+		const result = await this.changeDocument("Failed to restore document", () => this.core.restoreDocument(args.id));
 		return this.reportDocumentChange("restore", args.id, result);
 	}
 
 	async deleteDocument(args: DocumentViewArgs): Promise<CallToolResult> {
-		const result = await this.changeDocument("Failed to delete document", () =>
-			this.core.deleteContentRecord("document", args.id),
-		);
+		const result = await this.changeDocument("Failed to delete document", () => this.core.deleteDocument(args.id));
 		return this.reportDocumentChange("delete", args.id, result);
 	}
 
@@ -197,12 +191,12 @@ export class DocumentHandlers {
 	private reportDocumentChange(
 		operation: "archive" | "restore" | "delete",
 		id: string,
-		result: ContentRecordChangeResult | null,
+		result: DocumentChangeResult | null,
 	): CallToolResult {
 		if (!result) {
 			throw new BacklogToolError(documentNotFoundMessage(id), "DOCUMENT_NOT_FOUND");
 		}
-		const lines = describeContentRecordChange("document", operation, result).map((line) => `${line}.`);
+		const lines = describeDocumentChange(operation, result).map((line) => `${line}.`);
 		return { content: [{ type: "text", text: lines.join("\n") }] };
 	}
 
