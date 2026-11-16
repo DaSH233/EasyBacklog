@@ -5,11 +5,13 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-11-12T16:00:00Z'
-updated_date: '2026-11-12T16:20:00Z'
+updated_date: '2026-11-16T11:46:00Z'
 labels: []
 dependencies: []
 references:
   - BACK-803
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/2a39f90441b3d3bb2d66187816162f7163195df7
 modified_files:
   - src/test/cli-draft-edit.test.ts
   - src/test/tui-draft-edit.test.ts

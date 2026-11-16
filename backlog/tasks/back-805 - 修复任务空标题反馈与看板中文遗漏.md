@@ -5,9 +5,12 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-11-16T09:52:00Z'
-updated_date: '2026-11-16T10:49:00Z'
+updated_date: '2026-11-16T11:49:00Z'
 labels: []
 dependencies: []
+references:
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/682ea9ded6a992869ab860a4360615d75d2d1572
 modified_files:
   - src/test/web-language.test.tsx
   - src/web/components/TaskDetailsModal.tsx

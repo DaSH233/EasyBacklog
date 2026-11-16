@@ -5,9 +5,12 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-11-12T09:16:00Z'
-updated_date: '2026-11-12T11:52:00Z'
+updated_date: '2026-11-16T11:46:00Z'
 labels: []
 dependencies: []
+references:
+  - >-
+    https://github.com/DaSH233/EasyBacklog/commit/6365b25c5f8106e94c1789062a5d3c12d22f8200
 modified_files:
   - .github/5-minute-tour-256.png
   - .github/backlog-logo.png
