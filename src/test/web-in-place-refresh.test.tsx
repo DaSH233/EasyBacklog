@@ -117,6 +117,9 @@ const respond = async (url: URL): Promise<Response> => {
 	if (url.pathname === "/api/milestones") return json(milestones);
 	if (url.pathname === "/api/milestones/archived") return json([]);
 	if (url.pathname === "/api/tasks/duplicates") return json(duplicatePlan);
+	if (url.pathname === "/api/navigation/counts") {
+		return json({ drafts: 0, milestones: milestones.length, archived: 0 });
+	}
 	if (url.pathname === "/api/version") return json({ version: "test" });
 	return json([]);
 };
@@ -248,9 +251,11 @@ describe("in-place data refresh", () => {
 		await waitFor(() => (container.textContent ?? "").includes("Renamed title"), "renamed card");
 		await settle();
 
-		// Only the search corpus is refetched: no statuses, config, milestone, or
-		// duplicate-plan burst, and no loading shell.
-		expect(requestedPaths()).toEqual(["/api/search"]);
+		// Refresh the search corpus and sidebar counts without a statuses, config,
+		// milestone, or duplicate-plan burst, and without a loading shell.
+		expect(requestedPaths()).toEqual(["/api/navigation/counts", "/api/search"]);
+		expect(requestLog.filter((path) => path === "/api/search")).toHaveLength(1);
+		expect(requestLog.filter((path) => path === "/api/navigation/counts")).toHaveLength(1);
 		expect(hasLoadingShell(container)).toBe(false);
 		// The unchanged card kept its DOM node: the view updated in place.
 		const neighborAfter = Array.from(container.querySelectorAll("h4")).find(
@@ -284,7 +289,7 @@ describe("in-place data refresh", () => {
 		await waitFor(() => columnOf("Moving card") === "In Progress", "card in the In Progress column");
 		await settle();
 
-		expect(requestedPaths()).toEqual(["/api/search"]);
+		expect(requestedPaths()).toEqual(["/api/navigation/counts", "/api/search"]);
 		expect(hasLoadingShell(container)).toBe(false);
 	});
 
@@ -301,7 +306,7 @@ describe("in-place data refresh", () => {
 
 		// A new task ID can introduce a duplicate, so only this path also
 		// refreshes the duplicate repair plan.
-		expect(requestedPaths()).toEqual(["/api/search", "/api/tasks/duplicates"]);
+		expect(requestedPaths()).toEqual(["/api/navigation/counts", "/api/search", "/api/tasks/duplicates"]);
 		expect(hasLoadingShell(container)).toBe(false);
 	});
 
@@ -314,8 +319,8 @@ describe("in-place data refresh", () => {
 		});
 		await settle();
 
-		// The echo after a surgical drag update costs exactly one search read.
-		expect(requestedPaths()).toEqual(["/api/search"]);
+		// The echo refreshes search and sidebar counts without replacing the cards.
+		expect(requestedPaths()).toEqual(["/api/navigation/counts", "/api/search"]);
 	});
 
 	it("refetches milestone entities incrementally on a milestone-scoped broadcast", async () => {
@@ -330,7 +335,7 @@ describe("in-place data refresh", () => {
 		});
 		await settle();
 
-		expect(requestedPaths()).toEqual(["/api/milestones", "/api/milestones/archived", "/api/search"]);
+		expect(requestedPaths()).toEqual(["/api/milestones", "/api/milestones/archived", "/api/navigation/counts", "/api/search"]);
 	});
 
 	it("keeps refreshing the repair plan while duplicates exist, even for same-ID edits", async () => {
@@ -359,7 +364,7 @@ describe("in-place data refresh", () => {
 		});
 		await settle();
 
-		expect(requestedPaths()).toEqual(["/api/search", "/api/tasks/duplicates"]);
+		expect(requestedPaths()).toEqual(["/api/navigation/counts", "/api/search", "/api/tasks/duplicates"]);
 	});
 
 	it("routes the next refresh through the full loader while a load error stands", async () => {
@@ -384,6 +389,7 @@ describe("in-place data refresh", () => {
 			"/api/config",
 			"/api/milestones",
 			"/api/milestones/archived",
+			"/api/navigation/counts",
 			"/api/search",
 			"/api/statuses",
 			"/api/tasks/duplicates",
@@ -432,6 +438,7 @@ describe("in-place data refresh", () => {
 			"/api/config",
 			"/api/milestones",
 			"/api/milestones/archived",
+			"/api/navigation/counts",
 			"/api/search",
 			"/api/statuses",
 			"/api/tasks/duplicates",

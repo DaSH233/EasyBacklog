@@ -7,6 +7,7 @@ import { Core } from "../index.ts";
 import { serializeTask } from "../markdown/serializer.ts";
 import { getTestCliPath } from "./test-cli.ts";
 import {
+	canCreateFileSymlink,
 	createTestDirOutsideRepository,
 	initializeFilesystemTestProject,
 	initializeTestProject,
@@ -15,6 +16,7 @@ import {
 
 let TEST_DIR: string;
 const CLI_PATH = getTestCliPath();
+const fileSymlinksSupported = await canCreateFileSymlink();
 
 /** Run `backlog task <args>` in the test project and return what a caller of the CLI sees. */
 async function task(...args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
@@ -308,24 +310,27 @@ describe("backlog task delete", () => {
 		expect((await task("create", "Replacement", "--plain")).stdout).toContain(`Task ${parent.id} - Replacement`);
 	});
 
-	it("removes a symlinked archived task as a link and leaves the file it points to", async () => {
-		await task("create", "Linked record");
-		await task("archive", "1");
-		const linkPath = join(TEST_DIR, "backlog", "archive", "tasks", "task-1 - Linked-record.md");
-		const targetDirectory = join(TEST_DIR, "elsewhere");
-		const targetPath = join(targetDirectory, "linked-record.md");
-		await mkdir(targetDirectory);
-		await rename(linkPath, targetPath);
-		await symlink(targetPath, linkPath);
-		const targetContent = await Bun.file(targetPath).text();
-		expect((await task("view", "1", "--plain")).stdout).toContain("Task TASK-1 - Linked record");
+	it.skipIf(!fileSymlinksSupported)(
+		"removes a symlinked archived task as a link and leaves the file it points to",
+		async () => {
+			await task("create", "Linked record");
+			await task("archive", "1");
+			const linkPath = join(TEST_DIR, "backlog", "archive", "tasks", "task-1 - Linked-record.md");
+			const targetDirectory = join(TEST_DIR, "elsewhere");
+			const targetPath = join(targetDirectory, "linked-record.md");
+			await mkdir(targetDirectory);
+			await rename(linkPath, targetPath);
+			await symlink(targetPath, linkPath);
+			const targetContent = await Bun.file(targetPath).text();
+			expect((await task("view", "1", "--plain")).stdout).toContain("Task TASK-1 - Linked record");
 
-		const deleted = await task("delete", "1");
+			const deleted = await task("delete", "1");
 
-		expect(deleted.exitCode).toBe(0);
-		expect(await lstat(linkPath).catch(() => null)).toBeNull();
-		expect(await Bun.file(targetPath).text()).toBe(targetContent);
-	});
+			expect(deleted.exitCode).toBe(0);
+			expect(await lstat(linkPath).catch(() => null)).toBeNull();
+			expect(await Bun.file(targetPath).text()).toBe(targetContent);
+		},
+	);
 });
 
 describe("backlog task delete with auto-commit", () => {

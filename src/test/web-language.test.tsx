@@ -42,6 +42,16 @@ function setup(language?: string) {
 		savedGlobals.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
 		Object.defineProperty(globalThis, name, { value, writable: true, configurable: true });
 	}
+	window.matchMedia = (query) => ({
+		matches: false,
+		media: query,
+		onchange: null,
+		addListener: () => {},
+		removeListener: () => {},
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		dispatchEvent: () => false,
+	});
 	if (language) localStorage.setItem("backlog-language", language);
 	const container = document.getElementById("root")!;
 	root = createRoot(container);

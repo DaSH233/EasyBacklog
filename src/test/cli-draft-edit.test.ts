@@ -323,7 +323,7 @@ describe("CLI draft edit", () => {
 			}
 		}
 
-		expect((await core.filesystem.listDrafts()).length).toBe(0);
+		expect((await core.filesystem.listDrafts()).map((draft) => draft.id)).toEqual([healthy.id]);
 		const afterDamage = await core.filesystem.listHealthyDrafts();
 		expect(afterDamage.length).toBe(1);
 		expect(afterDamage[0]?.id).toBe(healthy.id);

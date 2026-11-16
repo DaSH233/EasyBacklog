@@ -5,7 +5,7 @@
 
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmod, copyFile, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -34,6 +34,24 @@ export function createUniqueTestDir(prefix: string): string {
  */
 export async function createTestDirOutsideRepository(prefix: string): Promise<string> {
 	return await mkdtemp(join(tmpdir(), `${prefix}-`));
+}
+
+/** Probe the same temporary filesystem as CLI fixtures; skip only Windows privilege denial. */
+export async function canCreateFileSymlink(): Promise<boolean> {
+	const directory = await createTestDirOutsideRepository("test-file-symlink-capability");
+	try {
+		const target = join(directory, "target.md");
+		await writeFile(target, "symlink probe");
+		try {
+			await symlink(target, join(directory, "link.md"), "file");
+		} catch (error) {
+			if (process.platform === "win32" && (error as NodeJS.ErrnoException).code === "EPERM") return false;
+			throw error;
+		}
+		return true;
+	} finally {
+		await rm(directory, { recursive: true, force: true });
+	}
 }
 
 export async function commitSamePathBranchTaskVariant(

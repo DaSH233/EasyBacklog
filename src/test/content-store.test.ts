@@ -578,7 +578,8 @@ describe("ContentStore", () => {
 		store.dispose();
 		const firstPath = await filesystem.saveTask(sampleTask);
 		const secondPath = await filesystem.saveTask({ ...sampleTask, id: "TASK-2", title: "Second task" });
-		store = new ContentStore(filesystem, branchSnapshotLoader([]), true);
+		// Deliver the event below explicitly; real watchers would race the fixture replacement.
+		store = new ContentStore(filesystem, branchSnapshotLoader([]), false);
 		await store.ensureInitialized();
 		expect(store.resolveTaskForRead("TASK-1").status).toBe("found");
 

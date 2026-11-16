@@ -88,6 +88,7 @@ describe("Core.editTaskInTui draft resolution", () => {
 		} else {
 			delete process.env.EDITOR;
 		}
+		core.disposeContentStore();
 		await safeCleanup(testDir);
 	});
 
@@ -359,7 +360,8 @@ process.exit(0);
 		expect(result.reason).toBe("unreadable");
 		expect(result.changed).toBe(false);
 
-		await setEditor("true");
+		const noopScript = await createEditorScript("noop-editor.js", "process.exit(0);\n");
+		await setEditor(`node ${noopScript}`);
 		const recovered = await core.editTaskInTui(taskRow.id, screen, taskRow);
 		expect(recovered.reason).toBe("unreadable");
 		expect(await Bun.file(taskRow.filePath).text()).not.toBe(before);

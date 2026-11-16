@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { lstat, mkdir, readdir, readlink, realpath, rename, symlink } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { $ } from "bun";
 import { CREATE_LOCK_ERROR_MESSAGE } from "../file-system/operations.ts";
 import { Core } from "../index.ts";
 import { serializeTask } from "../markdown/serializer.ts";
 import { getTestCliPath } from "./test-cli.ts";
 import {
+	canCreateFileSymlink,
 	createTestDirOutsideRepository,
 	initializeFilesystemTestProject,
 	initializeTestProject,
@@ -15,6 +16,7 @@ import {
 
 let TEST_DIR: string;
 const CLI_PATH = getTestCliPath();
+const fileSymlinksSupported = await canCreateFileSymlink();
 
 /** Run `backlog task <args>` in the test project and return what a caller of the CLI sees. */
 async function task(...args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
@@ -240,9 +242,9 @@ describe("backlog task restore", () => {
 		expect((await new Core(TEST_DIR).filesystem.loadTask("task-1"))?.status).toBe("Done");
 	});
 
-	it.each([
+	it.skipIf(!fileSymlinksSupported).each([
 		["an absolute link", (target: string) => target],
-		["a relative link", (target: string) => join("..", "..", "..", "elsewhere", target.split("/").pop() ?? "")],
+		["a relative link", (target: string) => join("..", "..", "..", "elsewhere", basename(target))],
 	])("restores a symlinked archived task as %s to the same file", async (_name, linkText) => {
 		await task("create", "Linked record");
 		await task("archive", "1");
