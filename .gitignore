@@ -50,6 +50,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Gemini CLI session data
 .gemini
 
+# Local Codex configuration
+/.codex/config.toml
+
 # Example project folder
 example-project/
 
