@@ -454,6 +454,17 @@ const Settings: React.FC = () => {
 								{saving ? t("Saving...") : t("Save Changes")}
 							</button>
 						</div>
+					<div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+						<span className="text-gray-500 dark:text-gray-400">{t("powered by")}</span>
+						<a
+							href="https://github.com/DaSH233/EasyBacklog"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-stone-600 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-300 hover:underline transition-colors duration-200"
+						>
+							EasyBacklog
+						</a>
+					</div>
 				</div>
 			</div>
 
