@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { JSDOM } from "jsdom";
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import type { Task } from "../types/index.ts";
@@ -76,7 +76,10 @@ function LocationProbe() {
 	return null;
 }
 
-const renderModal = async (modalTask: Task | undefined): Promise<HTMLElement> => {
+const renderModal = async (
+	modalTask: Task | undefined,
+	options: Partial<ComponentProps<typeof TaskDetailsModal>> = {},
+): Promise<HTMLElement> => {
 	setupDom();
 	currentPath = "";
 	const container = document.getElementById("root");
@@ -87,7 +90,13 @@ const renderModal = async (modalTask: Task | undefined): Promise<HTMLElement> =>
 				<ThemeProvider>
 					<TaskIdIndexProvider tasks={[task, dependency]}>
 						<LocationProbe />
-						<TaskDetailsModal task={modalTask} isOpen={true} onClose={() => {}} availableTasks={[task, dependency]} />
+						<TaskDetailsModal
+							task={modalTask}
+							isOpen={true}
+							onClose={() => {}}
+							availableTasks={[task, dependency]}
+							{...options}
+						/>
 					</TaskIdIndexProvider>
 				</ThemeProvider>
 			</MemoryRouter>,
@@ -259,6 +268,102 @@ describe("Task details modal navigation with unsaved edits", () => {
 
 		expect(prompts).toBe(0);
 		expect(currentPath).toBe("/tasks/BACK-2");
+	});
+});
+
+describe("closing an unsaved create form", () => {
+	it.each(["dependency", "labels", "assignee", "priority", "status", "type", "project", "milestone"])(
+		"confirms before discarding only %s, and preserves input when declined",
+		async (field) => {
+			const onClose = mock(() => {});
+			const container = await renderModal(undefined, {
+				onClose,
+				availableStatuses: ["To Do", "Done"],
+				availablePriorities: ["High"],
+				availableTypes: ["bug"],
+				availableProjects: ["Website"],
+				milestoneEntities: [{ id: "m-1", title: "Release", description: "", rawContent: "" }],
+			});
+			let edited: HTMLElement;
+			if (["dependency", "labels", "assignee"].includes(field)) {
+				const selector = field === "dependency" ? "#dependency-input" : `#chip-input-${field}`;
+				edited = container.querySelector<HTMLElement>(selector)!;
+				await typeInto(edited as HTMLInputElement, field === "dependency" ? dependency.id : "review-value");
+				await pressEnter(edited);
+			} else {
+				const values: Record<string, string> = {
+					priority: "high",
+					status: "Done",
+					type: "bug",
+					project: "Website",
+					milestone: "m-1",
+				};
+				const value = values[field]!;
+				const select = Array.from(container.querySelectorAll("select")).find((element) =>
+					Array.from(element.options).some((option) => option.value === value),
+				)!;
+				expect(select).toBeTruthy();
+				await act(async () => {
+					select.value = value;
+					select.dispatchEvent(new window.Event("change", { bubbles: true }));
+				});
+				expect(select.value).toBe(value);
+				edited = select;
+			}
+			const contentBeforeClose = container.textContent;
+			const prompts = declineOnConfirm();
+			const close = container.querySelector<HTMLButtonElement>('button[aria-label="Close modal"]')!;
+			expect(close.disabled).toBe(false);
+			await click(close);
+			expect(prompts).toEqual(["Discard unsaved changes?"]);
+			expect(onClose).not.toHaveBeenCalled();
+			expect(edited.isConnected).toBe(true);
+			expect(container.textContent).toBe(contentBeforeClose);
+			window.confirm = () => true;
+			await click(close);
+			expect(onClose).toHaveBeenCalledTimes(1);
+		},
+	);
+
+	it.each([false, true])("closes untouched defaults without prompting (draft: %s)", async (isDraftMode) => {
+		const onClose = mock(() => {});
+		const container = await renderModal(undefined, {
+			onClose,
+			isDraftMode,
+			defaultAssignee: ["@owner"],
+			definitionOfDoneDefaults: ["Review changes"],
+			availableStatuses: ["Ready", "Done"],
+		});
+		const prompts = declineOnConfirm();
+		await click(container.querySelector('button[aria-label="Close modal"]')!);
+		expect(prompts).toEqual([]);
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it("protects removal of a prefilled default assignee on a new draft", async () => {
+		const onClose = mock(() => {});
+		const container = await renderModal(undefined, { onClose, isDraftMode: true, defaultAssignee: ["@owner"] });
+		await click(container.querySelector('button[aria-label="Remove @owner"]')!);
+		const prompts = declineOnConfirm();
+		await click(container.querySelector('button[aria-label="Close modal"]')!);
+		expect(prompts).toEqual(["Discard unsaved changes?"]);
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it("does not prompt after a status change is reverted", async () => {
+		const onClose = mock(() => {});
+		const container = await renderModal(undefined, { onClose });
+		const select = Array.from(container.querySelectorAll("select")).find((element) => element.value === "To Do")!;
+		for (const value of ["Done", "To Do"]) {
+			await act(async () => {
+				select.value = value;
+				select.dispatchEvent(new window.Event("change", { bubbles: true }));
+			});
+		}
+		const prompts = declineOnConfirm();
+		await click(container.querySelector('button[aria-label="Close modal"]')!);
+		expect(prompts).toEqual([]);
+		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });
 

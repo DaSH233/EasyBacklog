@@ -652,6 +652,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
   const hasCreateModeEntries =
     isCreateMode &&
     (title.trim() !== "" ||
+      status !== (formBaselineRef.current?.status ?? status) ||
       taskType.trim() !== "" ||
       priority.trim() !== "" ||
       project.trim() !== "" ||
@@ -685,7 +686,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
 
   const handleCancelEdit = () => {
     if (demoting) return;
-    if (isDirty) {
+    if (hasUnsavedEdits) {
       const confirmDiscard = window.confirm(t("Discard unsaved changes?"));
       if (!confirmDiscard) return;
     }
@@ -1116,6 +1117,10 @@ export const TaskDetailsModal: React.FC<Props> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => {
+		if (isCreateMode) {
+		  handleCancelEdit();
+		  return;
+		}
 		if (demoting) return;
         // When in edit mode, confirm closing if dirty
         if (mode === "edit" && isDirty) {
@@ -1127,6 +1132,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
       title={isCreateMode ? (isDraftMode ? t("Create New Draft") : t("Create New Task")) : `${displayId} — ${task.title}`}
       maxWidthClass="max-w-[1440px] task-content-modal"
       disableEscapeClose={mode === "edit" || mode === "create" || demoting}
+      disableCloseButton={mode === "edit" || demoting}
       actions={
 		<div className="flex flex-wrap items-center justify-end gap-2">
 		          {canDemote && mode === "preview" && (
@@ -1157,6 +1163,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
               </svg>{t("Edit")}</button>
           ) : (mode === "edit" || mode === "create") ? (
             <div className="flex items-center gap-2">
+	              {!isCreateMode && (
 	              <button
 		                onClick={handleCancelEdit}
 		                disabled={demoting}
@@ -1166,6 +1173,7 @@ export const TaskDetailsModal: React.FC<Props> = ({
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>{t("Cancel")}</button>
+	              )}
 	              <button
 		                onClick={() => void handleSave()}
 		                disabled={saving || demoting}
